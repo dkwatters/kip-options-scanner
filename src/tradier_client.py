@@ -12,8 +12,12 @@ class TradierClient:
   if not self.api_token: raise TradierConfigurationError("TRADIER_API_TOKEN is required.")
   self.base_url=self._BASE_URLS[self.environment]; self.session=session or requests.Session(); self.session.headers.update({"Authorization":"Bearer "+self.api_token,"Accept":"application/json"})
  def get_quote(self,symbol): return self._get("markets/quotes",{"symbols":symbol.upper()})
- def get_option_expirations(self,symbol): return self._get("markets/options/expirations",{"symbol":symbol.upper()})
- def get_option_chain(self,symbol,expiration): return self._get("markets/options/chains",{"symbol":symbol.upper(),"expiration":expiration})
+ def get_option_expirations(self,symbol):
+  """Retrieve listed option expirations through Tradier market-data GET."""
+  return self._get("markets/options/expirations",{"symbol":symbol.upper()})
+ def get_option_chain(self,symbol,expiration):
+  """Retrieve an option chain through Tradier market-data GET."""
+  return self._get("markets/options/chains",{"symbol":symbol.upper(),"expiration":expiration})
  def _get(self,path,params):
   try:
    response=self.session.get(self.base_url+"/"+path,params=params,timeout=15); response.raise_for_status(); payload=response.json()
