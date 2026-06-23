@@ -1,0 +1,9 @@
+symbol,name,sector,enabled
+SPY,SPDR S&P 500 ETF Trust,Index ETF,true
+QQQ,Invesco QQQ Trust,Index ETF,true
+IWM,iShares Russell 2000 ETF,Index ETF,true
+AAPL,Apple Inc.,Technology,true
+MSFT,Microsoft Corporation,Technology,true
+NVDA,NVIDIA Corporation,Technology,true
+AMZN,Amazon.com Inc.,Consumer Discretionary,true
+TSLA,Tesla Inc.,Consumer Discretionary,true
