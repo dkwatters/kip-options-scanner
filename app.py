@@ -7,9 +7,17 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from src.contract_quality import (
+    MAX_SPREAD_PERCENT,
+    MIN_OPEN_INTEREST,
+    MIN_VOLUME,
+    RULE_MARGIN_COLUMNS,
+    TEST_SPECIFIC_NEAR_MISS_OPTIONS,
     calculate_mid_price,
     contract_quality,
     contract_quality_summary,
+    near_miss_contracts,
+    passing_contracts,
+    test_specific_near_misses,
     ticker_diagnostics,
 )
 from src.scanner import ScannerNotImplementedError, run_scan
@@ -46,6 +54,44 @@ def format_eastern_timestamp(value):
 def mid_price(quote):
     """Keep the quote display compatible with the shared pricing calculation."""
     return calculate_mid_price(quote.get("bid"), quote.get("ask"))
+
+
+def format_whole_number(value):
+    """Render count fields without changing their underlying values."""
+    try:
+        return f"{float(value):,.0f}"
+    except (TypeError, ValueError):
+        return value if value not in (None, "") else UNAVAILABLE
+
+
+def format_decimal(value):
+    """Render numeric values to two decimal places for table display."""
+    try:
+        return f"{float(value):.2f}"
+    except (TypeError, ValueError):
+        return value if value not in (None, "") else UNAVAILABLE
+
+
+def percentage_distance(margin, threshold):
+    """Express a rule margin relative to its threshold for display only."""
+    try:
+        return float(margin) / float(threshold)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
+def format_percentage_distance(margin, threshold):
+    """Format a signed threshold-relative margin as a percentage."""
+    distance = percentage_distance(margin, threshold)
+    return f"{distance:.2%}" if distance is not None else UNAVAILABLE
+
+
+def format_percent(value):
+    """Render a decimal percentage with a consistent two-decimal precision."""
+    try:
+        return f"{float(value):.2%}"
+    except (TypeError, ValueError):
+        return value if value not in (None, "") else UNAVAILABLE
 
 
 def as_list(value):
@@ -92,18 +138,104 @@ def option_chain_rows(payload, expiration=None, today=None, underlying_price=Non
         )
         rows.append(
             {
+                "Symbol": option.get("symbol", UNAVAILABLE),
                 "Strike": option.get("strike", UNAVAILABLE),
+                "Expiration": expiration or option.get("expiration_date", UNAVAILABLE),
                 "Option Type": option.get("option_type", UNAVAILABLE),
                 "Bid": option.get("bid", UNAVAILABLE),
                 "Ask": option.get("ask", UNAVAILABLE),
                 "Delta": greeks.get("delta", UNAVAILABLE),
                 "Implied Volatility": implied_volatility(greeks),
+                "IV": implied_volatility(greeks),
                 "Volume": option.get("volume", UNAVAILABLE),
                 "Open Interest": option.get("open_interest", UNAVAILABLE),
                 **quality,
             }
         )
     return rows
+
+
+def drilldown_contract_columns(include_failure=False):
+    """Return the compact display schema shared by diagnostics drilldowns."""
+    columns = [
+        "Symbol",
+        "Strike",
+        "Expiration",
+        "DTE",
+        "Delta",
+        "IV",
+        "Bid",
+        "Ask",
+        "Spread %",
+    ]
+    return columns + (["Failed Test", "Relevant Rule Detail"] if include_failure else [])
+
+
+def format_drilldown_dataframe(rows, columns):
+    return pd.DataFrame(rows).reindex(columns=columns).style.format(
+        {
+            "Strike": format_decimal,
+            "Bid": format_decimal,
+            "Ask": format_decimal,
+            "Mid Price": format_decimal,
+            "Spread": format_decimal,
+            "Delta": format_decimal,
+            "IV": "{:.2%}",
+            "Spread %": "{:.2%}",
+            "Strike Distance %": "{:.2%}",
+            "Volume": "{:,.0f}",
+            "Open Interest": "{:,.0f}",
+        }
+    )
+
+
+def failure_label(row):
+    """Return the single failed test's readable label for near-miss rows."""
+    for label, check in TEST_SPECIFIC_NEAR_MISS_OPTIONS.items():
+        if row.get(check) == "Fail":
+            return label
+    return UNAVAILABLE
+
+
+def margin_from_passing(selected_test, row):
+    """Describe a selected test's shortfall without changing rule results."""
+    margin = row.get(RULE_MARGIN_COLUMNS[TEST_SPECIFIC_NEAR_MISS_OPTIONS[selected_test]])
+    try:
+        shortfall = abs(float(margin))
+    except (TypeError, ValueError):
+        return UNAVAILABLE
+    if selected_test == "Spread":
+        relative_shortfall = shortfall / MAX_SPREAD_PERCENT
+        return (
+            f"{relative_shortfall:.2%} above the {MAX_SPREAD_PERCENT:.2%} threshold "
+            f"({shortfall * 100:.2f} percentage points)"
+        )
+    if selected_test == "Delta":
+        return f"{shortfall:.2f} delta outside the target range"
+    threshold = MIN_OPEN_INTEREST if selected_test == "Open Interest" else MIN_VOLUME
+    relative_shortfall = shortfall / threshold
+    return f"{relative_shortfall:.2%} below the {threshold:,.0f} threshold ({shortfall:,.0f} contracts)"
+
+
+def rule_detail_for_display(selected_test, row):
+    """Format the selected rule's detail for a diagnostics table."""
+    if selected_test == "Spread":
+        margin = row.get("Spread Margin")
+        return (
+            f"Actual {format_percent(row.get('Spread %'))} / "
+            f"Required {MAX_SPREAD_PERCENT:.2%} / "
+            f"Margin {format_percentage_distance(margin, MAX_SPREAD_PERCENT)}"
+        )
+    if selected_test == "Open Interest":
+        actual, margin, threshold = row.get("Open Interest"), row.get("OI Margin"), MIN_OPEN_INTEREST
+    elif selected_test == "Volume":
+        actual, margin, threshold = row.get("Volume"), row.get("Volume Margin"), MIN_VOLUME
+    else:
+        return row.get("Delta Rule Detail", UNAVAILABLE)
+    return (
+        f"Actual {format_whole_number(actual)} / Required {threshold:,.0f} / "
+        f"Margin {format_percentage_distance(margin, threshold)}"
+    )
 
 
 def raw_option_contracts(payload):
@@ -165,7 +297,7 @@ def main():
                     ("Bid", quote.get("bid", UNAVAILABLE)),
                     ("Ask", quote.get("ask", UNAVAILABLE)),
                     ("Mid Price", mid_price(quote)),
-                    ("Volume", quote.get("volume", UNAVAILABLE)),
+                    ("Volume", format_whole_number(quote.get("volume", UNAVAILABLE))),
                 )
                 for column, (label, value) in zip(st.columns(6), quote_metrics):
                     column.metric(label, value)
@@ -260,16 +392,95 @@ def main():
             weakness_column.metric("Primary Weakness", diagnostics["Primary Weakness"])
             strength_column.metric("Primary Strength", diagnostics["Primary Strength"])
 
+            st.subheader("Passing Contracts")
+            passing_rows = passing_contracts(chain_rows)
+            if passing_rows:
+                st.dataframe(
+                    format_drilldown_dataframe(
+                        passing_rows, drilldown_contract_columns()
+                    ),
+                    hide_index=True,
+                    width="stretch",
+                )
+            else:
+                st.info("No contracts in this chain passed all quality tests.")
+
+            st.subheader("Near Miss Contracts")
+            near_miss_rows = near_miss_contracts(chain_rows)
+            near_miss_display_rows = []
+            for row in near_miss_rows:
+                failed_test = failure_label(row)
+                near_miss_display_rows.append(
+                    {
+                        **row,
+                        "Failed Test": failed_test,
+                        "Relevant Rule Detail": rule_detail_for_display(failed_test, row),
+                    }
+                )
+            if near_miss_display_rows:
+                st.dataframe(
+                    format_drilldown_dataframe(
+                        near_miss_display_rows, drilldown_contract_columns(include_failure=True)
+                    ),
+                    hide_index=True,
+                    width="stretch",
+                )
+            else:
+                st.info("No contracts failed exactly one quality test.")
+
+            st.subheader("Test-Specific Near Miss")
+            selected_test = st.selectbox(
+                "Failed test",
+                options=list(TEST_SPECIFIC_NEAR_MISS_OPTIONS),
+                key="test_specific_near_miss",
+            )
+            selected_near_misses = test_specific_near_misses(chain_rows, selected_test)
+            selected_display_rows = [
+                {
+                    **row,
+                    "Failed Test": selected_test,
+                    "Relevant Rule Detail": rule_detail_for_display(selected_test, row),
+                    "Margin from Passing": margin_from_passing(selected_test, row),
+                }
+                for row in selected_near_misses
+            ]
+            if selected_display_rows:
+                st.caption("Contracts are ordered from the smallest shortfall to the largest.")
+                st.dataframe(
+                    format_drilldown_dataframe(
+                        selected_display_rows,
+                        drilldown_contract_columns(include_failure=True)
+                        + ["Margin from Passing"],
+                    ),
+                    hide_index=True,
+                    width="stretch",
+                )
+            else:
+                st.info(f"No contracts failed the {selected_test.lower()} test.")
+
             st.subheader("Contract Quality Summary")
             summary = contract_quality_summary(chain_rows)
             for column, (label, value) in zip(st.columns(6), summary.items()):
                 column.metric(label, value)
             chain_dataframe = pd.DataFrame(chain_rows).style.format(
                 {
-                    "Mid Price": "{:.2f}",
-                    "Spread": "{:.2f}",
+                    "Strike": format_decimal,
+                    "Bid": format_decimal,
+                    "Ask": format_decimal,
+                    "Mid Price": format_decimal,
+                    "Spread": format_decimal,
+                    "Delta": format_decimal,
                     "Spread %": "{:.2%}",
                     "Strike Distance %": "{:.2%}",
+                    "Implied Volatility": "{:.2%}",
+                    "IV": "{:.2%}",
+                    "Volume": "{:,.0f}",
+                    "Open Interest": "{:,.0f}",
+                    "Spread Margin": lambda value: format_percentage_distance(
+                        value, MAX_SPREAD_PERCENT
+                    ),
+                    "OI Margin": "{:,.0f}",
+                    "Volume Margin": "{:,.0f}",
                 }
             ).map(style_all_passed, subset=["All Passed"])
             st.dataframe(chain_dataframe, hide_index=True, width="stretch")

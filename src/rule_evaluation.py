@@ -26,9 +26,31 @@ def _display_value(value: Any) -> str:
     """Render values compactly for UI-facing rule detail text."""
     if value == NOT_AVAILABLE or value is None:
         return NOT_AVAILABLE
-    if isinstance(value, float):
-        return f"{value:g}"
+    try:
+        return f"{float(value):,.2f}"
+    except (TypeError, ValueError):
+        pass
     return str(value)
+
+
+def _display_percent(value: Any) -> str:
+    """Render decimal percentage values for UI-facing rule detail text."""
+    if value == NOT_AVAILABLE or value is None:
+        return NOT_AVAILABLE
+    try:
+        return f"{float(value):.2%}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _display_count(value: Any) -> str:
+    """Render contract counts without decimal places."""
+    if value == NOT_AVAILABLE or value is None:
+        return NOT_AVAILABLE
+    try:
+        return f"{float(value):,.0f}"
+    except (TypeError, ValueError):
+        return str(value)
 
 
 @dataclass(frozen=True)
@@ -43,10 +65,16 @@ class RuleEvaluation:
 
     def detail(self) -> str:
         """Return a compact, display-ready explanation of the rule outcome."""
+        if self.rule_name == "Spread %":
+            formatter = _display_percent
+        elif self.rule_name in {"Open Interest", "Volume"}:
+            formatter = _display_count
+        else:
+            formatter = _display_value
         return (
-            f"Actual {_display_value(self.actual_value)} / "
-            f"Required {_display_value(self.required_value)} / "
-            f"Margin {_display_value(self.margin)}"
+            f"Actual {formatter(self.actual_value)} / "
+            f"Required {formatter(self.required_value)} / "
+            f"Margin {formatter(self.margin)}"
         )
 
 

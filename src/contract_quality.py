@@ -40,6 +40,27 @@ DIAGNOSTIC_LABELS = {
     "Open Interest Pass": "OI",
 }
 
+TEST_SPECIFIC_NEAR_MISS_OPTIONS = {
+    "Delta": "Delta Fit",
+    "Spread": "Spread Pass",
+    "Open Interest": "Open Interest Pass",
+    "Volume": "Volume Pass",
+}
+
+RULE_DETAIL_COLUMNS = {
+    "Delta Fit": "Delta Rule Detail",
+    "Spread Pass": "Spread Rule Detail",
+    "Open Interest Pass": "OI Rule Detail",
+    "Volume Pass": "Volume Rule Detail",
+}
+
+RULE_MARGIN_COLUMNS = {
+    "Delta Fit": "Delta Margin",
+    "Spread Pass": "Spread Margin",
+    "Open Interest Pass": "OI Margin",
+    "Volume Pass": "Volume Margin",
+}
+
 CALL_DELTA_RANGE = (0.50, 0.70)
 PUT_DELTA_RANGE = (-0.70, -0.50)
 MIN_OPEN_INTEREST = 1_000
@@ -189,10 +210,50 @@ def contract_quality(
         "Spread Rule Detail": evaluations["Spread Pass"].detail(),
         "OI Rule Detail": evaluations["Open Interest Pass"].detail(),
         "Volume Rule Detail": evaluations["Volume Pass"].detail(),
+        "Delta Margin": evaluations["Delta Fit"].margin,
+        "Spread Margin": evaluations["Spread Pass"].margin,
+        "OI Margin": evaluations["Open Interest Pass"].margin,
+        "Volume Margin": evaluations["Volume Pass"].margin,
     }
     quality_fields["All Passed"] = all_quality_checks_pass(quality_fields)
     quality_fields["Failed Tests"] = failed_tests(quality_fields)
     return quality_fields
+
+
+def passing_contracts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return contracts that satisfy every explicit quality rule."""
+    return [row for row in rows if row.get("All Passed") == ALL_PASSED_YES]
+
+
+def near_miss_contracts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return contracts with exactly one explicit quality-test failure."""
+    return [
+        row
+        for row in rows
+        if sum(row.get(check) == FAIL for check in QUALITY_CHECKS) == 1
+    ]
+
+
+def test_specific_near_misses(
+    rows: list[dict[str, Any]], selected_test: str
+) -> list[dict[str, Any]]:
+    """Return selected-test failures, closest to passing first.
+
+    Rule margins are positive for passes and negative for failures. Sorting a
+    failed test's margin descending therefore puts the smallest shortfall first.
+    """
+    check = TEST_SPECIFIC_NEAR_MISS_OPTIONS[selected_test]
+    margin_column = RULE_MARGIN_COLUMNS[check]
+
+    def margin(row: dict[str, Any]) -> float:
+        value = _number(row.get(margin_column))
+        return value if value is not None else float("-inf")
+
+    return sorted(
+        (row for row in rows if row.get(check) == FAIL),
+        key=margin,
+        reverse=True,
+    )
 
 
 def contract_quality_summary(rows: list[dict[str, Any]]) -> dict[str, int]:
