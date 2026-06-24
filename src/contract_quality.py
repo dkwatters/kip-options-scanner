@@ -33,6 +33,13 @@ FAILED_TEST_ABBREVIATIONS = {
     "Spread Pass": "Spr",
 }
 
+DIAGNOSTIC_LABELS = {
+    "Delta Fit": "Delta",
+    "Spread Pass": "Spread",
+    "Volume Pass": "Volume",
+    "Open Interest Pass": "OI",
+}
+
 CALL_DELTA_RANGE = (0.50, 0.70)
 PUT_DELTA_RANGE = (-0.70, -0.50)
 MIN_OPEN_INTEREST = 1_000
@@ -199,4 +206,45 @@ def contract_quality_summary(rows: list[dict[str, Any]]) -> dict[str, int]:
         "All Quality Checks Pass Count": sum(
             row.get("All Passed") == ALL_PASSED_YES for row in rows
         ),
+    }
+
+
+def ticker_diagnostics(rows: list[dict[str, Any]]) -> dict[str, int | str]:
+    """Aggregate contract-quality outcomes for one selected ticker chain.
+
+    A primary weakness is the check with the most explicit failures. A primary
+    strength is the check with the most explicit passes. Unavailable outcomes
+    are excluded from both counts. Ties retain each tied check rather than
+    inventing a ranking between them.
+    """
+    failure_counts = {
+        check: sum(row.get(check) == FAIL for row in rows) for check in QUALITY_CHECKS
+    }
+    pass_counts = {
+        check: sum(row.get(check) == PASS for row in rows) for check in QUALITY_CHECKS
+    }
+
+    def primary_label(counts: dict[str, int], empty_label: str) -> str:
+        highest_count = max(counts.values(), default=0)
+        if highest_count == 0:
+            return empty_label
+        primary_checks = [
+            DIAGNOSTIC_LABELS[check]
+            for check in QUALITY_CHECKS
+            if counts[check] == highest_count
+        ]
+        label = ", ".join(primary_checks)
+        return f"{label} (tie)" if len(primary_checks) > 1 else label
+
+    return {
+        "Contracts Evaluated": len(rows),
+        "Contracts Passing All Tests": sum(
+            row.get("All Passed") == ALL_PASSED_YES for row in rows
+        ),
+        "Delta Failure Count": failure_counts["Delta Fit"],
+        "Spread Failure Count": failure_counts["Spread Pass"],
+        "Volume Failure Count": failure_counts["Volume Pass"],
+        "OI Failure Count": failure_counts["Open Interest Pass"],
+        "Primary Weakness": primary_label(failure_counts, "None"),
+        "Primary Strength": primary_label(pass_counts, "None"),
     }

@@ -6,7 +6,12 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-from src.contract_quality import calculate_mid_price, contract_quality, contract_quality_summary
+from src.contract_quality import (
+    calculate_mid_price,
+    contract_quality,
+    contract_quality_summary,
+    ticker_diagnostics,
+)
 from src.scanner import ScannerNotImplementedError, run_scan
 from src.tradier_client import TradierAPIError, TradierClient, TradierConfigurationError
 from src.universe import UniverseError, load_universe
@@ -241,6 +246,20 @@ def main():
         chain_ticker = st.session_state.get("option_chain_response_ticker")
         chain_expiration = st.session_state.get("option_chain_response_expiration")
         if chain_rows and chain_ticker == explorer_ticker and chain_expiration == expiration:
+            st.subheader("Ticker Diagnostics")
+            st.caption(
+                f"Contract-quality aggregation for {chain_ticker} expiring {chain_expiration}."
+            )
+            diagnostics = ticker_diagnostics(chain_rows)
+            diagnostic_counts = list(diagnostics.items())[:6]
+            for column, (label, value) in zip(st.columns(3), diagnostic_counts[:3]):
+                column.metric(label, value)
+            for column, (label, value) in zip(st.columns(3), diagnostic_counts[3:]):
+                column.metric(label, value)
+            weakness_column, strength_column = st.columns(2)
+            weakness_column.metric("Primary Weakness", diagnostics["Primary Weakness"])
+            strength_column.metric("Primary Strength", diagnostics["Primary Strength"])
+
             st.subheader("Contract Quality Summary")
             summary = contract_quality_summary(chain_rows)
             for column, (label, value) in zip(st.columns(6), summary.items()):
