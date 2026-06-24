@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -38,11 +39,71 @@ def mid_price(quote):
     return (bid + ask) / 2
 
 
+def as_list(value):
+    """Normalize Tradier fields that can be a single item or a list."""
+    if value is None:
+        return []
+    return value if isinstance(value, list) else [value]
+
+
+def expiration_dates(payload):
+    """Extract the available expiration dates from a Tradier response."""
+    expirations = payload.get("expirations", {})
+    if not isinstance(expirations, dict):
+        return []
+    return [str(date) for date in as_list(expirations.get("date")) if date]
+
+
+def implied_volatility(greeks):
+    """Return Tradier's preferred available implied-volatility value."""
+    for field in ("mid_iv", "smv_vol", "ask_iv", "bid_iv"):
+        value = greeks.get(field)
+        if value not in (None, ""):
+            return value
+    return UNAVAILABLE
+
+
+def option_chain_rows(payload):
+    """Map the raw Tradier option response to the explorer's display schema."""
+    options = payload.get("options", {})
+    if not isinstance(options, dict):
+        return []
+
+    rows = []
+    for option in as_list(options.get("option")):
+        if not isinstance(option, dict):
+            continue
+        greeks = option.get("greeks")
+        greeks = greeks if isinstance(greeks, dict) else {}
+        rows.append(
+            {
+                "Strike": option.get("strike", UNAVAILABLE),
+                "Option Type": option.get("option_type", UNAVAILABLE),
+                "Bid": option.get("bid", UNAVAILABLE),
+                "Ask": option.get("ask", UNAVAILABLE),
+                "Mid Price": mid_price(option),
+                "Delta": greeks.get("delta", UNAVAILABLE),
+                "Implied Volatility": implied_volatility(greeks),
+                "Volume": option.get("volume", UNAVAILABLE),
+                "Open Interest": option.get("open_interest", UNAVAILABLE),
+            }
+        )
+    return rows
+
+
+def raw_option_contracts(payload):
+    """Return option contracts without changing Tradier's response fields."""
+    options = payload.get("options", {})
+    if not isinstance(options, dict):
+        return []
+    return as_list(options.get("option"))
+
+
 def main():
     load_dotenv(ROOT / ".env")
     st.set_page_config(page_title="Kip Options Scanner", layout="wide")
     st.title("Kip Options Scanner")
-    st.caption("Phase 1B - Research tool only - No trading or order placement")
+    st.caption("Phase 2A - Research tool only - No trading or order placement")
     with st.sidebar:
         path = st.text_input("Universe CSV", value=str(ROOT / "data" / "universe_default.csv"))
         st.header("Tradier Connection")
@@ -97,6 +158,73 @@ def main():
                 if show_diagnostic_data:
                     with st.expander("Tradier Raw Response"):
                         st.json(raw_response)
+
+    st.divider()
+    st.subheader("Option Chain Explorer")
+    st.caption("Inspect Tradier option-chain data before scanner logic is introduced.")
+    explorer_ticker = st.text_input(
+        "Ticker symbol", value="SPY", max_chars=10, key="option_chain_ticker"
+    ).strip().upper()
+    retrieve_expirations = st.button("Retrieve Expirations")
+
+    if retrieve_expirations:
+        if not explorer_ticker:
+            st.error("Enter a ticker symbol before retrieving expirations.")
+        else:
+            try:
+                raw_expirations = TradierClient().get_option_expirations(explorer_ticker)
+                dates = expiration_dates(raw_expirations)
+                if not dates:
+                    raise ValueError("No option expirations were returned for this ticker.")
+            except TradierConfigurationError as error:
+                st.error("Tradier configuration error: " + str(error))
+            except TradierAPIError as error:
+                st.error("Tradier connection error: " + str(error))
+            except ValueError as error:
+                st.error("Tradier response error: " + str(error))
+            else:
+                st.session_state.option_chain_expirations = dates
+                st.session_state.option_chain_expirations_ticker = explorer_ticker
+
+    dates = st.session_state.get("option_chain_expirations", [])
+    dates_ticker = st.session_state.get("option_chain_expirations_ticker")
+    if dates and dates_ticker == explorer_ticker:
+        expiration = st.selectbox("Expiration", options=dates, key="option_chain_expiration")
+        retrieve_chain = st.button("Retrieve Option Chain")
+        if retrieve_chain:
+            try:
+                raw_chain = TradierClient().get_option_chain(explorer_ticker, expiration)
+                rows = option_chain_rows(raw_chain)
+                if not rows:
+                    raise ValueError("No options were returned for this expiration.")
+            except TradierConfigurationError as error:
+                st.error("Tradier configuration error: " + str(error))
+            except TradierAPIError as error:
+                st.error("Tradier connection error: " + str(error))
+            except ValueError as error:
+                st.error("Tradier response error: " + str(error))
+            else:
+                st.session_state.option_chain_response = raw_chain
+                st.session_state.option_chain_rows = rows
+                st.session_state.option_chain_response_ticker = explorer_ticker
+                st.session_state.option_chain_response_expiration = expiration
+
+        chain_rows = st.session_state.get("option_chain_rows")
+        chain_ticker = st.session_state.get("option_chain_response_ticker")
+        chain_expiration = st.session_state.get("option_chain_response_expiration")
+        if chain_rows and chain_ticker == explorer_ticker and chain_expiration == expiration:
+            st.dataframe(pd.DataFrame(chain_rows), hide_index=True, width="stretch")
+            if st.checkbox("Show Diagnostic Data", key="option_chain_diagnostics"):
+                st.caption("First 5 raw option contracts returned by Tradier")
+                st.dataframe(
+                    pd.DataFrame(raw_option_contracts(st.session_state.option_chain_response)[:5]),
+                    hide_index=True,
+                    width="stretch",
+                )
+                with st.expander("Tradier Raw Option-Chain Response"):
+                    st.json(st.session_state.option_chain_response)
+    elif dates and dates_ticker:
+        st.info("Retrieve expirations for " + explorer_ticker + " to select an expiration.")
 
     st.subheader("Universe")
     if universe:

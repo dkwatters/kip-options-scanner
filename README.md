@@ -1,6 +1,6 @@
 # Kip Options Scanner
 
-Phase 1A is a Streamlit architecture scaffold for an options research tool only. It has no trading, brokerage account access, Robinhood integration, or order placement.
+Phase 2A is a Streamlit research tool for inspecting Tradier option-chain market data. It has no trading, brokerage account access, Robinhood integration, or order placement.
 
 ## Setup
 
@@ -11,7 +11,7 @@ Phase 1A is a Streamlit architecture scaffold for an options research tool only.
 
 ## Architecture
 
-- `app.py`: placeholder UI; scanning is unavailable.
+- `app.py`: quote view and Option Chain Explorer. The explorer retrieves expirations, then displays the selected chain's strike, type, bid, ask, calculated mid price, delta, implied volatility, volume, and open interest. Its diagnostic control exposes the raw chain response for validation.
 - `src/tradier_client.py`: read-only market-data GET client.
 - `src/universe.py`: validated CSV universe.
 - `src/indicators.py`, `src/scoring.py`, and `src/scanner.py`: future-facing typed data contracts.

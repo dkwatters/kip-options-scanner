@@ -17,7 +17,7 @@ class TradierClient:
   return self._get("markets/options/expirations",{"symbol":symbol.upper()})
  def get_option_chain(self,symbol,expiration):
   """Retrieve an option chain through Tradier market-data GET."""
-  return self._get("markets/options/chains",{"symbol":symbol.upper(),"expiration":expiration})
+  return self._get("markets/options/chains",{"symbol":symbol.upper(),"expiration":expiration,"greeks":"true"})
  def _get(self,path,params):
   try:
    response=self.session.get(self.base_url+"/"+path,params=params,timeout=15); response.raise_for_status(); payload=response.json()
