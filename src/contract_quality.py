@@ -277,6 +277,45 @@ def test_specific_near_misses(
     )
 
 
+def closest_test_near_miss(
+    rows: list[dict[str, Any]], selected_test: str
+) -> dict[str, Any] | None:
+    """Return the closest true near miss whose only failure is one rule.
+
+    The rule framework defines failed margins as negative values. Selecting the
+    greatest available failed margin therefore selects the true near miss
+    nearest to passing without changing the rule or introducing a score.
+    """
+    check = TEST_SPECIFIC_NEAR_MISS_OPTIONS[selected_test]
+    margin_column = RULE_MARGIN_COLUMNS[check]
+    candidates = [
+        row
+        for row in near_miss_contracts(rows)
+        if row.get(check) == FAIL and _number(row.get(margin_column)) is not None
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda row: _number(row.get(margin_column)))
+
+
+def closest_true_near_miss(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Return the true near miss with the greatest failed-rule margin.
+
+    A true near miss has exactly one explicit failed check, so its failed rule
+    margin is unambiguous. This uses the same margin ordering as the existing
+    drilldowns: a value nearer zero is closer to passing.
+    """
+    candidates: list[tuple[dict[str, Any], float]] = []
+    for row in near_miss_contracts(rows):
+        failed_check = next(
+            (check for check in QUALITY_CHECKS if row.get(check) == FAIL), None
+        )
+        margin = _number(row.get(RULE_MARGIN_COLUMNS[failed_check])) if failed_check else None
+        if margin is not None:
+            candidates.append((row, margin))
+    return max(candidates, key=lambda candidate: candidate[1])[0] if candidates else None
+
+
 def contract_quality_summary(rows: list[dict[str, Any]]) -> dict[str, int]:
     """Count validation outcomes for a collection of display-ready contract rows."""
     return {
@@ -329,4 +368,25 @@ def ticker_diagnostics(rows: list[dict[str, Any]]) -> dict[str, int | str]:
         "OI Failure Count": failure_counts["Open Interest Pass"],
         "Primary Weakness": primary_label(failure_counts, "None"),
         "Primary Strength": primary_label(pass_counts, "None"),
+    }
+
+
+def opportunity_analysis(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize contract-quality opportunities for one ticker chain.
+
+    This is an aggregation of existing pass/fail results and rule margins only.
+    It intentionally does not score, rank, or recommend contracts.
+    """
+    diagnostics = ticker_diagnostics(rows)
+    return {
+        "Contracts Evaluated": len(rows),
+        "Passing Contracts Count": len(passing_contracts(rows)),
+        "True Near Miss Count": len(near_miss_contracts(rows)),
+        "Closest Near Miss": closest_true_near_miss(rows),
+        "Closest Spread Near Miss": closest_test_near_miss(rows, "Spread"),
+        "Closest Delta Near Miss": closest_test_near_miss(rows, "Delta"),
+        "Closest Open Interest Near Miss": closest_test_near_miss(rows, "Open Interest"),
+        "Closest Volume Near Miss": closest_test_near_miss(rows, "Volume"),
+        "Primary Weakness": diagnostics["Primary Weakness"],
+        "Primary Strength": diagnostics["Primary Strength"],
     }

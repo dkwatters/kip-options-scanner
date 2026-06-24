@@ -26,6 +26,7 @@ from src.contract_quality import (
     contract_quality_summary,
     filter_by_option_type,
     near_miss_contracts,
+    opportunity_analysis,
     passing_contracts,
     test_specific_near_misses,
     ticker_diagnostics,
@@ -278,6 +279,30 @@ def rule_detail_for_display(selected_test, row):
     )
 
 
+def opportunity_candidate_display(candidate, selected_test=None):
+    """Format a shortfall and contract label for an opportunity card.
+
+    Count-based margins are normalized to their existing rule thresholds so
+    every card presents a percentage, without changing candidate selection.
+    """
+    if candidate is None:
+        return "None", UNAVAILABLE
+    failed_test = selected_test or failure_label(candidate)
+    check = TEST_SPECIFIC_NEAR_MISS_OPTIONS.get(failed_test)
+    margin = candidate.get(RULE_MARGIN_COLUMNS[check]) if check else None
+    try:
+        shortfall = abs(float(margin))
+    except (TypeError, ValueError):
+        return UNAVAILABLE, candidate.get("Contract", UNAVAILABLE)
+
+    if failed_test == "Open Interest":
+        shortfall /= MIN_OPEN_INTEREST
+    elif failed_test == "Volume":
+        shortfall /= MIN_VOLUME
+
+    return f"{shortfall:.2%} from passing", candidate.get("Contract", UNAVAILABLE)
+
+
 def format_contract_detail_value(label, value):
     """Format a summary value according to its displayed contract field."""
     if label in {"Strike", "Bid", "Ask", "Mid Price", "Delta"}:
@@ -518,11 +543,55 @@ def main():
                 options=[ANY_SINGLE_FAILED_TEST, *TEST_SPECIFIC_NEAR_MISS_OPTIONS],
                 key="near_miss_test",
             )
+            filtered_chain_rows = filter_by_option_type(
+                chain_rows, selected_option_type
+            )
+
+            st.subheader("Opportunity Analysis")
+            st.caption(
+                "Ticker-level summary of current contract-quality outcomes and closest rule-margin shortfalls."
+            )
+            opportunities = opportunity_analysis(filtered_chain_rows)
+            for column, label in zip(
+                st.columns(3),
+                ("Contracts Evaluated", "Passing Contracts Count", "True Near Miss Count"),
+            ):
+                column.metric(label, opportunities[label])
+
+            if opportunities["Passing Contracts Count"] == 0:
+                near_miss_count = opportunities["True Near Miss Count"]
+                if near_miss_count:
+                    st.info(
+                        f"No contracts passed all tests. {near_miss_count} true near-miss "
+                        "candidate(s) remain available for review."
+                    )
+                else:
+                    st.info(
+                        "No contracts passed all tests, and no true near-miss candidates are available."
+                    )
+
+            candidate_labels = (
+                ("Closest Near Miss", None),
+                ("Closest Spread Near Miss", "Spread"),
+                ("Closest Delta Near Miss", "Delta"),
+                ("Closest Open Interest Near Miss", "Open Interest"),
+                ("Closest Volume Near Miss", "Volume"),
+            )
+            for start in range(0, len(candidate_labels), 2):
+                for column, (label, candidate_test) in zip(
+                    st.columns(2), candidate_labels[start : start + 2]
+                ):
+                    margin, contract = opportunity_candidate_display(
+                        opportunities[label], candidate_test
+                    )
+                    column.metric(label, margin)
+                    column.caption(contract)
+            weakness_column, strength_column = st.columns(2)
+            weakness_column.metric("Primary Weakness", opportunities["Primary Weakness"])
+            strength_column.metric("Primary Strength", opportunities["Primary Strength"])
 
             st.subheader("Passing Contracts")
-            passing_rows = filter_by_option_type(
-                passing_contracts(chain_rows), selected_option_type
-            )
+            passing_rows = passing_contracts(filtered_chain_rows)
             if passing_rows:
                 render_selectable_drilldown(
                     passing_rows,
@@ -534,9 +603,7 @@ def main():
                 st.info("No contracts in this chain passed all quality tests.")
 
             st.subheader("True Near Miss Contracts")
-            near_miss_rows = filter_by_option_type(
-                near_miss_contracts(chain_rows), selected_option_type
-            )
+            near_miss_rows = near_miss_contracts(filtered_chain_rows)
             if selected_test != ANY_SINGLE_FAILED_TEST:
                 near_miss_rows = test_specific_near_misses(near_miss_rows, selected_test)
             near_miss_display_rows = []
@@ -573,7 +640,7 @@ def main():
                 st.info("Select a specific near-miss test to view all contracts failing that test.")
             else:
                 selected_near_misses = test_specific_near_misses(
-                    filter_by_option_type(chain_rows, selected_option_type), selected_test
+                    filtered_chain_rows, selected_test
                 )
                 selected_display_rows = [
                     {
