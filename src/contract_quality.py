@@ -49,7 +49,6 @@ TEST_SPECIFIC_NEAR_MISS_OPTIONS = {
 
 ANY_SINGLE_FAILED_TEST = "Any single failed test"
 OPTION_TYPE_FILTERS = {
-    "Both": None,
     "Calls": "call",
     "Puts": "put",
 }

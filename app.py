@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+from math import isfinite
+from numbers import Number
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -6,6 +8,11 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
+from src.contract_detail import (
+    contract_detail_fields,
+    contract_interpretation,
+    contract_rule_explanations,
+)
 from src.contract_quality import (
     ANY_SINGLE_FAILED_TEST,
     MAX_SPREAD_PERCENT,
@@ -41,7 +48,7 @@ def style_all_passed(value):
 
 def format_eastern_timestamp(value):
     """Format Tradier epoch timestamps in the user's Eastern time zone."""
-    if value in (None, ""):
+    if value is None or (isinstance(value, str) and value == ""):
         return UNAVAILABLE
     try:
         timestamp = float(value)
@@ -91,10 +98,15 @@ def format_percentage_distance(margin, threshold):
 
 def format_percent(value):
     """Render a decimal percentage with a consistent two-decimal precision."""
+    if value is None or (isinstance(value, str) and value == ""):
+        return UNAVAILABLE
+    if not isinstance(value, Number) or isinstance(value, bool):
+        return value
     try:
-        return f"{float(value):.2%}"
-    except (TypeError, ValueError):
-        return value if value not in (None, "") else UNAVAILABLE
+        numeric_value = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return value
+    return f"{numeric_value:.2%}" if isfinite(numeric_value) else value
 
 
 def as_list(value):
@@ -121,7 +133,26 @@ def implied_volatility(greeks):
     return UNAVAILABLE
 
 
-def option_chain_rows(payload, expiration=None, today=None, underlying_price=None):
+def format_contract_label(ticker, strike, option_type, expiration):
+    """Return the trader-readable label for an option contract."""
+    ticker_display = str(ticker).upper() if ticker not in (None, "") else UNAVAILABLE
+    try:
+        strike_display = f"{float(strike):g}"
+    except (TypeError, ValueError):
+        strike_display = strike if strike not in (None, "") else UNAVAILABLE
+    type_display = (
+        str(option_type).capitalize() if option_type not in (None, "") else UNAVAILABLE
+    )
+    try:
+        expiration_display = datetime.fromisoformat(str(expiration)).strftime("%m/%d/%Y")
+    except (TypeError, ValueError):
+        expiration_display = expiration if expiration not in (None, "") else UNAVAILABLE
+    return f"{ticker_display} {strike_display} {type_display} {expiration_display}"
+
+
+def option_chain_rows(
+    payload, expiration=None, today=None, underlying_price=None, ticker=None
+):
     """Map the raw Tradier option response to the explorer's display schema."""
     options = payload.get("options", {})
     if not isinstance(options, dict):
@@ -139,12 +170,20 @@ def option_chain_rows(payload, expiration=None, today=None, underlying_price=Non
             today=today,
             underlying_price=underlying_price,
         )
+        expiration_value = expiration or option.get("expiration_date", UNAVAILABLE)
+        option_type = option.get("option_type", UNAVAILABLE)
         rows.append(
             {
                 "Symbol": option.get("symbol", UNAVAILABLE),
                 "Strike": option.get("strike", UNAVAILABLE),
-                "Expiration": expiration or option.get("expiration_date", UNAVAILABLE),
-                "Option Type": option.get("option_type", UNAVAILABLE),
+                "Expiration": expiration_value,
+                "Option Type": option_type,
+                "Contract": format_contract_label(
+                    ticker or option.get("root_symbol"),
+                    option.get("strike"),
+                    option_type,
+                    expiration_value,
+                ),
                 "Bid": option.get("bid", UNAVAILABLE),
                 "Ask": option.get("ask", UNAVAILABLE),
                 "Delta": greeks.get("delta", UNAVAILABLE),
@@ -161,9 +200,7 @@ def option_chain_rows(payload, expiration=None, today=None, underlying_price=Non
 def drilldown_contract_columns(include_failure=False):
     """Return the compact display schema shared by diagnostics drilldowns."""
     columns = [
-        "Symbol",
-        "Strike",
-        "Expiration",
+        "Contract",
         "DTE",
         "Delta",
         "IV",
@@ -183,9 +220,9 @@ def format_drilldown_dataframe(rows, columns):
             "Mid Price": format_decimal,
             "Spread": format_decimal,
             "Delta": format_decimal,
-            "IV": "{:.2%}",
-            "Spread %": "{:.2%}",
-            "Strike Distance %": "{:.2%}",
+            "IV": format_percent,
+            "Spread %": format_percent,
+            "Strike Distance %": format_percent,
             "Volume": "{:,.0f}",
             "Open Interest": "{:,.0f}",
         }
@@ -239,6 +276,77 @@ def rule_detail_for_display(selected_test, row):
         f"Actual {format_whole_number(actual)} / Required {threshold:,.0f} / "
         f"Margin {format_percentage_distance(margin, threshold)}"
     )
+
+
+def format_contract_detail_value(label, value):
+    """Format a summary value according to its displayed contract field."""
+    if label in {"Strike", "Bid", "Ask", "Mid Price", "Delta"}:
+        return format_decimal(value)
+    if label in {"Spread %", "IV"}:
+        return format_percent(value)
+    if label in {"DTE", "Open Interest", "Volume"}:
+        return format_whole_number(value)
+    return value if value not in (None, "") else UNAVAILABLE
+
+
+def format_rule_explanations_dataframe(explanations):
+    """Format the rule explanation table without changing rule values."""
+    formatted_rows = []
+    for explanation in explanations:
+        row = dict(explanation)
+        if row["Rule"] == "Spread":
+            for field in ("Actual Value", "Required Value", "Margin"):
+                row[field] = format_percent(row[field])
+        elif row["Rule"] == "Delta Fit":
+            row["Actual Value"] = format_decimal(row["Actual Value"])
+            row["Margin"] = format_decimal(row["Margin"])
+        else:
+            for field in ("Actual Value", "Required Value", "Margin"):
+                row[field] = format_whole_number(row[field])
+        formatted_rows.append(row)
+    return pd.DataFrame(formatted_rows)
+
+
+def selected_dataframe_row(selection_event, rows):
+    """Return the selected row from a single-row dataframe selection event."""
+    selected_rows = selection_event.selection.rows
+    if not selected_rows:
+        return None
+    selected_index = selected_rows[0]
+    return rows[selected_index] if selected_index < len(rows) else None
+
+
+def render_contract_detail_summary(contract, source_label):
+    """Render a selected contract's details in its originating drilldown section."""
+    if contract is None:
+        return
+    st.subheader("Contract Detail Summary")
+    st.markdown(f"**{contract.get('Contract', UNAVAILABLE)}**")
+    st.caption(f"Source: {source_label}")
+    detail_fields = contract_detail_fields(contract)
+    detail_columns = st.columns(3)
+    for index, (label, value) in enumerate(detail_fields.items()):
+        detail_columns[index % 3].metric(label, format_contract_detail_value(label, value))
+    st.markdown("Rule-by-rule explanation")
+    st.dataframe(
+        format_rule_explanations_dataframe(contract_rule_explanations(contract)),
+        hide_index=True,
+        width="stretch",
+    )
+    st.caption(contract_interpretation(contract))
+
+
+def render_selectable_drilldown(rows, columns, source_label, key):
+    """Render one drilldown table and the detail summary for its selected row."""
+    selection_event = st.dataframe(
+        format_drilldown_dataframe(rows, columns),
+        hide_index=True,
+        width="stretch",
+        on_select="rerun",
+        selection_mode="single-row",
+        key=key,
+    )
+    render_contract_detail_summary(selected_dataframe_row(selection_event, rows), source_label)
 
 
 def raw_option_contracts(payload):
@@ -362,6 +470,7 @@ def main():
                     expiration=expiration,
                     today=datetime.now(EASTERN_TIME).date(),
                     underlying_price=underlying_price,
+                    ticker=explorer_ticker,
                 )
                 if not rows:
                     raise ValueError("No options were returned for this expiration.")
@@ -396,9 +505,12 @@ def main():
             strength_column.metric("Primary Strength", diagnostics["Primary Strength"])
 
             controls_column, test_column = st.columns(2)
+            if st.session_state.get("diagnostic_option_type") not in OPTION_TYPE_FILTERS:
+                st.session_state.diagnostic_option_type = "Calls"
             selected_option_type = controls_column.selectbox(
                 "Option Type",
                 options=list(OPTION_TYPE_FILTERS),
+                index=0,
                 key="diagnostic_option_type",
             )
             selected_test = test_column.selectbox(
@@ -412,17 +524,16 @@ def main():
                 passing_contracts(chain_rows), selected_option_type
             )
             if passing_rows:
-                st.dataframe(
-                    format_drilldown_dataframe(
-                        passing_rows, drilldown_contract_columns()
-                    ),
-                    hide_index=True,
-                    width="stretch",
+                render_selectable_drilldown(
+                    passing_rows,
+                    drilldown_contract_columns(),
+                    "Passing Contract",
+                    "passing_contract_table",
                 )
             else:
                 st.info("No contracts in this chain passed all quality tests.")
 
-            st.subheader("Pure Near Miss Contracts")
+            st.subheader("True Near Miss Contracts")
             near_miss_rows = filter_by_option_type(
                 near_miss_contracts(chain_rows), selected_option_type
             )
@@ -441,12 +552,11 @@ def main():
             if near_miss_display_rows:
                 if selected_test != ANY_SINGLE_FAILED_TEST:
                     st.caption("Contracts are ordered from the smallest shortfall to the largest.")
-                st.dataframe(
-                    format_drilldown_dataframe(
-                        near_miss_display_rows, drilldown_contract_columns(include_failure=True)
-                    ),
-                    hide_index=True,
-                    width="stretch",
+                render_selectable_drilldown(
+                    near_miss_display_rows,
+                    drilldown_contract_columns(include_failure=True),
+                    "True Near Miss",
+                    "true_near_miss_contract_table",
                 )
             else:
                 if selected_test == ANY_SINGLE_FAILED_TEST:
@@ -458,6 +568,7 @@ def main():
                     )
 
             st.subheader("Test-Specific Near Miss Contracts")
+            selected_near_misses = []
             if selected_test == ANY_SINGLE_FAILED_TEST:
                 st.info("Select a specific near-miss test to view all contracts failing that test.")
             else:
@@ -475,14 +586,12 @@ def main():
                 ]
                 if selected_display_rows:
                     st.caption("Contracts are ordered from the smallest shortfall to the largest.")
-                    st.dataframe(
-                        format_drilldown_dataframe(
-                            selected_display_rows,
-                            drilldown_contract_columns(include_failure=True)
-                            + ["Margin from Passing"],
-                        ),
-                        hide_index=True,
-                        width="stretch",
+                    render_selectable_drilldown(
+                        selected_display_rows,
+                        drilldown_contract_columns(include_failure=True)
+                        + ["Margin from Passing"],
+                        "Test-Specific Near Miss",
+                        "test_specific_near_miss_contract_table",
                     )
                 else:
                     st.info(
@@ -502,10 +611,10 @@ def main():
                     "Mid Price": format_decimal,
                     "Spread": format_decimal,
                     "Delta": format_decimal,
-                    "Spread %": "{:.2%}",
-                    "Strike Distance %": "{:.2%}",
-                    "Implied Volatility": "{:.2%}",
-                    "IV": "{:.2%}",
+                    "Spread %": format_percent,
+                    "Strike Distance %": format_percent,
+                    "Implied Volatility": format_percent,
+                    "IV": format_percent,
                     "Volume": "{:,.0f}",
                     "Open Interest": "{:,.0f}",
                     "Spread Margin": lambda value: format_percentage_distance(
