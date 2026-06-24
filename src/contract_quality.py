@@ -47,6 +47,13 @@ TEST_SPECIFIC_NEAR_MISS_OPTIONS = {
     "Volume": "Volume Pass",
 }
 
+ANY_SINGLE_FAILED_TEST = "Any single failed test"
+OPTION_TYPE_FILTERS = {
+    "Both": None,
+    "Calls": "call",
+    "Puts": "put",
+}
+
 RULE_DETAIL_COLUMNS = {
     "Delta Fit": "Delta Rule Detail",
     "Spread Pass": "Spread Rule Detail",
@@ -223,6 +230,21 @@ def contract_quality(
 def passing_contracts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return contracts that satisfy every explicit quality rule."""
     return [row for row in rows if row.get("All Passed") == ALL_PASSED_YES]
+
+
+def filter_by_option_type(
+    rows: list[dict[str, Any]], option_type: str
+) -> list[dict[str, Any]]:
+    """Return rows matching the requested diagnostic option-type filter."""
+    requested_type = OPTION_TYPE_FILTERS[option_type]
+    if requested_type is None:
+        return rows
+    return [
+        row
+        for row in rows
+        if isinstance(row.get("Option Type"), str)
+        and row["Option Type"].lower() == requested_type
+    ]
 
 
 def near_miss_contracts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

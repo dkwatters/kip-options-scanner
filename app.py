@@ -7,14 +7,17 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from src.contract_quality import (
+    ANY_SINGLE_FAILED_TEST,
     MAX_SPREAD_PERCENT,
     MIN_OPEN_INTEREST,
     MIN_VOLUME,
+    OPTION_TYPE_FILTERS,
     RULE_MARGIN_COLUMNS,
     TEST_SPECIFIC_NEAR_MISS_OPTIONS,
     calculate_mid_price,
     contract_quality,
     contract_quality_summary,
+    filter_by_option_type,
     near_miss_contracts,
     passing_contracts,
     test_specific_near_misses,
@@ -392,8 +395,22 @@ def main():
             weakness_column.metric("Primary Weakness", diagnostics["Primary Weakness"])
             strength_column.metric("Primary Strength", diagnostics["Primary Strength"])
 
+            controls_column, test_column = st.columns(2)
+            selected_option_type = controls_column.selectbox(
+                "Option Type",
+                options=list(OPTION_TYPE_FILTERS),
+                key="diagnostic_option_type",
+            )
+            selected_test = test_column.selectbox(
+                "Near Miss Test",
+                options=[ANY_SINGLE_FAILED_TEST, *TEST_SPECIFIC_NEAR_MISS_OPTIONS],
+                key="near_miss_test",
+            )
+
             st.subheader("Passing Contracts")
-            passing_rows = passing_contracts(chain_rows)
+            passing_rows = filter_by_option_type(
+                passing_contracts(chain_rows), selected_option_type
+            )
             if passing_rows:
                 st.dataframe(
                     format_drilldown_dataframe(
@@ -405,8 +422,12 @@ def main():
             else:
                 st.info("No contracts in this chain passed all quality tests.")
 
-            st.subheader("Near Miss Contracts")
-            near_miss_rows = near_miss_contracts(chain_rows)
+            st.subheader("Pure Near Miss Contracts")
+            near_miss_rows = filter_by_option_type(
+                near_miss_contracts(chain_rows), selected_option_type
+            )
+            if selected_test != ANY_SINGLE_FAILED_TEST:
+                near_miss_rows = test_specific_near_misses(near_miss_rows, selected_test)
             near_miss_display_rows = []
             for row in near_miss_rows:
                 failed_test = failure_label(row)
@@ -418,6 +439,8 @@ def main():
                     }
                 )
             if near_miss_display_rows:
+                if selected_test != ANY_SINGLE_FAILED_TEST:
+                    st.caption("Contracts are ordered from the smallest shortfall to the largest.")
                 st.dataframe(
                     format_drilldown_dataframe(
                         near_miss_display_rows, drilldown_contract_columns(include_failure=True)
@@ -426,37 +449,46 @@ def main():
                     width="stretch",
                 )
             else:
-                st.info("No contracts failed exactly one quality test.")
+                if selected_test == ANY_SINGLE_FAILED_TEST:
+                    st.info("No contracts failed exactly one quality test.")
+                else:
+                    st.info(
+                        f"No {selected_option_type.lower()} contracts failed only the "
+                        f"{selected_test.lower()} test."
+                    )
 
-            st.subheader("Test-Specific Near Miss")
-            selected_test = st.selectbox(
-                "Failed test",
-                options=list(TEST_SPECIFIC_NEAR_MISS_OPTIONS),
-                key="test_specific_near_miss",
-            )
-            selected_near_misses = test_specific_near_misses(chain_rows, selected_test)
-            selected_display_rows = [
-                {
-                    **row,
-                    "Failed Test": selected_test,
-                    "Relevant Rule Detail": rule_detail_for_display(selected_test, row),
-                    "Margin from Passing": margin_from_passing(selected_test, row),
-                }
-                for row in selected_near_misses
-            ]
-            if selected_display_rows:
-                st.caption("Contracts are ordered from the smallest shortfall to the largest.")
-                st.dataframe(
-                    format_drilldown_dataframe(
-                        selected_display_rows,
-                        drilldown_contract_columns(include_failure=True)
-                        + ["Margin from Passing"],
-                    ),
-                    hide_index=True,
-                    width="stretch",
-                )
+            st.subheader("Test-Specific Near Miss Contracts")
+            if selected_test == ANY_SINGLE_FAILED_TEST:
+                st.info("Select a specific near-miss test to view all contracts failing that test.")
             else:
-                st.info(f"No contracts failed the {selected_test.lower()} test.")
+                selected_near_misses = test_specific_near_misses(
+                    filter_by_option_type(chain_rows, selected_option_type), selected_test
+                )
+                selected_display_rows = [
+                    {
+                        **row,
+                        "Failed Test": selected_test,
+                        "Relevant Rule Detail": rule_detail_for_display(selected_test, row),
+                        "Margin from Passing": margin_from_passing(selected_test, row),
+                    }
+                    for row in selected_near_misses
+                ]
+                if selected_display_rows:
+                    st.caption("Contracts are ordered from the smallest shortfall to the largest.")
+                    st.dataframe(
+                        format_drilldown_dataframe(
+                            selected_display_rows,
+                            drilldown_contract_columns(include_failure=True)
+                            + ["Margin from Passing"],
+                        ),
+                        hide_index=True,
+                        width="stretch",
+                    )
+                else:
+                    st.info(
+                        f"No {selected_option_type.lower()} contracts failed the "
+                        f"{selected_test.lower()} test."
+                    )
 
             st.subheader("Contract Quality Summary")
             summary = contract_quality_summary(chain_rows)
