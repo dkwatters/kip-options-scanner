@@ -5,10 +5,17 @@ This module is intentionally independent of market-data providers and UI code.
 from datetime import date, datetime
 from typing import Any
 
+from src.rule_evaluation import (
+    FAIL,
+    NOT_AVAILABLE,
+    PASS,
+    RuleEvaluation,
+    evaluate_maximum,
+    evaluate_minimum,
+    evaluate_range,
+)
 
-NOT_AVAILABLE = "N/A"
-PASS = "Pass"
-FAIL = "Fail"
+
 ALL_PASSED_YES = "Yes"
 ALL_PASSED_NO = "No"
 
@@ -18,6 +25,13 @@ QUALITY_CHECKS = (
     "Volume Pass",
     "Spread Pass",
 )
+
+FAILED_TEST_ABBREVIATIONS = {
+    "Delta Fit": "Δ",
+    "Open Interest Pass": "OI",
+    "Volume Pass": "Vol",
+    "Spread Pass": "Spr",
+}
 
 CALL_DELTA_RANGE = (0.50, 0.70)
 PUT_DELTA_RANGE = (-0.70, -0.50)
@@ -86,28 +100,26 @@ def calculate_dte(expiration: Any, today: date | None = None) -> int | str:
 
 
 def delta_fit(option_type: Any, delta: Any) -> str:
-    delta_value = _number(delta)
-    if delta_value is None or not isinstance(option_type, str):
-        return NOT_AVAILABLE
+    return delta_rule(option_type, delta).result
+
+
+def delta_rule(option_type: Any, delta: Any) -> RuleEvaluation:
+    """Evaluate whether delta is in the target range for the option type."""
+    if not isinstance(option_type, str):
+        return RuleEvaluation("Delta Fit", NOT_AVAILABLE, NOT_AVAILABLE, NOT_AVAILABLE, NOT_AVAILABLE)
     if option_type.lower() == "call":
-        return PASS if CALL_DELTA_RANGE[0] <= delta_value <= CALL_DELTA_RANGE[1] else FAIL
+        return evaluate_range("Delta Fit", delta, *CALL_DELTA_RANGE)
     if option_type.lower() == "put":
-        return PASS if PUT_DELTA_RANGE[0] <= delta_value <= PUT_DELTA_RANGE[1] else FAIL
-    return NOT_AVAILABLE
+        return evaluate_range("Delta Fit", delta, *PUT_DELTA_RANGE)
+    return RuleEvaluation("Delta Fit", NOT_AVAILABLE, NOT_AVAILABLE, NOT_AVAILABLE, NOT_AVAILABLE)
 
 
 def minimum_pass(value: Any, minimum: float) -> str:
-    numeric_value = _number(value)
-    if numeric_value is None:
-        return NOT_AVAILABLE
-    return PASS if numeric_value >= minimum else FAIL
+    return evaluate_minimum("Minimum", value, minimum).result
 
 
 def spread_pass(spread_percent: Any) -> str:
-    value = _number(spread_percent)
-    if value is None:
-        return NOT_AVAILABLE
-    return PASS if value <= MAX_SPREAD_PERCENT else FAIL
+    return evaluate_maximum("Spread %", spread_percent, MAX_SPREAD_PERCENT).result
 
 
 def all_quality_checks_pass(quality_fields: dict[str, Any]) -> str:
@@ -117,6 +129,16 @@ def all_quality_checks_pass(quality_fields: dict[str, Any]) -> str:
         if all(quality_fields.get(check) == PASS for check in QUALITY_CHECKS)
         else ALL_PASSED_NO
     )
+
+
+def failed_tests(quality_fields: dict[str, Any]) -> str:
+    """Return abbreviations for the current quality checks that explicitly failed."""
+    failures = [
+        FAILED_TEST_ABBREVIATIONS[check]
+        for check in QUALITY_CHECKS
+        if quality_fields.get(check) == FAIL
+    ]
+    return ", ".join(failures) if failures else "—"
 
 
 def contract_quality(
@@ -138,6 +160,15 @@ def contract_quality(
     delta = greeks.get("delta")
     expiration_value = expiration if expiration is not None else contract.get("expiration_date")
 
+    evaluations = {
+        "Delta Fit": delta_rule(option_type, delta),
+        "Spread Pass": evaluate_maximum("Spread %", spread_percent, MAX_SPREAD_PERCENT),
+        "Open Interest Pass": evaluate_minimum(
+            "Open Interest", contract.get("open_interest"), MIN_OPEN_INTEREST
+        ),
+        "Volume Pass": evaluate_minimum("Volume", contract.get("volume"), MIN_VOLUME),
+    }
+
     quality_fields = {
         "Mid Price": mid,
         "Spread": spread,
@@ -146,12 +177,14 @@ def contract_quality(
             contract.get("strike"), underlying_price
         ),
         "DTE": calculate_dte(expiration_value, today),
-        "Delta Fit": delta_fit(option_type, delta),
-        "Open Interest Pass": minimum_pass(contract.get("open_interest"), MIN_OPEN_INTEREST),
-        "Volume Pass": minimum_pass(contract.get("volume"), MIN_VOLUME),
-        "Spread Pass": spread_pass(spread_percent),
+        **{column: evaluation.result for column, evaluation in evaluations.items()},
+        "Delta Rule Detail": evaluations["Delta Fit"].detail(),
+        "Spread Rule Detail": evaluations["Spread Pass"].detail(),
+        "OI Rule Detail": evaluations["Open Interest Pass"].detail(),
+        "Volume Rule Detail": evaluations["Volume Pass"].detail(),
     }
     quality_fields["All Passed"] = all_quality_checks_pass(quality_fields)
+    quality_fields["Failed Tests"] = failed_tests(quality_fields)
     return quality_fields
 
 
