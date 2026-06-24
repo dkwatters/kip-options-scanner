@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
+from src.contract_quality import calculate_mid_price, contract_quality, contract_quality_summary
 from src.scanner import ScannerNotImplementedError, run_scan
 from src.tradier_client import TradierAPIError, TradierClient, TradierConfigurationError
 from src.universe import UniverseError, load_universe
@@ -13,6 +14,13 @@ from src.universe import UniverseError, load_universe
 ROOT = Path(__file__).resolve().parent
 EASTERN_TIME = ZoneInfo("America/New_York")
 UNAVAILABLE = "-"
+
+
+def style_all_passed(value):
+    """Highlight the aggregate quality result without changing contract logic."""
+    if value == "Yes":
+        return "background-color: #d1fae5; color: #065f46"
+    return "background-color: #fee2e2; color: #991b1b"
 
 
 def format_eastern_timestamp(value):
@@ -31,12 +39,8 @@ def format_eastern_timestamp(value):
 
 
 def mid_price(quote):
-    try:
-        bid = float(quote["bid"])
-        ask = float(quote["ask"])
-    except (KeyError, TypeError, ValueError):
-        return UNAVAILABLE
-    return (bid + ask) / 2
+    """Keep the quote display compatible with the shared pricing calculation."""
+    return calculate_mid_price(quote.get("bid"), quote.get("ask"))
 
 
 def as_list(value):
@@ -63,7 +67,7 @@ def implied_volatility(greeks):
     return UNAVAILABLE
 
 
-def option_chain_rows(payload):
+def option_chain_rows(payload, expiration=None, today=None, underlying_price=None):
     """Map the raw Tradier option response to the explorer's display schema."""
     options = payload.get("options", {})
     if not isinstance(options, dict):
@@ -75,17 +79,23 @@ def option_chain_rows(payload):
             continue
         greeks = option.get("greeks")
         greeks = greeks if isinstance(greeks, dict) else {}
+        quality = contract_quality(
+            option,
+            expiration=expiration,
+            today=today,
+            underlying_price=underlying_price,
+        )
         rows.append(
             {
                 "Strike": option.get("strike", UNAVAILABLE),
                 "Option Type": option.get("option_type", UNAVAILABLE),
                 "Bid": option.get("bid", UNAVAILABLE),
                 "Ask": option.get("ask", UNAVAILABLE),
-                "Mid Price": mid_price(option),
                 "Delta": greeks.get("delta", UNAVAILABLE),
                 "Implied Volatility": implied_volatility(greeks),
                 "Volume": option.get("volume", UNAVAILABLE),
                 "Open Interest": option.get("open_interest", UNAVAILABLE),
+                **quality,
             }
         )
     return rows
@@ -97,6 +107,15 @@ def raw_option_contracts(payload):
     if not isinstance(options, dict):
         return []
     return as_list(options.get("option"))
+
+
+def quote_last_price(payload):
+    """Extract the selected underlying's last price from a Tradier quote response."""
+    quotes = payload.get("quotes", {})
+    quote = quotes.get("quote") if isinstance(quotes, dict) else None
+    if isinstance(quote, list):
+        quote = quote[0] if quote else None
+    return quote.get("last") if isinstance(quote, dict) else None
 
 
 def main():
@@ -194,7 +213,16 @@ def main():
         if retrieve_chain:
             try:
                 raw_chain = TradierClient().get_option_chain(explorer_ticker, expiration)
-                rows = option_chain_rows(raw_chain)
+                try:
+                    underlying_price = quote_last_price(TradierClient().get_quote(explorer_ticker))
+                except (TradierConfigurationError, TradierAPIError):
+                    underlying_price = None
+                rows = option_chain_rows(
+                    raw_chain,
+                    expiration=expiration,
+                    today=datetime.now(EASTERN_TIME).date(),
+                    underlying_price=underlying_price,
+                )
                 if not rows:
                     raise ValueError("No options were returned for this expiration.")
             except TradierConfigurationError as error:
@@ -213,7 +241,19 @@ def main():
         chain_ticker = st.session_state.get("option_chain_response_ticker")
         chain_expiration = st.session_state.get("option_chain_response_expiration")
         if chain_rows and chain_ticker == explorer_ticker and chain_expiration == expiration:
-            st.dataframe(pd.DataFrame(chain_rows), hide_index=True, width="stretch")
+            st.subheader("Contract Quality Summary")
+            summary = contract_quality_summary(chain_rows)
+            for column, (label, value) in zip(st.columns(6), summary.items()):
+                column.metric(label, value)
+            chain_dataframe = pd.DataFrame(chain_rows).style.format(
+                {
+                    "Mid Price": "{:.2f}",
+                    "Spread": "{:.2f}",
+                    "Spread %": "{:.2%}",
+                    "Strike Distance %": "{:.2%}",
+                }
+            ).map(style_all_passed, subset=["All Passed"])
+            st.dataframe(chain_dataframe, hide_index=True, width="stretch")
             if st.checkbox("Show Diagnostic Data", key="option_chain_diagnostics"):
                 st.caption("First 5 raw option contracts returned by Tradier")
                 st.dataframe(

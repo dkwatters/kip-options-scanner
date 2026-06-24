@@ -11,7 +11,7 @@ Phase 2A is a Streamlit research tool for inspecting Tradier option-chain market
 
 ## Architecture
 
-- `app.py`: quote view and Option Chain Explorer. The explorer retrieves expirations, then displays the selected chain's strike, type, bid, ask, calculated mid price, delta, implied volatility, volume, and open interest. Its diagnostic control exposes the raw chain response for validation.
+- `app.py`: quote view and Option Chain Explorer. The explorer retrieves expirations, then displays the selected chain's strike, type, bid, ask, calculated mid price, strike distance, delta, implied volatility, volume, and open interest. A Contract Quality Summary reports validation pass counts without filtering or ranking contracts. Its diagnostic control exposes the raw chain response for validation.
 - `src/tradier_client.py`: read-only market-data GET client.
 - `src/universe.py`: validated CSV universe.
 - `src/indicators.py`, `src/scoring.py`, and `src/scanner.py`: future-facing typed data contracts.
