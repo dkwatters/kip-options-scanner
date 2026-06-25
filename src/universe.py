@@ -1,6 +1,19 @@
 import csv
 from dataclasses import dataclass
 from pathlib import Path
+
+DEFAULT_WATCHLIST = [
+ "NVDA",
+ "PLTR",
+ "AMD",
+ "MSFT",
+ "META",
+ "MU",
+ "TSLA",
+ "SPY",
+ "QQQ",
+]
+
 class UniverseError(ValueError): pass
 @dataclass(frozen=True,slots=True)
 class UniverseSymbol:

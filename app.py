@@ -31,9 +31,10 @@ from src.contract_quality import (
     test_specific_near_misses,
     ticker_diagnostics,
 )
+from src.opportunity_ranking import opportunity_table_rows
 from src.scanner import ScannerNotImplementedError, run_scan
 from src.tradier_client import TradierAPIError, TradierClient, TradierConfigurationError
-from src.universe import UniverseError, load_universe
+from src.universe import DEFAULT_WATCHLIST, UniverseError, load_universe
 
 ROOT = Path(__file__).resolve().parent
 EASTERN_TIME = ZoneInfo("America/New_York")
@@ -327,6 +328,70 @@ def sort_by_quality_score_desc(rows):
     return sorted(rows, key=quality_score_sort_value, reverse=True)
 
 
+def parse_watchlist(value):
+    """Return uppercase symbols from a newline/comma separated watchlist."""
+    symbols = []
+    seen = set()
+    for raw_symbol in value.replace(",", "\n").splitlines():
+        symbol = raw_symbol.strip().upper()
+        if not symbol or symbol in seen:
+            continue
+        seen.add(symbol)
+        symbols.append(symbol)
+    return symbols
+
+
+def nearest_expiration(payload):
+    """Return the nearest listed expiration date from a Tradier payload."""
+    dates = sorted(expiration_dates(payload))
+    return dates[0] if dates else None
+
+
+def discover_watchlist_opportunities(client, watchlist, today):
+    """Fetch and evaluate one nearest-expiration option chain per watchlist ticker."""
+    evaluated_rows = {}
+    errors = {}
+    for symbol in watchlist:
+        try:
+            expiration = nearest_expiration(client.get_option_expirations(symbol))
+            if expiration is None:
+                raise ValueError("No option expirations were returned.")
+            quote_payload = client.get_quote(symbol)
+            chain_payload = client.get_option_chain(symbol, expiration)
+            rows = option_chain_rows(
+                chain_payload,
+                expiration=expiration,
+                today=today,
+                underlying_price=quote_last_price(quote_payload),
+                ticker=symbol,
+            )
+            if not rows:
+                raise ValueError("No options were returned for the nearest expiration.")
+            evaluated_rows[symbol] = rows
+        except (TradierAPIError, ValueError) as error:
+            errors[symbol] = str(error)
+    return opportunity_table_rows(evaluated_rows), errors
+
+
+def format_opportunity_table(rows):
+    """Format the ranked opportunity table without changing selected row data."""
+    columns = [
+        "Rank",
+        "Ticker",
+        "Contract",
+        "Quality Score",
+        "Status",
+        "Primary Weakness",
+        "Primary Strength",
+    ]
+    return pd.DataFrame(rows).reindex(columns=columns).style.format(
+        {
+            "Rank": "{:,.0f}",
+            "Quality Score": "{:,.0f}",
+        }
+    )
+
+
 def format_contract_detail_value(label, value):
     """Format a summary value according to its displayed contract field."""
     if label in {"Strike", "Bid", "Ask", "Mid Price", "Delta"}:
@@ -445,7 +510,7 @@ def main():
     load_dotenv(ROOT / ".env")
     st.set_page_config(page_title="Kip Options Scanner", layout="wide")
     st.title("Kip Options Scanner")
-    st.caption("Phase 4A - Research tool only - No trading or order placement")
+    st.caption("Phase 4B - Research tool only - No trading or order placement")
     with st.sidebar:
         path = st.text_input("Universe CSV", value=str(ROOT / "data" / "universe_default.csv"))
         st.header("Tradier Connection")
@@ -500,6 +565,58 @@ def main():
                 if show_diagnostic_data:
                     with st.expander("Tradier Raw Response"):
                         st.json(raw_response)
+
+    st.divider()
+    st.subheader("Opportunity Discovery")
+    st.caption(
+        "Ranks the best passing contract, or highest-quality true near miss, for each watchlist ticker."
+    )
+    watchlist_input = st.text_area(
+        "Watchlist",
+        value="\n".join(DEFAULT_WATCHLIST),
+        height=180,
+        help="Edit this list here for the current run, or update DEFAULT_WATCHLIST in src/universe.py.",
+    )
+    watchlist = parse_watchlist(watchlist_input)
+    run_discovery = st.button("Run Opportunity Discovery", disabled=not watchlist)
+
+    if run_discovery:
+        try:
+            opportunity_rows, discovery_errors = discover_watchlist_opportunities(
+                TradierClient(),
+                watchlist,
+                datetime.now(EASTERN_TIME).date(),
+            )
+        except TradierConfigurationError as error:
+            st.error("Tradier configuration error: " + str(error))
+        else:
+            st.session_state.opportunity_rows = opportunity_rows
+            st.session_state.opportunity_errors = discovery_errors
+            st.session_state.opportunity_watchlist = watchlist
+
+    opportunity_rows = st.session_state.get("opportunity_rows", [])
+    opportunity_watchlist = st.session_state.get("opportunity_watchlist", [])
+    if opportunity_rows and opportunity_watchlist == watchlist:
+        opportunity_selection = st.dataframe(
+            format_opportunity_table(opportunity_rows),
+            hide_index=True,
+            width="stretch",
+            on_select="rerun",
+            selection_mode="single-row",
+            key="opportunity_table",
+        )
+        render_contract_detail_summary(
+            selected_dataframe_row(opportunity_selection, opportunity_rows),
+            "Opportunity Discovery",
+        )
+    elif opportunity_watchlist and opportunity_watchlist == watchlist:
+        st.info("No passing or true near-miss contracts were found for this watchlist.")
+
+    discovery_errors = st.session_state.get("opportunity_errors", {})
+    if discovery_errors and opportunity_watchlist == watchlist:
+        with st.expander("Watchlist Fetch Errors", expanded=False):
+            for symbol, message in discovery_errors.items():
+                st.caption(f"{symbol}: {message}")
 
     st.divider()
     st.subheader("Option Chain Explorer")
