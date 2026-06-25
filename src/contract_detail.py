@@ -26,6 +26,7 @@ SUMMARY_FIELDS = (
     ("IV", "IV"),
     ("Open Interest", "Open Interest"),
     ("Volume", "Volume"),
+    ("Quality Score", "Quality Score"),
     ("All Passed", "All Passed"),
     ("Failed Tests", "Failed Tests"),
 )

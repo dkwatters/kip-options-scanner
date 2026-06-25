@@ -14,6 +14,7 @@ from src.rule_evaluation import (
     evaluate_minimum,
     evaluate_range,
 )
+from src.contract_scoring import contract_quality_score
 
 
 ALL_PASSED_YES = "Yes"
@@ -223,6 +224,7 @@ def contract_quality(
     }
     quality_fields["All Passed"] = all_quality_checks_pass(quality_fields)
     quality_fields["Failed Tests"] = failed_tests(quality_fields)
+    quality_fields.update(contract_quality_score(quality_fields))
     return quality_fields
 
 

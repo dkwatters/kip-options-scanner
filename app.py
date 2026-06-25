@@ -202,6 +202,7 @@ def drilldown_contract_columns(include_failure=False):
     """Return the compact display schema shared by diagnostics drilldowns."""
     columns = [
         "Contract",
+        "Quality Score",
         "DTE",
         "Delta",
         "IV",
@@ -216,6 +217,7 @@ def format_drilldown_dataframe(rows, columns):
     return pd.DataFrame(rows).reindex(columns=columns).style.format(
         {
             "Strike": format_decimal,
+            "Quality Score": "{:,.0f}",
             "Bid": format_decimal,
             "Ask": format_decimal,
             "Mid Price": format_decimal,
@@ -303,13 +305,35 @@ def opportunity_candidate_display(candidate, selected_test=None):
     return f"{shortfall:.2%} from passing", candidate.get("Contract", UNAVAILABLE)
 
 
+def quality_score_display(candidate):
+    """Return a candidate's already-calculated quality score for display."""
+    if candidate is None:
+        return UNAVAILABLE
+    return format_whole_number(candidate.get("Quality Score"))
+
+
+def quality_score_sort_value(row):
+    """Return a stable sort value for already-calculated quality scores."""
+    value = row.get("Quality Score")
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return float("-inf")
+    return score if isfinite(score) else float("-inf")
+
+
+def sort_by_quality_score_desc(rows):
+    """Order display rows by quality score without changing quality logic."""
+    return sorted(rows, key=quality_score_sort_value, reverse=True)
+
+
 def format_contract_detail_value(label, value):
     """Format a summary value according to its displayed contract field."""
     if label in {"Strike", "Bid", "Ask", "Mid Price", "Delta"}:
         return format_decimal(value)
     if label in {"Spread %", "IV"}:
         return format_percent(value)
-    if label in {"DTE", "Open Interest", "Volume"}:
+    if label in {"DTE", "Open Interest", "Volume", "Quality Score"}:
         return format_whole_number(value)
     return value if value not in (None, "") else UNAVAILABLE
 
@@ -332,6 +356,24 @@ def format_rule_explanations_dataframe(explanations):
     return pd.DataFrame(formatted_rows)
 
 
+def format_quality_score_breakdown_dataframe(breakdown):
+    """Format score components while retaining their existing rule margins."""
+    formatted_rows = []
+    for item in breakdown:
+        row = dict(item)
+        row["Score"] = f"{row.pop('Points')} / {row.pop('Weight')}"
+        if row["Rule"] == "Spread":
+            row["Margin"] = format_percent(row["Margin"])
+        elif row["Rule"] == "Delta Fit":
+            row["Margin"] = format_decimal(row["Margin"])
+        else:
+            row["Margin"] = format_whole_number(row["Margin"])
+        formatted_rows.append(row)
+    return pd.DataFrame(formatted_rows).reindex(
+        columns=["Rule", "Score", "Pass/Fail", "Margin"]
+    )
+
+
 def selected_dataframe_row(selection_event, rows):
     """Return the selected row from a single-row dataframe selection event."""
     selected_rows = selection_event.selection.rows
@@ -352,6 +394,14 @@ def render_contract_detail_summary(contract, source_label):
     detail_columns = st.columns(3)
     for index, (label, value) in enumerate(detail_fields.items()):
         detail_columns[index % 3].metric(label, format_contract_detail_value(label, value))
+    st.markdown("Quality Score Breakdown")
+    st.dataframe(
+        format_quality_score_breakdown_dataframe(
+            contract.get("Quality Score Breakdown", [])
+        ),
+        hide_index=True,
+        width="stretch",
+    )
     st.markdown("Rule-by-rule explanation")
     st.dataframe(
         format_rule_explanations_dataframe(contract_rule_explanations(contract)),
@@ -395,7 +445,7 @@ def main():
     load_dotenv(ROOT / ".env")
     st.set_page_config(page_title="Kip Options Scanner", layout="wide")
     st.title("Kip Options Scanner")
-    st.caption("Phase 2A - Research tool only - No trading or order placement")
+    st.caption("Phase 4A - Research tool only - No trading or order placement")
     with st.sidebar:
         path = st.text_input("Universe CSV", value=str(ROOT / "data" / "universe_default.csv"))
         st.header("Tradier Connection")
@@ -515,33 +565,13 @@ def main():
         chain_ticker = st.session_state.get("option_chain_response_ticker")
         chain_expiration = st.session_state.get("option_chain_response_expiration")
         if chain_rows and chain_ticker == explorer_ticker and chain_expiration == expiration:
-            st.subheader("Ticker Diagnostics")
-            st.caption(
-                f"Contract-quality aggregation for {chain_ticker} expiring {chain_expiration}."
-            )
-            diagnostics = ticker_diagnostics(chain_rows)
-            diagnostic_counts = list(diagnostics.items())[:6]
-            for column, (label, value) in zip(st.columns(3), diagnostic_counts[:3]):
-                column.metric(label, value)
-            for column, (label, value) in zip(st.columns(3), diagnostic_counts[3:]):
-                column.metric(label, value)
-            weakness_column, strength_column = st.columns(2)
-            weakness_column.metric("Primary Weakness", diagnostics["Primary Weakness"])
-            strength_column.metric("Primary Strength", diagnostics["Primary Strength"])
-
-            controls_column, test_column = st.columns(2)
             if st.session_state.get("diagnostic_option_type") not in OPTION_TYPE_FILTERS:
                 st.session_state.diagnostic_option_type = "Calls"
-            selected_option_type = controls_column.selectbox(
+            selected_option_type = st.selectbox(
                 "Option Type",
                 options=list(OPTION_TYPE_FILTERS),
                 index=0,
                 key="diagnostic_option_type",
-            )
-            selected_test = test_column.selectbox(
-                "Near Miss Test",
-                options=[ANY_SINGLE_FAILED_TEST, *TEST_SPECIFIC_NEAR_MISS_OPTIONS],
-                key="near_miss_test",
             )
             filtered_chain_rows = filter_by_option_type(
                 chain_rows, selected_option_type
@@ -570,28 +600,21 @@ def main():
                         "No contracts passed all tests, and no true near-miss candidates are available."
                     )
 
-            candidate_labels = (
-                ("Closest Near Miss", None),
-                ("Closest Spread Near Miss", "Spread"),
-                ("Closest Delta Near Miss", "Delta"),
-                ("Closest Open Interest Near Miss", "Open Interest"),
-                ("Closest Volume Near Miss", "Volume"),
+            margin, contract = opportunity_candidate_display(
+                opportunities["Closest Near Miss"]
             )
-            for start in range(0, len(candidate_labels), 2):
-                for column, (label, candidate_test) in zip(
-                    st.columns(2), candidate_labels[start : start + 2]
-                ):
-                    margin, contract = opportunity_candidate_display(
-                        opportunities[label], candidate_test
-                    )
-                    column.metric(label, margin)
-                    column.caption(contract)
-            weakness_column, strength_column = st.columns(2)
-            weakness_column.metric("Primary Weakness", opportunities["Primary Weakness"])
+            closest_column, score_column, strength_column = st.columns(3)
+            closest_column.metric("Closest Near Miss", margin)
+            closest_column.caption(contract)
+            score_column.metric(
+                "Quality Score", quality_score_display(opportunities["Closest Near Miss"])
+            )
             strength_column.metric("Primary Strength", opportunities["Primary Strength"])
 
             st.subheader("Passing Contracts")
-            passing_rows = passing_contracts(filtered_chain_rows)
+            passing_rows = sort_by_quality_score_desc(
+                passing_contracts(filtered_chain_rows)
+            )
             if passing_rows:
                 render_selectable_drilldown(
                     passing_rows,
@@ -603,9 +626,9 @@ def main():
                 st.info("No contracts in this chain passed all quality tests.")
 
             st.subheader("True Near Miss Contracts")
-            near_miss_rows = near_miss_contracts(filtered_chain_rows)
-            if selected_test != ANY_SINGLE_FAILED_TEST:
-                near_miss_rows = test_specific_near_misses(near_miss_rows, selected_test)
+            near_miss_rows = sort_by_quality_score_desc(
+                near_miss_contracts(filtered_chain_rows)
+            )
             near_miss_display_rows = []
             for row in near_miss_rows:
                 failed_test = failure_label(row)
@@ -617,8 +640,6 @@ def main():
                     }
                 )
             if near_miss_display_rows:
-                if selected_test != ANY_SINGLE_FAILED_TEST:
-                    st.caption("Contracts are ordered from the smallest shortfall to the largest.")
                 render_selectable_drilldown(
                     near_miss_display_rows,
                     drilldown_contract_columns(include_failure=True),
@@ -626,81 +647,117 @@ def main():
                     "true_near_miss_contract_table",
                 )
             else:
+                st.info("No contracts failed exactly one quality test.")
+
+            with st.expander("Advanced Diagnostics", expanded=False):
+                st.caption(
+                    f"Threshold-analysis diagnostics for {chain_ticker} expiring {chain_expiration}."
+                )
+                diagnostics = ticker_diagnostics(chain_rows)
+                diagnostic_counts = list(diagnostics.items())[:6]
+                st.subheader("Ticker Diagnostics")
+                for column, (label, value) in zip(st.columns(3), diagnostic_counts[:3]):
+                    column.metric(label, value)
+                for column, (label, value) in zip(st.columns(3), diagnostic_counts[3:]):
+                    column.metric(label, value)
+                weakness_column, strength_column = st.columns(2)
+                weakness_column.metric("Primary Weakness", diagnostics["Primary Weakness"])
+                strength_column.metric("Primary Strength", diagnostics["Primary Strength"])
+
+                selected_test = st.selectbox(
+                    "Near Miss Test",
+                    options=[ANY_SINGLE_FAILED_TEST, *TEST_SPECIFIC_NEAR_MISS_OPTIONS],
+                    key="near_miss_test",
+                )
+
+                st.subheader("Test-Specific Near Miss Contracts")
+                selected_near_misses = []
                 if selected_test == ANY_SINGLE_FAILED_TEST:
-                    st.info("No contracts failed exactly one quality test.")
+                    st.info("Select a specific near-miss test to view all contracts failing that test.")
                 else:
-                    st.info(
-                        f"No {selected_option_type.lower()} contracts failed only the "
-                        f"{selected_test.lower()} test."
+                    selected_near_misses = test_specific_near_misses(
+                        filtered_chain_rows, selected_test
                     )
+                    selected_display_rows = [
+                        {
+                            **row,
+                            "Failed Test": selected_test,
+                            "Relevant Rule Detail": rule_detail_for_display(selected_test, row),
+                            "Margin from Passing": margin_from_passing(selected_test, row),
+                        }
+                        for row in selected_near_misses
+                    ]
+                    if selected_display_rows:
+                        st.caption("Contracts are ordered from the smallest shortfall to the largest.")
+                        render_selectable_drilldown(
+                            selected_display_rows,
+                            drilldown_contract_columns(include_failure=True)
+                            + ["Margin from Passing"],
+                            "Test-Specific Near Miss",
+                            "test_specific_near_miss_contract_table",
+                        )
+                    else:
+                        st.info(
+                            f"No {selected_option_type.lower()} contracts failed the "
+                            f"{selected_test.lower()} test."
+                        )
 
-            st.subheader("Test-Specific Near Miss Contracts")
-            selected_near_misses = []
-            if selected_test == ANY_SINGLE_FAILED_TEST:
-                st.info("Select a specific near-miss test to view all contracts failing that test.")
-            else:
-                selected_near_misses = test_specific_near_misses(
-                    filtered_chain_rows, selected_test
+                st.subheader("Test-Specific Opportunity Analysis")
+                candidate_labels = (
+                    ("Closest Spread Near Miss", "Spread"),
+                    ("Closest Delta Near Miss", "Delta"),
+                    ("Closest Open Interest Near Miss", "Open Interest"),
+                    ("Closest Volume Near Miss", "Volume"),
                 )
-                selected_display_rows = [
+                for start in range(0, len(candidate_labels), 2):
+                    for column, (label, candidate_test) in zip(
+                        st.columns(2), candidate_labels[start : start + 2]
+                    ):
+                        margin, contract = opportunity_candidate_display(
+                            opportunities[label], candidate_test
+                        )
+                        column.metric(label, margin)
+                        column.caption(
+                            f"{contract} — Quality Score: "
+                            f"{quality_score_display(opportunities[label])}"
+                        )
+
+                st.subheader("Contract Quality Summary")
+                summary = contract_quality_summary(chain_rows)
+                for column, (label, value) in zip(st.columns(6), summary.items()):
+                    column.metric(label, value)
+                chain_dataframe = pd.DataFrame(chain_rows).style.format(
                     {
-                        **row,
-                        "Failed Test": selected_test,
-                        "Relevant Rule Detail": rule_detail_for_display(selected_test, row),
-                        "Margin from Passing": margin_from_passing(selected_test, row),
+                        "Strike": format_decimal,
+                        "Quality Score": "{:,.0f}",
+                        "Bid": format_decimal,
+                        "Ask": format_decimal,
+                        "Mid Price": format_decimal,
+                        "Spread": format_decimal,
+                        "Delta": format_decimal,
+                        "Spread %": format_percent,
+                        "Strike Distance %": format_percent,
+                        "Implied Volatility": format_percent,
+                        "IV": format_percent,
+                        "Volume": "{:,.0f}",
+                        "Open Interest": "{:,.0f}",
+                        "Spread Margin": lambda value: format_percentage_distance(
+                            value, MAX_SPREAD_PERCENT
+                        ),
+                        "OI Margin": "{:,.0f}",
+                        "Volume Margin": "{:,.0f}",
                     }
-                    for row in selected_near_misses
-                ]
-                if selected_display_rows:
-                    st.caption("Contracts are ordered from the smallest shortfall to the largest.")
-                    render_selectable_drilldown(
-                        selected_display_rows,
-                        drilldown_contract_columns(include_failure=True)
-                        + ["Margin from Passing"],
-                        "Test-Specific Near Miss",
-                        "test_specific_near_miss_contract_table",
+                ).map(style_all_passed, subset=["All Passed"])
+                st.dataframe(chain_dataframe, hide_index=True, width="stretch")
+                if st.checkbox("Show Diagnostic Data", key="option_chain_diagnostics"):
+                    st.caption("First 5 raw option contracts returned by Tradier")
+                    st.dataframe(
+                        pd.DataFrame(raw_option_contracts(st.session_state.option_chain_response)[:5]),
+                        hide_index=True,
+                        width="stretch",
                     )
-                else:
-                    st.info(
-                        f"No {selected_option_type.lower()} contracts failed the "
-                        f"{selected_test.lower()} test."
-                    )
-
-            st.subheader("Contract Quality Summary")
-            summary = contract_quality_summary(chain_rows)
-            for column, (label, value) in zip(st.columns(6), summary.items()):
-                column.metric(label, value)
-            chain_dataframe = pd.DataFrame(chain_rows).style.format(
-                {
-                    "Strike": format_decimal,
-                    "Bid": format_decimal,
-                    "Ask": format_decimal,
-                    "Mid Price": format_decimal,
-                    "Spread": format_decimal,
-                    "Delta": format_decimal,
-                    "Spread %": format_percent,
-                    "Strike Distance %": format_percent,
-                    "Implied Volatility": format_percent,
-                    "IV": format_percent,
-                    "Volume": "{:,.0f}",
-                    "Open Interest": "{:,.0f}",
-                    "Spread Margin": lambda value: format_percentage_distance(
-                        value, MAX_SPREAD_PERCENT
-                    ),
-                    "OI Margin": "{:,.0f}",
-                    "Volume Margin": "{:,.0f}",
-                }
-            ).map(style_all_passed, subset=["All Passed"])
-            st.dataframe(chain_dataframe, hide_index=True, width="stretch")
-            if st.checkbox("Show Diagnostic Data", key="option_chain_diagnostics"):
-                st.caption("First 5 raw option contracts returned by Tradier")
-                st.dataframe(
-                    pd.DataFrame(raw_option_contracts(st.session_state.option_chain_response)[:5]),
-                    hide_index=True,
-                    width="stretch",
-                )
-                with st.expander("Tradier Raw Option-Chain Response"):
-                    st.json(st.session_state.option_chain_response)
+                    with st.expander("Tradier Raw Option-Chain Response"):
+                        st.json(st.session_state.option_chain_response)
     elif dates and dates_ticker:
         st.info("Retrieve expirations for " + explorer_ticker + " to select an expiration.")
 
