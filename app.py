@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from math import isfinite
 from numbers import Number
 from pathlib import Path
@@ -31,7 +31,20 @@ from src.contract_quality import (
     test_specific_near_misses,
     ticker_diagnostics,
 )
-from src.opportunity_ranking import opportunity_table_rows
+from src.opportunity_ranking import (
+    NO_CANDIDATE,
+    NO_MATCHING_CONTRACTS,
+    no_matching_contracts_row,
+    opportunity_table_rows,
+)
+from src.quality_diagnostics import (
+    average_rule_contribution,
+    discovery_diagnostic_summary,
+    quality_score_distribution,
+    rule_failure_distribution,
+    status_distribution,
+    top_opportunity_summary,
+)
 from src.scanner import ScannerNotImplementedError, run_scan
 from src.tradier_client import TradierAPIError, TradierClient, TradierConfigurationError
 from src.universe import DEFAULT_WATCHLIST, UniverseError, load_universe
@@ -39,6 +52,8 @@ from src.universe import DEFAULT_WATCHLIST, UniverseError, load_universe
 ROOT = Path(__file__).resolve().parent
 EASTERN_TIME = ZoneInfo("America/New_York")
 UNAVAILABLE = "-"
+DEFAULT_DISCOVERY_MIN_DTE = 7
+DEFAULT_DISCOVERY_MAX_DTE = 28
 
 
 def style_all_passed(value):
@@ -111,6 +126,18 @@ def format_percent(value):
     return f"{numeric_value:.2%}" if isfinite(numeric_value) else value
 
 
+def signed_strike_distance_percent(strike, underlying_price):
+    """Return strike distance as a signed percentage of the underlying price."""
+    try:
+        strike_value = float(strike)
+        underlying_value = float(underlying_price)
+    except (TypeError, ValueError):
+        return UNAVAILABLE
+    if underlying_value <= 0:
+        return UNAVAILABLE
+    return (strike_value - underlying_value) / underlying_value
+
+
 def as_list(value):
     """Normalize Tradier fields that can be a single item or a list."""
     if value is None:
@@ -124,6 +151,25 @@ def expiration_dates(payload):
     if not isinstance(expirations, dict):
         return []
     return [str(date) for date in as_list(expirations.get("date")) if date]
+
+
+def expiration_dte(expiration, today):
+    """Return days to expiration for an ISO expiration date."""
+    try:
+        expiration_date = date.fromisoformat(str(expiration))
+    except (TypeError, ValueError):
+        return None
+    return (expiration_date - today).days
+
+
+def expirations_in_dte_range(payload, today, min_dte, max_dte):
+    """Return listed expirations inside the selected DTE window."""
+    return [
+        expiration
+        for expiration in sorted(expiration_dates(payload))
+        if (dte := expiration_dte(expiration, today)) is not None
+        and min_dte <= dte <= max_dte
+    ]
 
 
 def implied_volatility(greeks):
@@ -180,6 +226,12 @@ def option_chain_rows(
                 "Strike": option.get("strike", UNAVAILABLE),
                 "Expiration": expiration_value,
                 "Option Type": option_type,
+                "Underlying Price": underlying_price
+                if underlying_price is not None
+                else UNAVAILABLE,
+                "Strike Distance (%)": signed_strike_distance_percent(
+                    option.get("strike"), underlying_price
+                ),
                 "Contract": format_contract_label(
                     ticker or option.get("root_symbol"),
                     option.get("strike"),
@@ -341,36 +393,66 @@ def parse_watchlist(value):
     return symbols
 
 
-def nearest_expiration(payload):
-    """Return the nearest listed expiration date from a Tradier payload."""
-    dates = sorted(expiration_dates(payload))
-    return dates[0] if dates else None
+def filter_by_dte_range(rows, min_dte, max_dte):
+    """Return rows whose already-calculated DTE is inside the selected window."""
+    filtered_rows = []
+    for row in rows:
+        try:
+            dte = int(row.get("DTE"))
+        except (TypeError, ValueError):
+            continue
+        if min_dte <= dte <= max_dte:
+            filtered_rows.append(row)
+    return filtered_rows
 
 
-def discover_watchlist_opportunities(client, watchlist, today):
-    """Fetch and evaluate one nearest-expiration option chain per watchlist ticker."""
+def discover_watchlist_opportunities(
+    client,
+    watchlist,
+    today,
+    option_type="Calls",
+    min_dte=DEFAULT_DISCOVERY_MIN_DTE,
+    max_dte=DEFAULT_DISCOVERY_MAX_DTE,
+):
+    """Fetch and evaluate option chains matching the discovery filters."""
     evaluated_rows = {}
+    evaluated_contract_rows = []
+    placeholder_rows = []
     errors = {}
     for symbol in watchlist:
         try:
-            expiration = nearest_expiration(client.get_option_expirations(symbol))
-            if expiration is None:
-                raise ValueError("No option expirations were returned.")
+            expiration_payload = client.get_option_expirations(symbol)
             quote_payload = client.get_quote(symbol)
-            chain_payload = client.get_option_chain(symbol, expiration)
-            rows = option_chain_rows(
-                chain_payload,
-                expiration=expiration,
-                today=today,
-                underlying_price=quote_last_price(quote_payload),
-                ticker=symbol,
+            underlying_price = quote_last_price(quote_payload)
+            expirations = expirations_in_dte_range(
+                expiration_payload, today, min_dte, max_dte
+            )
+            if not expirations:
+                placeholder_rows.append(no_matching_contracts_row(symbol, underlying_price))
+                continue
+            rows = []
+            for expiration in expirations:
+                chain_payload = client.get_option_chain(symbol, expiration)
+                rows.extend(
+                    option_chain_rows(
+                        chain_payload,
+                        expiration=expiration,
+                        today=today,
+                        underlying_price=underlying_price,
+                        ticker=symbol,
+                    )
+                )
+            rows = filter_by_option_type(
+                filter_by_dte_range(rows, min_dte, max_dte), option_type
             )
             if not rows:
-                raise ValueError("No options were returned for the nearest expiration.")
+                placeholder_rows.append(no_matching_contracts_row(symbol, underlying_price))
+                continue
             evaluated_rows[symbol] = rows
+            evaluated_contract_rows.extend(rows)
         except (TradierAPIError, ValueError) as error:
             errors[symbol] = str(error)
-    return opportunity_table_rows(evaluated_rows), errors
+    return opportunity_table_rows(evaluated_rows, placeholder_rows), errors, evaluated_contract_rows
 
 
 def format_opportunity_table(rows):
@@ -380,14 +462,18 @@ def format_opportunity_table(rows):
         "Ticker",
         "Contract",
         "Quality Score",
+        "Underlying Price",
+        "Strike Distance (%)",
         "Status",
         "Primary Weakness",
         "Primary Strength",
     ]
     return pd.DataFrame(rows).reindex(columns=columns).style.format(
         {
-            "Rank": "{:,.0f}",
-            "Quality Score": "{:,.0f}",
+            "Rank": format_whole_number,
+            "Quality Score": format_whole_number,
+            "Underlying Price": format_decimal,
+            "Strike Distance (%)": format_percent,
         }
     )
 
@@ -489,6 +575,87 @@ def render_selectable_drilldown(rows, columns, source_label, key):
     render_contract_detail_summary(selected_dataframe_row(selection_event, rows), source_label)
 
 
+def format_diagnostic_metric(label, value):
+    """Render diagnostic aggregate values without changing their calculations."""
+    if value is None:
+        return UNAVAILABLE
+    if label in {
+        "Contracts Evaluated",
+        "Passing Contracts Count",
+        "True Near Miss Count",
+        "Rejected Count",
+        "Highest Quality Score",
+        "Lowest Quality Score",
+        "Average DTE",
+        "Average Open Interest",
+        "Average Volume",
+    }:
+        return format_whole_number(value)
+    if label in {"Average Strike Distance %", "Average Spread %"}:
+        return format_percent(value)
+    return format_decimal(value)
+
+
+def render_metric_grid(metrics, columns_per_row=4):
+    """Render a compact metric grid from an ordered mapping."""
+    metric_items = list(metrics.items())
+    for start in range(0, len(metric_items), columns_per_row):
+        for column, (label, value) in zip(
+            st.columns(columns_per_row), metric_items[start : start + columns_per_row]
+        ):
+            column.metric(label, format_diagnostic_metric(label, value))
+
+
+def render_bar_chart(rows, index_column, value_column):
+    """Render a Streamlit-native bar chart from diagnostic rows."""
+    chart_data = pd.DataFrame(rows).set_index(index_column)
+    st.bar_chart(chart_data, y=value_column)
+
+
+def render_quality_engine_diagnostics(evaluated_rows, opportunity_rows):
+    """Render one-run diagnostics for current Opportunity Discovery results."""
+    with st.expander("Quality Engine Diagnostics", expanded=False):
+        if not evaluated_rows:
+            st.info("No evaluated contracts are available for the current Opportunity Discovery run.")
+            return
+
+        st.caption(
+            "Diagnostics use only contracts evaluated by the current Opportunity Discovery filters."
+        )
+        render_metric_grid(discovery_diagnostic_summary(evaluated_rows))
+
+        st.markdown("Top 10 Opportunity Summary")
+        render_metric_grid(top_opportunity_summary(opportunity_rows), columns_per_row=4)
+
+        score_column, status_column = st.columns(2)
+        with score_column:
+            st.markdown("Quality Score Distribution")
+            render_bar_chart(
+                quality_score_distribution(evaluated_rows),
+                "Score Bucket",
+                "Contracts",
+            )
+        with status_column:
+            st.markdown("Status Distribution")
+            render_bar_chart(status_distribution(evaluated_rows), "Status", "Contracts")
+
+        failure_column, contribution_column = st.columns(2)
+        with failure_column:
+            st.markdown("Rule Failure Distribution")
+            render_bar_chart(
+                rule_failure_distribution(evaluated_rows),
+                "Rule",
+                "Failures",
+            )
+        with contribution_column:
+            st.markdown("Average Rule Contribution")
+            render_bar_chart(
+                average_rule_contribution(evaluated_rows),
+                "Rule",
+                "Average Points",
+            )
+
+
 def raw_option_contracts(payload):
     """Return option contracts without changing Tradier's response fields."""
     options = payload.get("options", {})
@@ -578,25 +745,74 @@ def main():
         help="Edit this list here for the current run, or update DEFAULT_WATCHLIST in src/universe.py.",
     )
     watchlist = parse_watchlist(watchlist_input)
-    run_discovery = st.button("Run Opportunity Discovery", disabled=not watchlist)
+    discovery_filter_columns = st.columns(3)
+    selected_discovery_option_type = discovery_filter_columns[0].selectbox(
+        "Option Type",
+        options=list(OPTION_TYPE_FILTERS),
+        index=0,
+        key="opportunity_option_type",
+    )
+    min_discovery_dte = discovery_filter_columns[1].number_input(
+        "Minimum DTE",
+        min_value=0,
+        value=DEFAULT_DISCOVERY_MIN_DTE,
+        step=1,
+        key="opportunity_min_dte",
+    )
+    max_discovery_dte = discovery_filter_columns[2].number_input(
+        "Maximum DTE",
+        min_value=0,
+        value=DEFAULT_DISCOVERY_MAX_DTE,
+        step=1,
+        key="opportunity_max_dte",
+    )
+    min_discovery_dte = int(min_discovery_dte)
+    max_discovery_dte = int(max_discovery_dte)
+    discovery_settings = (
+        selected_discovery_option_type,
+        min_discovery_dte,
+        max_discovery_dte,
+    )
+    invalid_discovery_dte = min_discovery_dte > max_discovery_dte
+    if invalid_discovery_dte:
+        st.error("Minimum DTE must be less than or equal to Maximum DTE.")
+    run_discovery = st.button(
+        "Run Opportunity Discovery",
+        disabled=not watchlist or invalid_discovery_dte,
+    )
 
     if run_discovery:
         try:
-            opportunity_rows, discovery_errors = discover_watchlist_opportunities(
+            (
+                opportunity_rows,
+                discovery_errors,
+                discovery_evaluated_rows,
+            ) = discover_watchlist_opportunities(
                 TradierClient(),
                 watchlist,
                 datetime.now(EASTERN_TIME).date(),
+                option_type=selected_discovery_option_type,
+                min_dte=min_discovery_dte,
+                max_dte=max_discovery_dte,
             )
         except TradierConfigurationError as error:
             st.error("Tradier configuration error: " + str(error))
         else:
             st.session_state.opportunity_rows = opportunity_rows
             st.session_state.opportunity_errors = discovery_errors
+            st.session_state.opportunity_evaluated_rows = discovery_evaluated_rows
             st.session_state.opportunity_watchlist = watchlist
+            st.session_state.opportunity_settings = discovery_settings
 
     opportunity_rows = st.session_state.get("opportunity_rows", [])
+    opportunity_evaluated_rows = st.session_state.get("opportunity_evaluated_rows", [])
     opportunity_watchlist = st.session_state.get("opportunity_watchlist", [])
-    if opportunity_rows and opportunity_watchlist == watchlist:
+    opportunity_settings = st.session_state.get("opportunity_settings")
+    current_opportunity_context = (
+        opportunity_watchlist == watchlist
+        and opportunity_settings == discovery_settings
+    )
+    if opportunity_rows and current_opportunity_context:
         opportunity_selection = st.dataframe(
             format_opportunity_table(opportunity_rows),
             hide_index=True,
@@ -605,15 +821,26 @@ def main():
             selection_mode="single-row",
             key="opportunity_table",
         )
-        render_contract_detail_summary(
-            selected_dataframe_row(opportunity_selection, opportunity_rows),
-            "Opportunity Discovery",
+        selected_opportunity_row = selected_dataframe_row(
+            opportunity_selection, opportunity_rows
         )
-    elif opportunity_watchlist and opportunity_watchlist == watchlist:
+        if selected_opportunity_row and selected_opportunity_row.get("Status") in {
+            NO_CANDIDATE,
+            NO_MATCHING_CONTRACTS,
+        }:
+            st.info("No contract detail is available for this ticker status.")
+        else:
+            render_contract_detail_summary(
+                selected_opportunity_row,
+                "Opportunity Discovery",
+            )
+        render_quality_engine_diagnostics(opportunity_evaluated_rows, opportunity_rows)
+    elif opportunity_watchlist and current_opportunity_context:
         st.info("No passing or true near-miss contracts were found for this watchlist.")
+        render_quality_engine_diagnostics(opportunity_evaluated_rows, opportunity_rows)
 
     discovery_errors = st.session_state.get("opportunity_errors", {})
-    if discovery_errors and opportunity_watchlist == watchlist:
+    if discovery_errors and current_opportunity_context:
         with st.expander("Watchlist Fetch Errors", expanded=False):
             for symbol, message in discovery_errors.items():
                 st.caption(f"{symbol}: {message}")
