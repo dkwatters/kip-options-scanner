@@ -4,6 +4,7 @@ from numbers import Number
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
@@ -15,6 +16,7 @@ from src.contract_detail import (
 )
 from src.contract_quality import (
     ANY_SINGLE_FAILED_TEST,
+    CALL_DELTA_RANGE,
     MAX_SPREAD_PERCENT,
     MIN_OPEN_INTEREST,
     MIN_VOLUME,
@@ -38,12 +40,25 @@ from src.opportunity_ranking import (
     opportunity_table_rows,
 )
 from src.quality_diagnostics import (
+    DEFAULT_DISTRIBUTION_COMPARISON,
+    DEFAULT_DISTRIBUTION_POPULATION,
+    DISTRIBUTION_COMPARISONS,
+    DISTRIBUTION_POPULATIONS,
+    PASSING_CONTRACTS_POPULATION,
+    REJECTED_CONTRACTS_POPULATION,
+    TRUE_NEAR_MISS_CONTRACTS_POPULATION,
     average_rule_contribution,
+    comparison_quality_variable_distributions,
+    contract_fingerprint,
+    dashboard_metadata,
+    dashboard_observations,
     discovery_diagnostic_summary,
+    distribution_population,
+    distribution_population_summary,
+    quality_variable_distributions,
     quality_score_distribution,
     rule_failure_distribution,
     status_distribution,
-    top_opportunity_summary,
 )
 from src.scanner import ScannerNotImplementedError, run_scan
 from src.tradier_client import TradierAPIError, TradierClient, TradierConfigurationError
@@ -54,6 +69,22 @@ EASTERN_TIME = ZoneInfo("America/New_York")
 UNAVAILABLE = "-"
 DEFAULT_DISCOVERY_MIN_DTE = 7
 DEFAULT_DISCOVERY_MAX_DTE = 28
+
+DISTRIBUTION_THRESHOLD_NOTES = {
+    "Delta Distribution": (
+        f"Pass threshold: Delta {CALL_DELTA_RANGE[0]:.2f} to "
+        f"{CALL_DELTA_RANGE[1]:.2f} by absolute value."
+    ),
+    "Spread % Distribution": f"Pass threshold: Spread <= {MAX_SPREAD_PERCENT:.2%}.",
+    "Volume Distribution": (
+        f"Pass threshold: Volume >= {MIN_VOLUME:,}; pass-zone buckets begin at "
+        "501-1,000."
+    ),
+    "Open Interest Distribution": (
+        f"Pass threshold: Open Interest >= {MIN_OPEN_INTEREST:,}; pass-zone "
+        "buckets begin at 1,001-2,500."
+    ),
+}
 
 
 def style_all_passed(value):
@@ -581,6 +612,7 @@ def format_diagnostic_metric(label, value):
         return UNAVAILABLE
     if label in {
         "Contracts Evaluated",
+        "Population Count",
         "Passing Contracts Count",
         "True Near Miss Count",
         "Rejected Count",
@@ -591,7 +623,13 @@ def format_diagnostic_metric(label, value):
         "Average Volume",
     }:
         return format_whole_number(value)
-    if label in {"Average Strike Distance %", "Average Spread %"}:
+    if label in {
+        "Average Strike Distance %",
+        "Average Spread %",
+        "Passing %",
+        "True Near Miss %",
+        "Rejected %",
+    }:
         return format_percent(value)
     return format_decimal(value)
 
@@ -612,7 +650,395 @@ def render_bar_chart(rows, index_column, value_column):
     st.bar_chart(chart_data, y=value_column)
 
 
-def render_quality_engine_diagnostics(evaluated_rows, opportunity_rows):
+def render_distribution_bar_chart(rows):
+    """Render distribution buckets in their configured order."""
+    chart_data = pd.DataFrame(rows)
+    chart = (
+        alt.Chart(chart_data)
+        .mark_bar()
+        .encode(
+            x=alt.X("Bucket:N", sort=list(chart_data["Bucket"]), title=None),
+            y=alt.Y("Count:Q", title="Count"),
+            tooltip=[
+                alt.Tooltip("Bucket:N"),
+                alt.Tooltip("Zone:N"),
+                alt.Tooltip("Count:Q", format=","),
+                alt.Tooltip("Percentage:Q", format=".1%"),
+            ],
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+
+def render_distribution_table(rows):
+    """Render bucket count and percentage for one selected diagnostic distribution."""
+    st.dataframe(
+        pd.DataFrame(rows)
+        .reindex(columns=["Bucket", "Zone", "Count", "Percentage"])
+        .style.format(
+            {
+                "Count": format_whole_number,
+                "Percentage": format_percent,
+            }
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+
+
+def render_comparison_distribution_table(rows):
+    """Render bucket count and percentage for two diagnostic populations."""
+    columns = list(rows[0].keys()) if rows else []
+    percentage_columns = [column for column in columns if column.endswith(" %")]
+    count_columns = [column for column in columns if column.endswith(" Count")]
+    st.dataframe(
+        pd.DataFrame(rows)
+        .reindex(columns=columns)
+        .style.format(
+            {
+                **{column: format_whole_number for column in count_columns},
+                **{column: format_percent for column in percentage_columns},
+            }
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+
+
+def render_comparison_distribution_bar_chart(rows):
+    """Render grouped count bars for two population distributions."""
+    chart_data = pd.DataFrame(rows)
+    count_columns = [column for column in chart_data.columns if column.endswith(" Count")]
+    if chart_data.empty or not count_columns:
+        return
+
+    long_data = chart_data.melt(
+        id_vars=["Bucket", "Zone"],
+        value_vars=count_columns,
+        var_name="Population",
+        value_name="Count",
+    )
+    long_data["Population"] = long_data["Population"].str.removesuffix(" Count")
+    chart = (
+        alt.Chart(long_data)
+        .mark_bar()
+        .encode(
+            x=alt.X("Bucket:N", sort=list(chart_data["Bucket"]), title=None),
+            xOffset=alt.XOffset("Population:N"),
+            y=alt.Y("Count:Q", title="Count"),
+            color=alt.Color("Population:N", title=None),
+            tooltip=[
+                alt.Tooltip("Bucket:N"),
+                alt.Tooltip("Zone:N"),
+                alt.Tooltip("Population:N"),
+                alt.Tooltip("Count:Q", format=","),
+            ],
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+
+def render_distribution_diagnostics(evaluated_rows):
+    """Render population-level quality-variable distributions."""
+    st.markdown("Distribution Diagnostics")
+    mode = st.radio(
+        "Mode",
+        ("Single Population", "Comparison"),
+        horizontal=True,
+        key="quality_distribution_mode",
+    )
+
+    if mode == "Comparison":
+        comparison_label = st.selectbox(
+            "Comparison",
+            tuple(DISTRIBUTION_COMPARISONS.keys()),
+            index=tuple(DISTRIBUTION_COMPARISONS.keys()).index(
+                DEFAULT_DISTRIBUTION_COMPARISON
+            ),
+            key="quality_distribution_comparison",
+        )
+        population_a, population_b = DISTRIBUTION_COMPARISONS[comparison_label]
+        rows_a = distribution_population(evaluated_rows, population_a)
+        rows_b = distribution_population(evaluated_rows, population_b)
+
+        left_summary, right_summary = st.columns(2)
+        with left_summary:
+            st.markdown(population_a)
+            render_metric_grid(distribution_population_summary(rows_a), columns_per_row=2)
+        with right_summary:
+            st.markdown(population_b)
+            render_metric_grid(distribution_population_summary(rows_b), columns_per_row=2)
+
+        if not rows_a or not rows_b:
+            st.info("One or both comparison populations have no contracts.")
+
+        distributions = comparison_quality_variable_distributions(
+            evaluated_rows,
+            population_a,
+            population_b,
+        )
+        for left_label, right_label in (
+            ("Delta Distribution", "Spread % Distribution"),
+            ("Volume Distribution", "Open Interest Distribution"),
+        ):
+            left_column, right_column = st.columns(2)
+            with left_column:
+                st.markdown(left_label)
+                st.caption(DISTRIBUTION_THRESHOLD_NOTES[left_label])
+                render_comparison_distribution_table(distributions[left_label])
+                render_comparison_distribution_bar_chart(distributions[left_label])
+            with right_column:
+                st.markdown(right_label)
+                st.caption(DISTRIBUTION_THRESHOLD_NOTES[right_label])
+                render_comparison_distribution_table(distributions[right_label])
+                render_comparison_distribution_bar_chart(distributions[right_label])
+        return
+
+    population = st.selectbox(
+        "Population",
+        DISTRIBUTION_POPULATIONS,
+        index=DISTRIBUTION_POPULATIONS.index(DEFAULT_DISTRIBUTION_POPULATION),
+        key="quality_distribution_population",
+    )
+    selected_rows = distribution_population(evaluated_rows, population)
+    render_metric_grid(distribution_population_summary(selected_rows), columns_per_row=3)
+
+    if not selected_rows:
+        st.info("No contracts are available for the selected population.")
+        return
+
+    distributions = quality_variable_distributions(selected_rows)
+    for left_label, right_label in (
+        ("Delta Distribution", "Spread % Distribution"),
+        ("Volume Distribution", "Open Interest Distribution"),
+    ):
+        left_column, right_column = st.columns(2)
+        with left_column:
+            st.markdown(left_label)
+            st.caption(DISTRIBUTION_THRESHOLD_NOTES[left_label])
+            render_distribution_table(distributions[left_label])
+            render_distribution_bar_chart(distributions[left_label])
+        with right_column:
+            st.markdown(right_label)
+            st.caption(DISTRIBUTION_THRESHOLD_NOTES[right_label])
+            render_distribution_table(distributions[right_label])
+            render_distribution_bar_chart(distributions[right_label])
+
+
+def render_rule_failure_distribution(rows):
+    """Render failure counts and rates for each quality rule."""
+    failure_rows = rule_failure_distribution(rows)
+    st.dataframe(
+        pd.DataFrame(failure_rows)
+        .reindex(
+            columns=[
+                "Rule",
+                "Failure Summary",
+                "Failure Count",
+                "Failure Percentage",
+            ]
+        )
+        .style.format(
+            {
+                "Failure Count": format_whole_number,
+                "Failure Percentage": format_percent,
+            }
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+    render_bar_chart(failure_rows, "Rule", "Failure Percentage")
+
+
+def render_dashboard_metadata(metadata):
+    """Render scan context separately from numeric diagnostics."""
+    rows = [{"Field": label, "Value": value} for label, value in metadata.items()]
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+
+
+def render_dashboard_observations(observations):
+    """Render computed factual observations for the current scan."""
+    if not observations:
+        st.caption("No observations are available for the current scan.")
+        return
+    for observation in observations:
+        st.caption(f"- {observation}")
+
+
+def diagnostic_overview_metrics(evaluated_rows):
+    """Return scan outcome metrics with percentage context for display only."""
+    summary = discovery_diagnostic_summary(evaluated_rows)
+    evaluated_count = summary["Contracts Evaluated"]
+
+    def share(count):
+        return count / evaluated_count if evaluated_count else None
+
+    return {
+        "Contracts Evaluated": evaluated_count,
+        "Passing Contracts Count": summary["Passing Contracts Count"],
+        "Passing %": share(summary["Passing Contracts Count"]),
+        "True Near Miss Count": summary["True Near Miss Count"],
+        "True Near Miss %": share(summary["True Near Miss Count"]),
+        "Rejected Count": summary["Rejected Count"],
+        "Rejected %": share(summary["Rejected Count"]),
+        "Average Quality Score": summary["Average Quality Score"],
+        "Median Quality Score": summary["Median Quality Score"],
+        "Highest Quality Score": summary["Highest Quality Score"],
+        "Lowest Quality Score": summary["Lowest Quality Score"],
+    }
+
+
+def render_quality_score_bucket_table(rows):
+    """Render quality-score buckets alongside the existing distribution chart."""
+    st.dataframe(
+        pd.DataFrame(rows)
+        .reindex(columns=["Score Bucket", "Contracts"])
+        .style.format({"Contracts": format_whole_number}),
+        hide_index=True,
+        width="stretch",
+    )
+
+
+def most_common_failing_rule(failure_rows):
+    """Return the most common failing rule label from existing failure rows."""
+    highest_failure_count = max(
+        (row["Failure Count"] for row in failure_rows),
+        default=0,
+    )
+    if not highest_failure_count:
+        return None
+    rules = [
+        row["Rule"] for row in failure_rows if row["Failure Count"] == highest_failure_count
+    ]
+    return ", ".join(rules)
+
+
+def render_population_profile(label, metrics):
+    """Render one population profile card using existing diagnostic fields."""
+    with st.container(border=True):
+        st.markdown(label)
+        render_metric_grid(metrics, columns_per_row=2)
+
+
+def population_profile_metrics(rows):
+    """Return the profile fields required by the diagnostics population view."""
+    summary = distribution_population_summary(rows)
+    fingerprint = contract_fingerprint(rows)
+    return {
+        "Population Count": summary["Population Count"],
+        "Average Quality Score": summary["Average Quality Score"],
+        "Average DTE": fingerprint["Average DTE"],
+        "Average Delta": summary["Average Delta"],
+        "Average Spread %": summary["Average Spread %"],
+        "Average Volume": summary["Average Volume"],
+        "Average Open Interest": summary["Average Open Interest"],
+        "Average Strike Distance %": fingerprint["Average Strike Distance %"],
+    }
+
+
+def render_quality_diagnostics_overview(evaluated_rows, opportunity_rows, metadata):
+    st.caption("Question: What happened in this scan?")
+    if metadata:
+        st.markdown("Dashboard Metadata")
+        render_dashboard_metadata(metadata)
+
+    render_metric_grid(diagnostic_overview_metrics(evaluated_rows))
+
+    st.markdown("Status Distribution")
+    render_bar_chart(status_distribution(evaluated_rows), "Status", "Contracts")
+
+    st.markdown("Observations")
+    render_dashboard_observations(
+        dashboard_observations(evaluated_rows, opportunity_rows)
+    )
+
+
+def render_quality_score_diagnostics(evaluated_rows):
+    st.caption("Question: Is the scoring model producing a useful spread of scores?")
+    score_distribution_rows = quality_score_distribution(evaluated_rows)
+    st.markdown("Quality Score Distribution")
+    render_bar_chart(score_distribution_rows, "Score Bucket", "Contracts")
+
+    st.markdown("Quality Score Bucket Table")
+    render_quality_score_bucket_table(score_distribution_rows)
+
+    summary = discovery_diagnostic_summary(evaluated_rows)
+    render_metric_grid(
+        {
+            "Average Quality Score": summary["Average Quality Score"],
+            "Median Quality Score": summary["Median Quality Score"],
+            "Highest Quality Score": summary["Highest Quality Score"],
+            "Lowest Quality Score": summary["Lowest Quality Score"],
+        }
+    )
+
+
+def render_rule_failure_diagnostics(evaluated_rows):
+    st.caption("Question: Which rules are eliminating contracts?")
+    failure_rows = rule_failure_distribution(evaluated_rows)
+
+    st.markdown("Rule Failure Distribution")
+    render_rule_failure_distribution(evaluated_rows)
+
+    st.markdown("Average Rule Contribution")
+    render_bar_chart(
+        average_rule_contribution(evaluated_rows),
+        "Rule",
+        "Average Points",
+    )
+
+    common_rule = most_common_failing_rule(failure_rows)
+    if common_rule:
+        st.metric("Most Common Failing Rule", common_rule)
+
+
+def render_population_profile_diagnostics(evaluated_rows, opportunity_rows):
+    st.caption("Question: What does each evaluated population look like?")
+    population_specs = (
+        (
+            "Passing Population",
+            distribution_population(evaluated_rows, PASSING_CONTRACTS_POPULATION),
+        ),
+        (
+            "True Near Miss Population",
+            distribution_population(evaluated_rows, TRUE_NEAR_MISS_CONTRACTS_POPULATION),
+        ),
+        (
+            "Rejected Population",
+            distribution_population(evaluated_rows, REJECTED_CONTRACTS_POPULATION),
+        ),
+        (
+            "Top Opportunity Population",
+            sort_by_quality_score_desc(
+                [
+                    row
+                    for row in opportunity_rows
+                    if row.get("Status") in {"Passing", "True Near Miss"}
+                    and row.get("Quality Score") not in (None, "")
+                ]
+            )[:10],
+        ),
+    )
+
+    for left_spec, right_spec in zip(population_specs[::2], population_specs[1::2]):
+        left_column, right_column = st.columns(2)
+        with left_column:
+            render_population_profile(
+                left_spec[0],
+                population_profile_metrics(left_spec[1]),
+            )
+        with right_column:
+            render_population_profile(
+                right_spec[0],
+                population_profile_metrics(right_spec[1]),
+            )
+
+
+def render_quality_engine_diagnostics(
+    evaluated_rows,
+    opportunity_rows,
+    metadata=None,
+):
     """Render one-run diagnostics for current Opportunity Discovery results."""
     with st.expander("Quality Engine Diagnostics", expanded=False):
         if not evaluated_rows:
@@ -622,38 +1048,39 @@ def render_quality_engine_diagnostics(evaluated_rows, opportunity_rows):
         st.caption(
             "Diagnostics use only contracts evaluated by the current Opportunity Discovery filters."
         )
-        render_metric_grid(discovery_diagnostic_summary(evaluated_rows))
+        (
+            overview_tab,
+            score_distribution_tab,
+            rule_failures_tab,
+            population_profiles_tab,
+            distribution_diagnostics_tab,
+        ) = st.tabs(
+            [
+                "Overview",
+                "Score Distribution",
+                "Rule Failures",
+                "Population Profiles",
+                "Distribution Diagnostics",
+            ]
+        )
 
-        st.markdown("Top 10 Opportunity Summary")
-        render_metric_grid(top_opportunity_summary(opportunity_rows), columns_per_row=4)
-
-        score_column, status_column = st.columns(2)
-        with score_column:
-            st.markdown("Quality Score Distribution")
-            render_bar_chart(
-                quality_score_distribution(evaluated_rows),
-                "Score Bucket",
-                "Contracts",
+        with overview_tab:
+            render_quality_diagnostics_overview(
+                evaluated_rows,
+                opportunity_rows,
+                metadata,
             )
-        with status_column:
-            st.markdown("Status Distribution")
-            render_bar_chart(status_distribution(evaluated_rows), "Status", "Contracts")
-
-        failure_column, contribution_column = st.columns(2)
-        with failure_column:
-            st.markdown("Rule Failure Distribution")
-            render_bar_chart(
-                rule_failure_distribution(evaluated_rows),
-                "Rule",
-                "Failures",
+        with score_distribution_tab:
+            render_quality_score_diagnostics(evaluated_rows)
+        with rule_failures_tab:
+            render_rule_failure_diagnostics(evaluated_rows)
+        with population_profiles_tab:
+            render_population_profile_diagnostics(evaluated_rows, opportunity_rows)
+        with distribution_diagnostics_tab:
+            st.caption(
+                "Question: Where do contracts sit relative to each rule threshold?"
             )
-        with contribution_column:
-            st.markdown("Average Rule Contribution")
-            render_bar_chart(
-                average_rule_contribution(evaluated_rows),
-                "Rule",
-                "Average Points",
-            )
+            render_distribution_diagnostics(evaluated_rows)
 
 
 def raw_option_contracts(payload):
@@ -803,11 +1230,15 @@ def main():
             st.session_state.opportunity_evaluated_rows = discovery_evaluated_rows
             st.session_state.opportunity_watchlist = watchlist
             st.session_state.opportunity_settings = discovery_settings
+            st.session_state.opportunity_scan_timestamp = datetime.now(
+                EASTERN_TIME
+            ).strftime("%Y-%m-%d %I:%M:%S %p %Z")
 
     opportunity_rows = st.session_state.get("opportunity_rows", [])
     opportunity_evaluated_rows = st.session_state.get("opportunity_evaluated_rows", [])
     opportunity_watchlist = st.session_state.get("opportunity_watchlist", [])
     opportunity_settings = st.session_state.get("opportunity_settings")
+    opportunity_scan_timestamp = st.session_state.get("opportunity_scan_timestamp")
     current_opportunity_context = (
         opportunity_watchlist == watchlist
         and opportunity_settings == discovery_settings
@@ -834,10 +1265,32 @@ def main():
                 selected_opportunity_row,
                 "Opportunity Discovery",
             )
-        render_quality_engine_diagnostics(opportunity_evaluated_rows, opportunity_rows)
+        render_quality_engine_diagnostics(
+            opportunity_evaluated_rows,
+            opportunity_rows,
+            dashboard_metadata(
+                opportunity_evaluated_rows,
+                opportunity_watchlist,
+                selected_discovery_option_type,
+                min_discovery_dte,
+                max_discovery_dte,
+                opportunity_scan_timestamp,
+            ),
+        )
     elif opportunity_watchlist and current_opportunity_context:
         st.info("No passing or true near-miss contracts were found for this watchlist.")
-        render_quality_engine_diagnostics(opportunity_evaluated_rows, opportunity_rows)
+        render_quality_engine_diagnostics(
+            opportunity_evaluated_rows,
+            opportunity_rows,
+            dashboard_metadata(
+                opportunity_evaluated_rows,
+                opportunity_watchlist,
+                selected_discovery_option_type,
+                min_discovery_dte,
+                max_discovery_dte,
+                opportunity_scan_timestamp,
+            ),
+        )
 
     discovery_errors = st.session_state.get("opportunity_errors", {})
     if discovery_errors and current_opportunity_context:
