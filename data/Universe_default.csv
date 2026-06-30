@@ -1,0 +1,67 @@
+symbol,name,sector,enabled
+SPY,SPDR S&P 500 ETF Trust,Index ETF,TRUE
+QQQ,Invesco QQQ Trust,Index ETF,TRUE
+IWM,iShares Russell 2000 ETF,Index ETF,TRUE
+AAPL,Apple Inc.,Mag8,TRUE
+MSFT,Microsoft Corporation,Mag8,TRUE
+NVDA,NVIDIA Corporation,Mag8,TRUE
+AMZN,Amazon.com Inc.,Mag8,TRUE
+TSLA,Tesla Inc.,Mag8,TRUE
+PANW,Palo Alto Networks,Cybersecurity,TRUE
+CRWD,Crowdstrike,Cybersecurity,TRUE
+NET,Cloudflare,Cybersecurity,TRUE
+ZS,ZScaler,Cybersecurity,TRUE
+CRWV,Coreweave,NeoCloud,TRUE
+NBIS,Nebius,NeoCloud,TRUE
+IREN,Iren,NeoCloud,TRUE
+MRVL,Marvell,Semiconductor,TRUE
+LRCX,LAM Research,Semiconductor,TRUE
+KLAC,KLA,Semiconductor,TRUE
+AMAT,Applied Materials,Semiconductor,TRUE
+AVGO,Broadcom,Semiconductor,TRUE
+AMD,AMD,Semiconductor,TRUE
+IBM,IBM,AI Software,TRUE
+DELL,Dell,CPU,TRUE
+INTC,Intel,Semiconductor,TRUE
+ARM,Arm,Semiconductor,TRUE
+SMCI,SMCI,Semiconductor,TRUE
+ASML,ASML,Semiconductor,TRUE
+TSM,Taiwan Semiconductor,Semiconductor,TRUE
+QCOM,Qualcomm,Semiconductor,TRUE
+SNOW,Snowflake,AI Software,TRUE
+GLW,Corning,Photonics,TRUE
+LITE,Lumentum,Photonics,TRUE
+CRDO,Credo Technology,Photonics,TRUE
+COHR,Coherent,Photonics,TRUE
+CIEN,Ciena,Photonics,TRUE
+AEHR,AEHR,Photonics,TRUE
+VST,Vistra,Energy,TRUE
+ANET,Arista Networks,Networking,TRUE
+ORCL,Oracle,NeoCloud,TRUE
+ALAB,Astera Labs,Networking,TRUE
+FN,Fabrinet,Networking,TRUE
+WDC,Western Digital,Storage,TRUE
+MU,Micron Technology,Memory,TRUE
+SNDK,Sandisk,Storage,TRUE
+ONTO,Onto Innovation,Memory,TRUE
+BE ,Bloom Energy,Energy,TRUE
+TLN,Talen Energy,Energy,TRUE
+MSTR,Microstrategy,Crypto,TRUE
+HOOD,Robinhood,Fintech,TRUE
+AFRM,Affirm,Fintech,TRUE
+SOFI,SOFI,Fintech,TRUE
+NEE,NextEra Energy,Energy,TRUE
+KTOS,Kratos,Defense,TRUE
+LHX,L3Harris,DEfense,TRUE
+APP,AppLovin,AI Software,TRUE
+MDB ,MongoDB,AI Software,TRUE
+DDOG,Datadog,AI Software,TRUE
+FORM,FormFactor,Datacenter,TRUE
+WYFI,WhiteFiber,Datacenter,TRUE
+CLS,Celestica,Datacenter,TRUE
+INOD,Innodata,Datacenter,TRUE
+OKLO,OKLO,Energy,TRUE
+SMR,NuScale Power,Energy,TRUE
+META,Meta ,Mag8,TRUE
+GOOG,Google,Mag8,TRUE
+SPCX,SpaceX,Mag8,TRUE
