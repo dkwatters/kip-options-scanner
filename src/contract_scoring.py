@@ -1,4 +1,4 @@
-"""Transparent, configurable quality scoring for evaluated option contracts.
+"""Transparent Contract Quality Model scoring for evaluated option contracts.
 
 This module scores existing rule outcomes and margins only. It does not select,
 rank, or recommend contracts.

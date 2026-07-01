@@ -1,7 +1,10 @@
+import json
+import sqlite3
 from datetime import date, datetime, timezone
 from math import isfinite
 from numbers import Number
 from pathlib import Path
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import altair as alt
@@ -33,11 +36,18 @@ from src.contract_quality import (
     test_specific_near_misses,
     ticker_diagnostics,
 )
+from src.contract_scoring import QUALITY_WEIGHTS
+from src.evaluation_profile import (
+    DEFAULT_EVALUATION_PROFILE,
+    evaluation_profile_export_fields,
+)
 from src.opportunity_ranking import (
     NO_CANDIDATE,
     NO_MATCHING_CONTRACTS,
     no_matching_contracts_row,
     opportunity_table_rows,
+    primary_contract_strength,
+    primary_contract_weakness,
 )
 from src.quality_diagnostics import (
     DEFAULT_DISTRIBUTION_COMPARISON,
@@ -60,15 +70,20 @@ from src.quality_diagnostics import (
     rule_failure_distribution,
     status_distribution,
 )
-from src.scanner import ScannerNotImplementedError, run_scan
+from src.research_repository import (
+    DEFAULT_RESEARCH_DB_PATH,
+    archive_opportunity_scan,
+    research_repository_status,
+)
+from src.study_protocol import DEFAULT_STUDY_PROTOCOL
 from src.tradier_client import TradierAPIError, TradierClient, TradierConfigurationError
-from src.universe import DEFAULT_WATCHLIST, UniverseError, load_universe
+from src.universe import UniverseError, load_universe
 
 ROOT = Path(__file__).resolve().parent
 EASTERN_TIME = ZoneInfo("America/New_York")
 UNAVAILABLE = "-"
-DEFAULT_DISCOVERY_MIN_DTE = 7
-DEFAULT_DISCOVERY_MAX_DTE = 28
+DEFAULT_DISCOVERY_MIN_DTE = DEFAULT_EVALUATION_PROFILE.default_scan_parameters["min_dte"]
+DEFAULT_DISCOVERY_MAX_DTE = DEFAULT_EVALUATION_PROFILE.default_scan_parameters["max_dte"]
 
 DISTRIBUTION_THRESHOLD_NOTES = {
     "Delta Distribution": (
@@ -243,6 +258,7 @@ def option_chain_rows(
             continue
         greeks = option.get("greeks")
         greeks = greeks if isinstance(greeks, dict) else {}
+        underlying_symbol = ticker or option.get("root_symbol")
         quality = contract_quality(
             option,
             expiration=expiration,
@@ -253,6 +269,8 @@ def option_chain_rows(
         option_type = option.get("option_type", UNAVAILABLE)
         rows.append(
             {
+                "Ticker": normalized_symbol(underlying_symbol),
+                "Underlying Symbol": normalized_symbol(option.get("root_symbol") or underlying_symbol),
                 "Symbol": option.get("symbol", UNAVAILABLE),
                 "Strike": option.get("strike", UNAVAILABLE),
                 "Expiration": expiration_value,
@@ -264,7 +282,7 @@ def option_chain_rows(
                     option.get("strike"), underlying_price
                 ),
                 "Contract": format_contract_label(
-                    ticker or option.get("root_symbol"),
+                    underlying_symbol,
                     option.get("strike"),
                     option_type,
                     expiration_value,
@@ -411,8 +429,8 @@ def sort_by_quality_score_desc(rows):
     return sorted(rows, key=quality_score_sort_value, reverse=True)
 
 
-def parse_watchlist(value):
-    """Return uppercase symbols from a newline/comma separated watchlist."""
+def parse_universe_symbols(value):
+    """Return uppercase symbols from a newline/comma separated symbol list."""
     symbols = []
     seen = set()
     for raw_symbol in value.replace(",", "\n").splitlines():
@@ -422,6 +440,9 @@ def parse_watchlist(value):
         seen.add(symbol)
         symbols.append(symbol)
     return symbols
+
+
+parse_watchlist = parse_universe_symbols
 
 
 def filter_by_dte_range(rows, min_dte, max_dte):
@@ -437,9 +458,9 @@ def filter_by_dte_range(rows, min_dte, max_dte):
     return filtered_rows
 
 
-def discover_watchlist_opportunities(
+def discover_universe_opportunities(
     client,
-    watchlist,
+    universe_symbols,
     today,
     option_type="Calls",
     min_dte=DEFAULT_DISCOVERY_MIN_DTE,
@@ -450,7 +471,7 @@ def discover_watchlist_opportunities(
     evaluated_contract_rows = []
     placeholder_rows = []
     errors = {}
-    for symbol in watchlist:
+    for symbol in universe_symbols:
         try:
             expiration_payload = client.get_option_expirations(symbol)
             quote_payload = client.get_quote(symbol)
@@ -484,6 +505,9 @@ def discover_watchlist_opportunities(
         except (TradierAPIError, ValueError) as error:
             errors[symbol] = str(error)
     return opportunity_table_rows(evaluated_rows, placeholder_rows), errors, evaluated_contract_rows
+
+
+discover_watchlist_opportunities = discover_universe_opportunities
 
 
 def format_opportunity_table(rows):
@@ -888,6 +912,433 @@ def diagnostic_overview_metrics(evaluated_rows):
     }
 
 
+def scan_export_context(scan_id, scan_timestamp, universe_name):
+    """Return stable Opportunity Scan fields shared by validation exports.
+
+    The legacy model_name field is retained for export compatibility. The
+    explicit contract_quality_model_* fields clarify that the current scoring
+    model evaluates option contracts, while future Technical or Trade Fit
+    models remain independent and optional.
+    """
+    return {
+        "scan_id": scan_id,
+        "scan_timestamp": scan_timestamp,
+        "universe_name": universe_name,
+        "model_name": "Quality Score",
+        **evaluation_profile_export_fields(),
+    }
+
+
+def contract_classification(row):
+    """Classify a contract from existing quality outcomes without changing rules."""
+    if row.get("All Passed") == "Yes":
+        return "Passing"
+    if len([check for check in TEST_SPECIFIC_NEAR_MISS_OPTIONS.values() if row.get(check) == "Fail"]) == 1:
+        return "True Near Miss"
+    return "Rejected"
+
+
+def failed_rule_names(row):
+    """Return failed rule labels for future Contract Quality Model validation tests."""
+    failed = [
+        label
+        for label, check in TEST_SPECIFIC_NEAR_MISS_OPTIONS.items()
+        if row.get(check) == "Fail"
+    ]
+    return ", ".join(failed)
+
+
+def dataframe_csv_download(rows, columns):
+    """Serialize export rows to CSV bytes with a stable column order."""
+    return pd.DataFrame(rows).reindex(columns=columns).to_csv(index=False).encode("utf-8")
+
+
+def normalized_symbol(value):
+    """Return a stable uppercase symbol or the unavailable marker."""
+    if value in (None, ""):
+        return UNAVAILABLE
+    symbol = str(value).strip().upper()
+    return symbol if symbol else UNAVAILABLE
+
+
+def validate_evaluated_contract_tickers(evaluated_rows, active_universe_symbols=None):
+    """Ensure evaluated contract rows retain a usable known-source ticker."""
+    active_symbols = (
+        {normalized_symbol(symbol) for symbol in active_universe_symbols}
+        if active_universe_symbols is not None
+        else None
+    )
+    for index, row in enumerate(evaluated_rows, start=1):
+        ticker = normalized_symbol(row.get("Ticker"))
+        contract_symbol = row.get("Symbol", UNAVAILABLE)
+        if ticker in {UNAVAILABLE, "-"}:
+            raise ValueError(
+                f"Evaluated contract row {index} has a blank ticker for {contract_symbol}."
+            )
+        if active_symbols is not None and ticker not in active_symbols:
+            raise ValueError(
+                f"Evaluated contract row {index} ticker {ticker} is not in the active universe "
+                f"for {contract_symbol}."
+            )
+
+
+def evaluated_contract_export_rows(
+    evaluated_rows,
+    scan_id,
+    scan_timestamp,
+    universe_name,
+    active_universe_symbols=None,
+):
+    """Shape evaluated contracts for offline Contract Quality Model validation."""
+    context = scan_export_context(scan_id, scan_timestamp, universe_name)
+    validate_evaluated_contract_tickers(evaluated_rows, active_universe_symbols)
+    return [
+        {
+            **context,
+            "ticker": normalized_symbol(row.get("Ticker")),
+            "option_type": row.get("Option Type", UNAVAILABLE),
+            "expiration": row.get("Expiration", UNAVAILABLE),
+            "strike": row.get("Strike", UNAVAILABLE),
+            "contract_symbol": row.get("Symbol", UNAVAILABLE),
+            "contract_label": row.get("Contract", UNAVAILABLE),
+            "dte": row.get("DTE", UNAVAILABLE),
+            "underlying_price": row.get("Underlying Price", UNAVAILABLE),
+            "bid": row.get("Bid", UNAVAILABLE),
+            "ask": row.get("Ask", UNAVAILABLE),
+            "mid": row.get("Mid Price", UNAVAILABLE),
+            "spread_pct": row.get("Spread %", UNAVAILABLE),
+            "delta": row.get("Delta", UNAVAILABLE),
+            "open_interest": row.get("Open Interest", UNAVAILABLE),
+            "volume": row.get("Volume", UNAVAILABLE),
+            "quality_score": row.get("Quality Score", UNAVAILABLE),
+            "classification": contract_classification(row),
+            "failed_rules": failed_rule_names(row),
+            "primary_strength": primary_contract_strength(row),
+            "primary_weakness": primary_contract_weakness(row),
+        }
+        for row in evaluated_rows
+    ]
+
+
+RULE_EXPORT_SPECS = (
+    {
+        "rule_name": "Delta Fit",
+        "weight_key": "Delta Fit",
+        "check": "Delta Fit",
+        "actual": "Delta",
+        "margin": "Delta Margin",
+    },
+    {
+        "rule_name": "Spread",
+        "weight_key": "Spread",
+        "check": "Spread Pass",
+        "actual": "Spread %",
+        "margin": "Spread Margin",
+        "target": f"<= {MAX_SPREAD_PERCENT}",
+    },
+    {
+        "rule_name": "Open Interest",
+        "weight_key": "Open Interest",
+        "check": "Open Interest Pass",
+        "actual": "Open Interest",
+        "margin": "OI Margin",
+        "target": f">= {MIN_OPEN_INTEREST}",
+    },
+    {
+        "rule_name": "Volume",
+        "weight_key": "Volume",
+        "check": "Volume Pass",
+        "actual": "Volume",
+        "margin": "Volume Margin",
+        "target": f">= {MIN_VOLUME}",
+    },
+)
+
+
+def delta_target(row):
+    """Return the existing delta target for the contract's option type."""
+    option_type = str(row.get("Option Type", "")).lower()
+    if option_type == "put":
+        return "-0.7 to -0.5"
+    if option_type == "call":
+        return "0.5 to 0.7"
+    return UNAVAILABLE
+
+
+def score_breakdown_by_rule(row):
+    """Index the existing per-rule score breakdown by rule name."""
+    breakdown = row.get("Quality Score Breakdown")
+    if not isinstance(breakdown, list):
+        return {}
+    return {
+        item.get("Rule"): item
+        for item in breakdown
+        if isinstance(item, dict) and item.get("Rule")
+    }
+
+
+def rule_evaluation_export_rows(evaluated_rows, scan_id):
+    """Export one row per existing rule evaluation for validation replay."""
+    rows = []
+    context = evaluation_profile_export_fields()
+    for contract in evaluated_rows:
+        breakdown = score_breakdown_by_rule(contract)
+        contract_symbol = contract.get("Symbol", UNAVAILABLE)
+        for spec in RULE_EXPORT_SPECS:
+            score_item = breakdown.get(spec["rule_name"], {})
+            rows.append(
+                {
+                    "scan_id": scan_id,
+                    **context,
+                    "contract_symbol": contract_symbol,
+                    "rule_name": spec["rule_name"],
+                    "rule_weight": QUALITY_WEIGHTS.get(spec["weight_key"], UNAVAILABLE),
+                    "actual_value": contract.get(spec["actual"], UNAVAILABLE),
+                    "target": delta_target(contract)
+                    if spec["rule_name"] == "Delta Fit"
+                    else spec["target"],
+                    "pass_fail_status": contract.get(spec["check"], UNAVAILABLE),
+                    "threshold_distance": contract.get(spec["margin"], UNAVAILABLE),
+                    "rule_score": score_item.get("Points", UNAVAILABLE),
+                    "max_rule_score": score_item.get(
+                        "Weight", QUALITY_WEIGHTS.get(spec["weight_key"], UNAVAILABLE)
+                    ),
+                }
+            )
+    return rows
+
+
+def json_safe(value):
+    """Convert diagnostic values to strict JSON-safe primitives."""
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [json_safe(item) for item in value]
+    if isinstance(value, Number):
+        number = float(value)
+        if not isfinite(number):
+            return None
+        return int(number) if number.is_integer() else number
+    return value
+
+
+def qed_summary_export(
+    evaluated_rows,
+    opportunity_rows,
+    scan_id,
+    scan_timestamp,
+    universe_name,
+):
+    """Build nested QED metrics for Opportunity Scan diagnostics."""
+    summary = discovery_diagnostic_summary(evaluated_rows)
+    failure_rows = rule_failure_distribution(evaluated_rows)
+    population_profiles = {
+        "all_contracts": population_profile_metrics(evaluated_rows),
+        "passing": population_profile_metrics(
+            distribution_population(evaluated_rows, PASSING_CONTRACTS_POPULATION)
+        ),
+        "true_near_miss": population_profile_metrics(
+            distribution_population(evaluated_rows, TRUE_NEAR_MISS_CONTRACTS_POPULATION)
+        ),
+        "rejected": population_profile_metrics(
+            distribution_population(evaluated_rows, REJECTED_CONTRACTS_POPULATION)
+        ),
+        "top_opportunities": population_profile_metrics(
+            sort_by_quality_score_desc(
+                [
+                    row
+                    for row in opportunity_rows
+                    if row.get("Status") in {"Passing", "True Near Miss"}
+                    and row.get("Quality Score") not in (None, "")
+                ]
+            )[:10]
+        ),
+    }
+    return json_safe(
+        {
+            **scan_export_context(scan_id, scan_timestamp, universe_name),
+            "contracts_evaluated": summary["Contracts Evaluated"],
+            "passing_count": summary["Passing Contracts Count"],
+            "true_near_miss_count": summary["True Near Miss Count"],
+            "rejected_count": summary["Rejected Count"],
+            "average_quality_score": summary["Average Quality Score"],
+            "median_quality_score": summary["Median Quality Score"],
+            "highest_quality_score": summary["Highest Quality Score"],
+            "lowest_quality_score": summary["Lowest Quality Score"],
+            "rule_failure_counts": {
+                row["Rule"]: row["Failure Count"] for row in failure_rows
+            },
+            "rule_failure_percentages": {
+                row["Rule"]: row["Failure Percentage"] for row in failure_rows
+            },
+            "population_profiles": population_profiles,
+            "distribution_diagnostics": quality_variable_distributions(evaluated_rows),
+        }
+    )
+
+
+def render_quality_export_section(
+    evaluated_rows,
+    opportunity_rows,
+    scan_id,
+    scan_timestamp,
+    universe_name,
+    active_universe_symbols=None,
+):
+    """Render exports that let validation test cases run outside the UI."""
+    st.markdown("Export Most Recent Opportunity Scan")
+    st.caption(
+        "These exports preserve evaluated rows and rule outcomes for offline validation."
+    )
+    safe_scan_id = str(scan_id).replace(":", "").replace(" ", "_")
+    contract_rows = evaluated_contract_export_rows(
+        evaluated_rows,
+        scan_id,
+        scan_timestamp,
+        universe_name,
+        active_universe_symbols,
+    )
+    rule_rows = rule_evaluation_export_rows(evaluated_rows, scan_id)
+    summary = qed_summary_export(
+        evaluated_rows,
+        opportunity_rows,
+        scan_id,
+        scan_timestamp,
+        universe_name,
+    )
+    contract_columns = [
+        "scan_id",
+        "scan_timestamp",
+        "universe_name",
+        "model_name",
+        "evaluation_profile_name",
+        "evaluation_profile_version",
+        "contract_quality_model_name",
+        "contract_quality_model_version",
+        "ticker",
+        "option_type",
+        "expiration",
+        "strike",
+        "contract_symbol",
+        "contract_label",
+        "dte",
+        "underlying_price",
+        "bid",
+        "ask",
+        "mid",
+        "spread_pct",
+        "delta",
+        "open_interest",
+        "volume",
+        "quality_score",
+        "classification",
+        "failed_rules",
+        "primary_strength",
+        "primary_weakness",
+    ]
+    rule_columns = [
+        "scan_id",
+        "evaluation_profile_name",
+        "evaluation_profile_version",
+        "contract_quality_model_name",
+        "contract_quality_model_version",
+        "contract_symbol",
+        "rule_name",
+        "rule_weight",
+        "actual_value",
+        "target",
+        "pass_fail_status",
+        "threshold_distance",
+        "rule_score",
+        "max_rule_score",
+    ]
+    contract_column, rule_column, summary_column = st.columns(3)
+    contract_column.download_button(
+        "Evaluated Contracts CSV",
+        dataframe_csv_download(contract_rows, contract_columns),
+        file_name=f"{safe_scan_id}_evaluated_contracts.csv",
+        mime="text/csv",
+    )
+    rule_column.download_button(
+        "Rule Evaluations CSV",
+        dataframe_csv_download(rule_rows, rule_columns),
+        file_name=f"{safe_scan_id}_rule_evaluations.csv",
+        mime="text/csv",
+    )
+    summary_column.download_button(
+        "QED Summary JSON",
+        json.dumps(summary, indent=2).encode("utf-8"),
+        file_name=f"{safe_scan_id}_qed_summary.json",
+        mime="application/json",
+    )
+
+
+def archive_current_opportunity_scan(
+    evaluated_rows,
+    scan_id,
+    scan_timestamp,
+    universe_name,
+    option_type,
+    dte_min,
+    dte_max,
+    active_universe_symbols=None,
+    study_protocol=None,
+):
+    """Persist completed scans for future model validation and longitudinal analysis."""
+    contract_rows = evaluated_contract_export_rows(
+        evaluated_rows,
+        scan_id,
+        scan_timestamp,
+        universe_name,
+        active_universe_symbols,
+    )
+    rule_rows = rule_evaluation_export_rows(evaluated_rows, scan_id)
+    return archive_opportunity_scan(
+        scan_id=scan_id,
+        scan_timestamp=scan_timestamp,
+        universe_name=universe_name,
+        option_type=option_type,
+        dte_min=dte_min,
+        dte_max=dte_max,
+        evaluation_profile=evaluation_profile_export_fields(),
+        evaluated_contract_rows=evaluated_rows,
+        contract_export_rows=contract_rows,
+        rule_export_rows=rule_rows,
+        study_protocol=study_protocol,
+        database_path=DEFAULT_RESEARCH_DB_PATH,
+    )
+
+
+def render_research_repository_status():
+    """Show the lightweight SQLite repository status without adding trend analytics."""
+    st.markdown("Research Repository")
+    try:
+        status = research_repository_status(DEFAULT_RESEARCH_DB_PATH)
+    except (OSError, sqlite3.Error) as error:
+        st.error("Research Repository unavailable: " + str(error))
+        return
+    st.caption(f"Database path: {status.database_path}")
+    st.markdown("Active Study Protocol")
+    protocol_rows = [
+        {"Field": "Study ID", "Value": DEFAULT_STUDY_PROTOCOL.study_id},
+        {"Field": "Study Name", "Value": DEFAULT_STUDY_PROTOCOL.study_name},
+        {"Field": "Study Version", "Value": DEFAULT_STUDY_PROTOCOL.study_version},
+        {"Field": "Evaluation Profile", "Value": f"{DEFAULT_STUDY_PROTOCOL.evaluation_profile_name} {DEFAULT_STUDY_PROTOCOL.evaluation_profile_version}"},
+        {"Field": "Universe CSV", "Value": str(DEFAULT_STUDY_PROTOCOL.universe_csv)},
+        {"Field": "Option Type", "Value": DEFAULT_STUDY_PROTOCOL.option_type},
+        {"Field": "DTE Range", "Value": f"{DEFAULT_STUDY_PROTOCOL.dte_min}-{DEFAULT_STUDY_PROTOCOL.dte_max}"},
+        {"Field": "Suggested Schedule ET", "Value": ", ".join(DEFAULT_STUDY_PROTOCOL.suggested_schedule_times_et)},
+        {"Field": "Purpose", "Value": DEFAULT_STUDY_PROTOCOL.study_purpose},
+    ]
+    st.dataframe(pd.DataFrame(protocol_rows), hide_index=True, width="stretch")
+    total_column, latest_column, study_column = st.columns(3)
+    total_column.metric("Total scans stored", status.total_scans)
+    latest_column.metric("Latest scan timestamp", status.latest_scan_timestamp or UNAVAILABLE)
+    study_column.metric("Latest study_id", status.latest_study_id or UNAVAILABLE)
+
+
 def render_quality_score_bucket_table(rows):
     """Render quality-score buckets alongside the existing distribution chart."""
     st.dataframe(
@@ -1040,47 +1491,46 @@ def render_quality_engine_diagnostics(
     metadata=None,
 ):
     """Render one-run diagnostics for current Opportunity Discovery results."""
-    with st.expander("Quality Engine Diagnostics", expanded=False):
-        if not evaluated_rows:
-            st.info("No evaluated contracts are available for the current Opportunity Discovery run.")
-            return
+    if not evaluated_rows:
+        st.info("No evaluated contracts are available for the current Opportunity Discovery run.")
+        return
 
+    st.caption(
+        "Diagnostics use only contracts evaluated by the current Opportunity Discovery filters."
+    )
+    (
+        overview_tab,
+        score_distribution_tab,
+        rule_failures_tab,
+        population_profiles_tab,
+        distribution_diagnostics_tab,
+    ) = st.tabs(
+        [
+            "Overview",
+            "Score Distribution",
+            "Rule Failures",
+            "Population Profiles",
+            "Distribution Diagnostics",
+        ]
+    )
+
+    with overview_tab:
+        render_quality_diagnostics_overview(
+            evaluated_rows,
+            opportunity_rows,
+            metadata,
+        )
+    with score_distribution_tab:
+        render_quality_score_diagnostics(evaluated_rows)
+    with rule_failures_tab:
+        render_rule_failure_diagnostics(evaluated_rows)
+    with population_profiles_tab:
+        render_population_profile_diagnostics(evaluated_rows, opportunity_rows)
+    with distribution_diagnostics_tab:
         st.caption(
-            "Diagnostics use only contracts evaluated by the current Opportunity Discovery filters."
+            "Question: Where do contracts sit relative to each rule threshold?"
         )
-        (
-            overview_tab,
-            score_distribution_tab,
-            rule_failures_tab,
-            population_profiles_tab,
-            distribution_diagnostics_tab,
-        ) = st.tabs(
-            [
-                "Overview",
-                "Score Distribution",
-                "Rule Failures",
-                "Population Profiles",
-                "Distribution Diagnostics",
-            ]
-        )
-
-        with overview_tab:
-            render_quality_diagnostics_overview(
-                evaluated_rows,
-                opportunity_rows,
-                metadata,
-            )
-        with score_distribution_tab:
-            render_quality_score_diagnostics(evaluated_rows)
-        with rule_failures_tab:
-            render_rule_failure_diagnostics(evaluated_rows)
-        with population_profiles_tab:
-            render_population_profile_diagnostics(evaluated_rows, opportunity_rows)
-        with distribution_diagnostics_tab:
-            st.caption(
-                "Question: Where do contracts sit relative to each rule threshold?"
-            )
-            render_distribution_diagnostics(evaluated_rows)
+        render_distribution_diagnostics(evaluated_rows)
 
 
 def raw_option_contracts(payload):
@@ -1100,78 +1550,84 @@ def quote_last_price(payload):
     return quote.get("last") if isinstance(quote, dict) else None
 
 
-def main():
-    load_dotenv(ROOT / ".env")
-    st.set_page_config(page_title="Kip Options Scanner", layout="wide")
-    st.title("Kip Options Scanner")
-    st.caption("Phase 4B - Research tool only - No trading or order placement")
-    with st.sidebar:
-        path = st.text_input("Universe CSV", value=str(ROOT / "data" / "universe_default.csv"))
-        st.header("Tradier Connection")
-        ticker = st.text_input("Ticker symbol", value="SPY", max_chars=10).strip().upper()
-        get_quote = st.button("Get Quote")
-        show_diagnostic_data = st.checkbox("Show Diagnostic Data")
-    try:
-        universe = load_universe(path)
-    except UniverseError as error:
-        st.error("Unable to load universe: " + str(error))
-        universe = []
-
+def render_tradier_quote(ticker, get_quote, show_diagnostic_data):
     st.subheader("Tradier quote")
-    if get_quote:
-        if not ticker:
-            st.error("Enter a ticker symbol before requesting a quote.")
-        else:
-            try:
-                raw_response = TradierClient().get_quote(ticker)
-                quote = raw_response.get("quotes", {}).get("quote")
-                if isinstance(quote, list):
-                    quote = quote[0] if quote else None
-                if not isinstance(quote, dict):
-                    raise ValueError("Unexpected quote response format.")
-            except TradierConfigurationError as error:
-                st.error("Tradier configuration error: " + str(error))
-            except TradierAPIError as error:
-                st.error("Tradier connection error: " + str(error))
-            except ValueError as error:
-                st.error("Tradier response error: " + str(error))
-            else:
-                quote_metrics = (
-                    ("Symbol", quote.get("symbol", UNAVAILABLE)),
-                    ("Last Trade", quote.get("last", UNAVAILABLE)),
-                    ("Bid", quote.get("bid", UNAVAILABLE)),
-                    ("Ask", quote.get("ask", UNAVAILABLE)),
-                    ("Mid Price", mid_price(quote)),
-                    ("Volume", format_whole_number(quote.get("volume", UNAVAILABLE))),
-                )
-                for column, (label, value) in zip(st.columns(6), quote_metrics):
-                    column.metric(label, value)
+    if not get_quote:
+        return
 
-                trade_timestamp = format_eastern_timestamp(quote.get("trade_date"))
-                bid_timestamp = format_eastern_timestamp(quote.get("bid_date"))
-                ask_timestamp = format_eastern_timestamp(quote.get("ask_date"))
-                timestamp_columns = st.columns(2)
-                timestamp_columns[0].caption("Trade timestamp: " + trade_timestamp)
-                timestamp_columns[1].caption(
-                    "Bid/ask timestamp: Bid " + bid_timestamp + " | Ask " + ask_timestamp
-                )
-                st.caption("Bid/ask may update more frequently than last trade price.")
-                if show_diagnostic_data:
-                    with st.expander("Tradier Raw Response"):
-                        st.json(raw_response)
+    if not ticker:
+        st.error("Enter a ticker symbol before requesting a quote.")
+        return
 
-    st.divider()
+    try:
+        raw_response = TradierClient().get_quote(ticker)
+        quote = raw_response.get("quotes", {}).get("quote")
+        if isinstance(quote, list):
+            quote = quote[0] if quote else None
+        if not isinstance(quote, dict):
+            raise ValueError("Unexpected quote response format.")
+    except TradierConfigurationError as error:
+        st.error("Tradier configuration error: " + str(error))
+    except TradierAPIError as error:
+        st.error("Tradier connection error: " + str(error))
+    except ValueError as error:
+        st.error("Tradier response error: " + str(error))
+    else:
+        quote_metrics = (
+            ("Symbol", quote.get("symbol", UNAVAILABLE)),
+            ("Last Trade", quote.get("last", UNAVAILABLE)),
+            ("Bid", quote.get("bid", UNAVAILABLE)),
+            ("Ask", quote.get("ask", UNAVAILABLE)),
+            ("Mid Price", mid_price(quote)),
+            ("Volume", format_whole_number(quote.get("volume", UNAVAILABLE))),
+        )
+        for column, (label, value) in zip(st.columns(6), quote_metrics):
+            column.metric(label, value)
+
+        trade_timestamp = format_eastern_timestamp(quote.get("trade_date"))
+        bid_timestamp = format_eastern_timestamp(quote.get("bid_date"))
+        ask_timestamp = format_eastern_timestamp(quote.get("ask_date"))
+        timestamp_columns = st.columns(2)
+        timestamp_columns[0].caption("Trade timestamp: " + trade_timestamp)
+        timestamp_columns[1].caption(
+            "Bid/ask timestamp: Bid " + bid_timestamp + " | Ask " + ask_timestamp
+        )
+        st.caption("Bid/ask may update more frequently than last trade price.")
+        if show_diagnostic_data:
+            with st.expander("Tradier Raw Response"):
+                st.json(raw_response)
+
+
+def render_opportunity_discovery_workflow(
+    universe_name,
+    universe_path,
+    universe_symbols,
+    universe_error=None,
+    reload_universe=False,
+):
     st.subheader("Opportunity Discovery")
     st.caption(
         "Ranks the best passing contract, or highest-quality true near miss, for each watchlist ticker."
     )
+    universe_source = str(Path(universe_path).expanduser())
+    if (
+        reload_universe
+        or st.session_state.get("opportunity_universe_source") != universe_source
+    ):
+        st.session_state.opportunity_watchlist_input = "\n".join(universe_symbols)
+        st.session_state.opportunity_universe_source = universe_source
+
+    if universe_error:
+        st.error("Opportunity Discovery unavailable: " + str(universe_error))
+
     watchlist_input = st.text_area(
         "Watchlist",
-        value="\n".join(DEFAULT_WATCHLIST),
         height=180,
-        help="Edit this list here for the current run, or update DEFAULT_WATCHLIST in src/universe.py.",
+        key="opportunity_watchlist_input",
+        disabled=bool(universe_error),
+        help="Loaded from the currently selected Universe CSV. Use Reload Universe CSV after changing the file.",
     )
-    watchlist = parse_watchlist(watchlist_input)
+    discovery_symbols = parse_universe_symbols(watchlist_input)
     discovery_filter_columns = st.columns(3)
     selected_discovery_option_type = discovery_filter_columns[0].selectbox(
         "Option Type",
@@ -1205,7 +1661,7 @@ def main():
         st.error("Minimum DTE must be less than or equal to Maximum DTE.")
     run_discovery = st.button(
         "Run Opportunity Discovery",
-        disabled=not watchlist or invalid_discovery_dte,
+        disabled=bool(universe_error) or not discovery_symbols or invalid_discovery_dte,
     )
 
     if run_discovery:
@@ -1214,9 +1670,9 @@ def main():
                 opportunity_rows,
                 discovery_errors,
                 discovery_evaluated_rows,
-            ) = discover_watchlist_opportunities(
+            ) = discover_universe_opportunities(
                 TradierClient(),
-                watchlist,
+                discovery_symbols,
                 datetime.now(EASTERN_TIME).date(),
                 option_type=selected_discovery_option_type,
                 min_dte=min_discovery_dte,
@@ -1225,14 +1681,56 @@ def main():
         except TradierConfigurationError as error:
             st.error("Tradier configuration error: " + str(error))
         else:
+            scan_timestamp = datetime.now(EASTERN_TIME)
+            scan_id = f"opportunity-scan-{scan_timestamp:%Y%m%d-%H%M%S}-{uuid4().hex[:8]}"
+            formatted_scan_timestamp = scan_timestamp.strftime(
+                "%Y-%m-%d %I:%M:%S %p %Z"
+            )
             st.session_state.opportunity_rows = opportunity_rows
             st.session_state.opportunity_errors = discovery_errors
             st.session_state.opportunity_evaluated_rows = discovery_evaluated_rows
-            st.session_state.opportunity_watchlist = watchlist
+            st.session_state.opportunity_watchlist = discovery_symbols
             st.session_state.opportunity_settings = discovery_settings
-            st.session_state.opportunity_scan_timestamp = datetime.now(
-                EASTERN_TIME
-            ).strftime("%Y-%m-%d %I:%M:%S %p %Z")
+            st.session_state.opportunity_scan_id = scan_id
+            st.session_state.opportunity_scan_timestamp = formatted_scan_timestamp
+            st.session_state.opportunity_universe_name = universe_name
+            try:
+                archive_counts = archive_current_opportunity_scan(
+                    discovery_evaluated_rows,
+                    scan_id,
+                    formatted_scan_timestamp,
+                    universe_name,
+                    selected_discovery_option_type,
+                    min_discovery_dte,
+                    max_discovery_dte,
+                    discovery_symbols,
+                )
+            except (OSError, ValueError, sqlite3.Error) as error:
+                st.session_state.opportunity_archive_counts = None
+                st.session_state.opportunity_archive_error = str(error)
+            else:
+                st.session_state.opportunity_archive_counts = archive_counts
+                st.session_state.opportunity_archive_error = None
+                st.session_state.opportunity_archived_scan_id = scan_id
+
+    render_research_repository_status()
+    if st.session_state.get("opportunity_archive_error"):
+        st.error(
+            "Opportunity Scan was not archived to the research database: "
+            + st.session_state.opportunity_archive_error
+        )
+    elif (
+        st.session_state.get("opportunity_archived_scan_id")
+        == st.session_state.get("opportunity_scan_id")
+    ):
+        st.success("Opportunity Scan archived to research database.")
+        archive_counts = st.session_state.get("opportunity_archive_counts") or {}
+        st.caption(
+            "Rows written: "
+            + ", ".join(
+                f"{table}={count}" for table, count in archive_counts.items()
+            )
+        )
 
     opportunity_rows = st.session_state.get("opportunity_rows", [])
     opportunity_evaluated_rows = st.session_state.get("opportunity_evaluated_rows", [])
@@ -1240,7 +1738,7 @@ def main():
     opportunity_settings = st.session_state.get("opportunity_settings")
     opportunity_scan_timestamp = st.session_state.get("opportunity_scan_timestamp")
     current_opportunity_context = (
-        opportunity_watchlist == watchlist
+        opportunity_watchlist == discovery_symbols
         and opportunity_settings == discovery_settings
     )
     if opportunity_rows and current_opportunity_context:
@@ -1265,32 +1763,8 @@ def main():
                 selected_opportunity_row,
                 "Opportunity Discovery",
             )
-        render_quality_engine_diagnostics(
-            opportunity_evaluated_rows,
-            opportunity_rows,
-            dashboard_metadata(
-                opportunity_evaluated_rows,
-                opportunity_watchlist,
-                selected_discovery_option_type,
-                min_discovery_dte,
-                max_discovery_dte,
-                opportunity_scan_timestamp,
-            ),
-        )
     elif opportunity_watchlist and current_opportunity_context:
         st.info("No passing or true near-miss contracts were found for this watchlist.")
-        render_quality_engine_diagnostics(
-            opportunity_evaluated_rows,
-            opportunity_rows,
-            dashboard_metadata(
-                opportunity_evaluated_rows,
-                opportunity_watchlist,
-                selected_discovery_option_type,
-                min_discovery_dte,
-                max_discovery_dte,
-                opportunity_scan_timestamp,
-            ),
-        )
 
     discovery_errors = st.session_state.get("opportunity_errors", {})
     if discovery_errors and current_opportunity_context:
@@ -1298,7 +1772,8 @@ def main():
             for symbol, message in discovery_errors.items():
                 st.caption(f"{symbol}: {message}")
 
-    st.divider()
+
+def render_option_chain_explorer_workflow():
     st.subheader("Option Chain Explorer")
     st.caption("Inspect Tradier option-chain data before scanner logic is introduced.")
     explorer_ticker = st.text_input(
@@ -1450,7 +1925,11 @@ def main():
                 st.caption(
                     f"Threshold-analysis diagnostics for {chain_ticker} expiring {chain_expiration}."
                 )
-                diagnostics = ticker_diagnostics(chain_rows)
+                # OCE diagnostics must use the same filtered population as the visible chain analysis.
+                diagnostics = ticker_diagnostics(filtered_chain_rows)
+                assert (
+                    opportunities["Contracts Evaluated"] == diagnostics["Contracts Evaluated"]
+                )
                 diagnostic_counts = list(diagnostics.items())[:6]
                 st.subheader("Ticker Diagnostics")
                 for column, (label, value) in zip(st.columns(3), diagnostic_counts[:3]):
@@ -1520,10 +1999,10 @@ def main():
                         )
 
                 st.subheader("Contract Quality Summary")
-                summary = contract_quality_summary(chain_rows)
+                summary = contract_quality_summary(filtered_chain_rows)
                 for column, (label, value) in zip(st.columns(6), summary.items()):
                     column.metric(label, value)
-                chain_dataframe = pd.DataFrame(chain_rows).style.format(
+                chain_dataframe = pd.DataFrame(filtered_chain_rows).style.format(
                     {
                         "Strike": format_decimal,
                         "Quality Score": "{:,.0f}",
@@ -1558,18 +2037,106 @@ def main():
     elif dates and dates_ticker:
         st.info("Retrieve expirations for " + explorer_ticker + " to select an expiration.")
 
-    st.subheader("Universe")
-    if universe:
-        st.dataframe([item.to_display_dict() for item in universe], hide_index=True, width="stretch")
-    else:
-        st.warning("No enabled symbols are available.")
-    if st.button("Run scan", disabled=not universe):
+
+def render_quality_engine_diagnostics_workflow():
+    st.subheader("Quality Engine Diagnostics")
+    st.caption("How did the Quality Engine behave during the most recent scan?")
+
+    opportunity_scan_id = st.session_state.get("opportunity_scan_id")
+    opportunity_watchlist = st.session_state.get("opportunity_watchlist", [])
+    if not opportunity_scan_id:
+        st.info("No Opportunity Scan is available. Run Opportunity Discovery first.")
+        return
+
+    opportunity_rows = st.session_state.get("opportunity_rows", [])
+    opportunity_evaluated_rows = st.session_state.get("opportunity_evaluated_rows", [])
+    opportunity_settings = st.session_state.get("opportunity_settings")
+    opportunity_scan_timestamp = st.session_state.get("opportunity_scan_timestamp")
+    opportunity_universe_name = st.session_state.get("opportunity_universe_name", UNAVAILABLE)
+    selected_option_type, min_dte, max_dte = opportunity_settings or (
+        UNAVAILABLE,
+        UNAVAILABLE,
+        UNAVAILABLE,
+    )
+    render_quality_export_section(
+        opportunity_evaluated_rows,
+        opportunity_rows,
+        opportunity_scan_id,
+        opportunity_scan_timestamp,
+        opportunity_universe_name,
+        opportunity_watchlist,
+    )
+    render_quality_engine_diagnostics(
+        opportunity_evaluated_rows,
+        opportunity_rows,
+        dashboard_metadata(
+            opportunity_evaluated_rows,
+            opportunity_watchlist,
+            selected_option_type,
+            min_dte,
+            max_dte,
+            opportunity_scan_timestamp,
+        ),
+    )
+
+
+def main():
+    load_dotenv(ROOT / ".env")
+    st.set_page_config(page_title="Kip Options Scanner", layout="wide")
+    st.title("Kip Options Scanner")
+    st.caption("Phase 4B - Research tool only - No trading or order placement")
+    with st.sidebar:
+        path = st.text_input("Universe CSV", value=str(ROOT / "data" / "technology_growth_ai_v1.csv"))
+        reload_universe = st.button("Reload Universe CSV")
+        st.header("Tradier Connection")
+        ticker = st.text_input("Ticker symbol", value="SPY", max_chars=10).strip().upper()
+        get_quote = st.button("Get Quote")
+        show_diagnostic_data = st.checkbox("Show Diagnostic Data")
+        universe_error = None
         try:
-            run_scan(universe)
-        except ScannerNotImplementedError as error:
-            st.info(str(error))
-    st.subheader("Results")
-    st.caption("Results will appear here when scanning is implemented in a later phase.")
+            universe = load_universe(path)
+        except UniverseError as error:
+            universe_error = error
+            st.error("Unable to load universe: " + str(error))
+            universe = []
+        universe_symbols = [item.symbol for item in universe]
+        st.caption(f"Loaded universe symbols: {len(universe_symbols)}")
+        with st.expander("Universe", expanded=False):
+            if universe:
+                st.dataframe(
+                    [item.to_display_dict() for item in universe],
+                    hide_index=True,
+                    width="stretch",
+                )
+            else:
+                st.warning("No enabled symbols are available.")
+
+    render_tradier_quote(ticker, get_quote, show_diagnostic_data)
+
+    (
+        opportunity_discovery_tab,
+        option_chain_explorer_tab,
+        quality_engine_diagnostics_tab,
+    ) = st.tabs(
+        [
+            "Opportunity Discovery",
+            "Option Chain Explorer",
+            "Quality Engine Diagnostics",
+        ]
+    )
+
+    with opportunity_discovery_tab:
+        render_opportunity_discovery_workflow(
+            Path(path).stem,
+            path,
+            universe_symbols,
+            universe_error,
+            reload_universe,
+        )
+    with option_chain_explorer_tab:
+        render_option_chain_explorer_workflow()
+    with quality_engine_diagnostics_tab:
+        render_quality_engine_diagnostics_workflow()
 
 
 if __name__ == "__main__":

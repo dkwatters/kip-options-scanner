@@ -2,7 +2,9 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_WATCHLIST = [
+CURRENT_UNIVERSE_NAME = "Large Cap Tech (Experimental)"
+
+DEFAULT_UNIVERSE_SYMBOLS = [
  "NVDA",
  "PLTR",
  "AMD",
@@ -14,11 +16,16 @@ DEFAULT_WATCHLIST = [
  "QQQ",
 ]
 
+# Compatibility alias for the current dashboard copy and older imports.
+DEFAULT_WATCHLIST = DEFAULT_UNIVERSE_SYMBOLS
+
 class UniverseError(ValueError): pass
 @dataclass(frozen=True,slots=True)
 class UniverseSymbol:
  symbol:str; name:str=""; sector:str=""
  def to_display_dict(self): return {"Symbol":self.symbol,"Name":self.name,"Sector":self.sector}
+def current_universe_symbols():
+ return list(DEFAULT_UNIVERSE_SYMBOLS)
 def load_universe(csv_path):
  path=Path(csv_path).expanduser()
  if not path.is_file(): raise UniverseError("File not found: " + str(path))

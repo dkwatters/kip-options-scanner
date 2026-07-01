@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .vscode/
 .streamlit/
+data/research/opportunity_scans.sqlite

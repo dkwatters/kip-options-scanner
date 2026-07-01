@@ -1,4 +1,4 @@
-"""Rank the best currently evaluated option opportunity per watchlist ticker."""
+"""Rank the best currently evaluated option opportunity per universe symbol."""
 from typing import Any
 
 from src.contract_quality import (
@@ -32,7 +32,7 @@ def best_quality_contract(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     return max(rows, key=quality_score_sort_value) if rows else None
 
 
-def selected_watchlist_contract(rows: list[dict[str, Any]]) -> tuple[dict[str, Any], str] | tuple[None, None]:
+def selected_universe_contract(rows: list[dict[str, Any]]) -> tuple[dict[str, Any], str] | tuple[None, None]:
     """Select the best passing contract, otherwise the best true near miss."""
     passing_candidate = best_quality_contract(passing_contracts(rows))
     if passing_candidate is not None:
@@ -43,6 +43,9 @@ def selected_watchlist_contract(rows: list[dict[str, Any]]) -> tuple[dict[str, A
         return near_miss_candidate, TRUE_NEAR_MISS
 
     return None, None
+
+
+selected_watchlist_contract = selected_universe_contract
 
 
 def _underlying_price(rows: list[dict[str, Any]]) -> Any:
@@ -122,7 +125,7 @@ def opportunity_table_rows(
     opportunities = []
     placeholders = list(placeholder_rows or [])
     for ticker, rows in ticker_rows.items():
-        selected_contract, status = selected_watchlist_contract(rows)
+        selected_contract, status = selected_universe_contract(rows)
         if selected_contract is None:
             placeholders.append(
                 placeholder_opportunity_row(

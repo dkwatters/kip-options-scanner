@@ -499,7 +499,7 @@ def top_opportunity_fingerprint(
 
 def dashboard_metadata(
     rows: list[dict[str, Any]],
-    watchlist: list[str],
+    universe_symbols: list[str],
     option_type: str,
     min_dte: int,
     max_dte: int,
@@ -517,7 +517,7 @@ def dashboard_metadata(
     quality_weights = weights or QUALITY_WEIGHTS
     return {
         "Scan Timestamp": scan_timestamp,
-        "Watchlist Size": len(watchlist),
+        "Watchlist Size": len(universe_symbols),
         "Contracts Evaluated": len(rows),
         "Calls / Puts": f"{calls:,} / {puts:,}",
         "DTE Range": f"{min_dte}-{max_dte}",

@@ -1,6 +1,8 @@
 """Reusable option-contract quality calculations.
 
-This module is intentionally independent of market-data providers and UI code.
+This is the current Contract Quality Model. It evaluates option contracts and is
+intentionally independent of market-data providers, UI code, and any future
+Technical Model.
 """
 from datetime import date, datetime
 from typing import Any
