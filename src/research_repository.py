@@ -11,17 +11,33 @@ import sqlite3
 from collections import Counter, defaultdict
 from contextlib import closing
 from dataclasses import dataclass
+from datetime import datetime
 from math import isfinite
 from pathlib import Path
 from statistics import mean
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from src.contract_quality import ALL_PASSED_YES, QUALITY_CHECKS, near_miss_contracts
 from src.quality_diagnostics import discovery_diagnostic_summary
 from src.rule_evaluation import FAIL
+from src.study_protocol import (
+    RUN_MODE_MANUAL_UI,
+    RUN_MODE_RESEARCH_SCRIPT,
+    RUN_MODE_SCHEDULED,
+)
 
 
 DEFAULT_RESEARCH_DB_PATH = Path("data/research/opportunity_scans.sqlite")
+CANONICAL_RUN_MODES = {
+    RUN_MODE_MANUAL_UI,
+    RUN_MODE_RESEARCH_SCRIPT,
+    RUN_MODE_SCHEDULED,
+}
+LEGACY_RUN_MODE_MAP = {
+    "manual": RUN_MODE_MANUAL_UI,
+    "app-triggered": RUN_MODE_MANUAL_UI,
+}
 
 
 @dataclass(frozen=True)
@@ -30,8 +46,18 @@ class ResearchRepositoryStatus:
 
     database_path: str
     total_scans: int
+    total_contracts_evaluated: int
+    total_rule_evaluations: int
+    total_security_characterizations: int
     latest_scan_timestamp: str | None
     latest_study_id: str | None
+    latest_scan_id: str | None
+    latest_scheduled_time_label: str | None
+    latest_run_mode: str | None
+    latest_rows_written: dict[str, int]
+    today_observations: tuple[dict[str, str | None], ...]
+    today_completed_schedule_times: tuple[str, ...]
+    recent_observations: tuple[dict[str, str | None], ...]
 
 
 def initialize_research_repository(database_path: Path | str = DEFAULT_RESEARCH_DB_PATH) -> Path:
@@ -123,6 +149,7 @@ def initialize_research_repository(database_path: Path | str = DEFAULT_RESEARCH_
             """
         )
         _migrate_opportunity_scans_study_protocol_columns(connection)
+        connection.commit()
     return path
 
 
@@ -140,29 +167,129 @@ def _migrate_opportunity_scans_study_protocol_columns(connection: sqlite3.Connec
     ):
         if column_name not in existing_columns:
             connection.execute(f"ALTER TABLE opportunity_scans ADD COLUMN {column_name} TEXT")
+    _migrate_run_mode_values(connection)
+
+
+def _migrate_run_mode_values(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        UPDATE opportunity_scans
+        SET run_mode = ?
+        WHERE run_mode IS NULL
+           OR run_mode = ''
+           OR run_mode IN ('manual', 'app-triggered')
+        """,
+        (RUN_MODE_MANUAL_UI,),
+    )
 
 
 def research_repository_status(
     database_path: Path | str = DEFAULT_RESEARCH_DB_PATH,
+    study_id: str | None = None,
 ) -> ResearchRepositoryStatus:
     """Return current repository status without requiring the UI to know SQL."""
     path = initialize_research_repository(database_path)
+    today_prefix = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
     with closing(sqlite3.connect(path)) as connection:
         total_scans = connection.execute("SELECT COUNT(*) FROM opportunity_scans").fetchone()[0]
+        total_contracts_evaluated = connection.execute(
+            "SELECT COUNT(*) FROM evaluated_contracts"
+        ).fetchone()[0]
+        total_rule_evaluations = connection.execute(
+            "SELECT COUNT(*) FROM rule_evaluations"
+        ).fetchone()[0]
+        total_security_characterizations = connection.execute(
+            "SELECT COUNT(*) FROM security_characterization"
+        ).fetchone()[0]
         latest = connection.execute(
             """
-            SELECT scan_timestamp, study_id
+            SELECT scan_id, scan_timestamp, study_id, scheduled_time_label, run_mode
             FROM opportunity_scans
             ORDER BY rowid DESC
             LIMIT 1
             """
         ).fetchone()
+        latest_rows_written: dict[str, int] = {}
+        if latest:
+            latest_scan_id = latest[0]
+            latest_rows_written = {
+                "opportunity_scans": connection.execute(
+                    "SELECT COUNT(*) FROM opportunity_scans WHERE scan_id = ?",
+                    (latest_scan_id,),
+                ).fetchone()[0],
+                "evaluated_contracts": connection.execute(
+                    "SELECT COUNT(*) FROM evaluated_contracts WHERE scan_id = ?",
+                    (latest_scan_id,),
+                ).fetchone()[0],
+                "rule_evaluations": connection.execute(
+                    "SELECT COUNT(*) FROM rule_evaluations WHERE scan_id = ?",
+                    (latest_scan_id,),
+                ).fetchone()[0],
+                "security_characterization": connection.execute(
+                    "SELECT COUNT(*) FROM security_characterization WHERE scan_id = ?",
+                    (latest_scan_id,),
+                ).fetchone()[0],
+            }
+        today_rows = connection.execute(
+            """
+            SELECT scan_id, scan_timestamp, study_id, scheduled_time_label, run_mode
+            FROM opportunity_scans
+            WHERE scan_timestamp LIKE ?
+            ORDER BY rowid DESC
+            """,
+            (today_prefix + "%",),
+        ).fetchall()
+        progress_rows = connection.execute(
+            """
+            SELECT scheduled_time_label
+            FROM opportunity_scans
+            WHERE scan_timestamp LIKE ?
+              AND run_mode = 'scheduled'
+              AND study_id = ?
+              AND scheduled_time_label IS NOT NULL
+              AND scheduled_time_label <> ''
+            """,
+            (today_prefix + "%", study_id),
+        ).fetchall()
+        recent_rows = connection.execute(
+            """
+            SELECT scan_id, scan_timestamp, study_id, scheduled_time_label, run_mode
+            FROM opportunity_scans
+            ORDER BY rowid DESC
+            LIMIT 10
+            """
+        ).fetchall()
+    today_observations = tuple(_observation_dict(row) for row in today_rows)
+    today_completed_schedule_times = tuple(
+        sorted({row[0] for row in progress_rows if row[0]})
+    )
+    recent_observations = tuple(_observation_dict(row) for row in recent_rows)
     return ResearchRepositoryStatus(
         database_path=str(path),
         total_scans=int(total_scans or 0),
-        latest_scan_timestamp=latest[0] if latest else None,
-        latest_study_id=latest[1] if latest else None,
+        total_contracts_evaluated=int(total_contracts_evaluated or 0),
+        total_rule_evaluations=int(total_rule_evaluations or 0),
+        total_security_characterizations=int(total_security_characterizations or 0),
+        latest_scan_timestamp=latest[1] if latest else None,
+        latest_study_id=latest[2] if latest else None,
+        latest_scan_id=latest[0] if latest else None,
+        latest_scheduled_time_label=latest[3] if latest else None,
+        latest_run_mode=latest[4] if latest else None,
+        latest_rows_written=latest_rows_written,
+        today_observations=today_observations,
+        today_completed_schedule_times=today_completed_schedule_times,
+        recent_observations=recent_observations,
     )
+
+
+def _observation_dict(row: tuple[Any, ...]) -> dict[str, str | None]:
+    return {
+        "scan_id": row[0],
+        "scan_timestamp": row[1],
+        "study_id": row[2],
+        "scheduled_time_label": row[3],
+        "run_mode": row[4],
+    }
 
 
 def archive_opportunity_scan(
@@ -189,7 +316,8 @@ def archive_opportunity_scan(
     path = initialize_research_repository(database_path)
     summary = discovery_diagnostic_summary(evaluated_contract_rows)
     security_rows = security_characterization_rows(evaluated_contract_rows, scan_id)
-    study_protocol = study_protocol or {}
+    study_protocol = dict(study_protocol or {})
+    study_protocol["run_mode"] = _normalized_run_mode(study_protocol.get("run_mode"))
     ticker_by_contract = {
         row.get("contract_symbol"): row.get("ticker") for row in contract_export_rows
     }
@@ -317,6 +445,16 @@ def latest_scan_row_counts(
                 f"SELECT COUNT(*) FROM {table} WHERE scan_id = ?", (scan_id,)
             ).fetchone()[0]
     return counts
+
+
+def _normalized_run_mode(value: Any) -> str:
+    if value is None or value == "":
+        return RUN_MODE_MANUAL_UI
+    run_mode = str(value)
+    run_mode = LEGACY_RUN_MODE_MAP.get(run_mode, run_mode)
+    if run_mode not in CANONICAL_RUN_MODES:
+        raise ValueError(f"Unsupported run_mode: {value}")
+    return run_mode
 
 
 def security_characterization_rows(

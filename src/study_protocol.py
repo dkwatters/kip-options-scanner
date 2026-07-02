@@ -8,7 +8,11 @@ from typing import Literal
 from src.evaluation_profile import DEFAULT_EVALUATION_PROFILE
 
 
-RunMode = Literal["manual", "scheduled", "app-triggered"]
+RUN_MODE_MANUAL_UI = "manual-ui"
+RUN_MODE_RESEARCH_SCRIPT = "research-script"
+RUN_MODE_SCHEDULED = "scheduled"
+
+RunMode = Literal["manual-ui", "research-script", "scheduled"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +29,11 @@ class StudyProtocol:
     dte_max: int
     suggested_schedule_times_et: tuple[str, ...]
 
-    def metadata(self, scheduled_time_label: str | None = None, run_mode: RunMode = "manual") -> dict[str, str | None]:
+    def metadata(
+        self,
+        scheduled_time_label: str | None = None,
+        run_mode: RunMode = RUN_MODE_MANUAL_UI,
+    ) -> dict[str, str | None]:
         return {
             "study_id": self.study_id,
             "study_name": self.study_name,

@@ -9,9 +9,11 @@ from app import evaluated_contract_export_rows, option_chain_rows, rule_evaluati
 from src.evaluation_profile import evaluation_profile_export_fields
 from src.research_repository import (
     archive_opportunity_scan,
+    initialize_research_repository,
     latest_scan_row_counts,
     research_repository_status,
 )
+from src.study_protocol import RUN_MODE_MANUAL_UI, RUN_MODE_SCHEDULED
 
 
 def option_payload(symbol, option_type, delta, bid=8.0, ask=8.4, volume=750, open_interest=1500):
@@ -80,8 +82,8 @@ class ResearchRepositoryTest(unittest.TestCase):
                     "study_name": "Intraday Technology Growth AI Calls",
                     "study_version": "v0.1",
                     "study_purpose": "Test purpose",
-                    "scheduled_time_label": "10:00 ET",
-                    "run_mode": "manual",
+                    "scheduled_time_label": "10:00",
+                    "run_mode": RUN_MODE_SCHEDULED,
                 },
                 database_path=database_path,
             )
@@ -96,7 +98,7 @@ class ResearchRepositoryTest(unittest.TestCase):
                 },
             )
             self.assertEqual(latest_scan_row_counts(database_path)["scan_id"], "scan-1")
-            status = research_repository_status(database_path)
+            status = research_repository_status(database_path, study_id="SP-001")
             self.assertEqual(status.total_scans, 1)
             self.assertEqual(status.latest_scan_timestamp, "2026-07-01 10:00:00 AM EDT")
             self.assertEqual(status.latest_study_id, "SP-001")
@@ -138,10 +140,134 @@ class ResearchRepositoryTest(unittest.TestCase):
                         "Intraday Technology Growth AI Calls",
                         "v0.1",
                         "Test purpose",
-                        "10:00 ET",
-                        "manual",
+                        "10:00",
+                        RUN_MODE_SCHEDULED,
                     ),
                 )
+            self.assertEqual(status.today_completed_schedule_times, ("10:00",))
+
+    def test_protocol_progress_excludes_manual_and_wrong_study_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "opportunity_scans.sqlite"
+            for scan_id, study_id, run_mode, scheduled_time_label in (
+                ("manual-scan", "SP-001", RUN_MODE_MANUAL_UI, "10:00"),
+                ("wrong-study-scan", "SP-OTHER", RUN_MODE_SCHEDULED, "12:00"),
+                ("scheduled-scan", "SP-001", RUN_MODE_SCHEDULED, "14:00"),
+            ):
+                archive_opportunity_scan(
+                    scan_id=scan_id,
+                    scan_timestamp="2026-07-01 10:00:00 AM EDT",
+                    universe_name="Test Universe",
+                    option_type="Calls",
+                    dte_min=10,
+                    dte_max=45,
+                    evaluation_profile=evaluation_profile_export_fields(),
+                    evaluated_contract_rows=[],
+                    contract_export_rows=[],
+                    rule_export_rows=[],
+                    study_protocol={
+                        "study_id": study_id,
+                        "study_name": "Intraday Technology Growth AI Calls",
+                        "study_version": "v0.1",
+                        "study_purpose": "Test purpose",
+                        "scheduled_time_label": scheduled_time_label,
+                        "run_mode": run_mode,
+                    },
+                    database_path=database_path,
+                )
+
+            status = research_repository_status(database_path, study_id="SP-001")
+
+            self.assertEqual(status.total_scans, 3)
+            self.assertEqual(status.today_completed_schedule_times, ("14:00",))
+            self.assertEqual(
+                [row["run_mode"] for row in status.today_observations],
+                [RUN_MODE_SCHEDULED, RUN_MODE_SCHEDULED, RUN_MODE_MANUAL_UI],
+            )
+
+    def test_run_mode_legacy_values_are_normalized_without_other_metadata_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "opportunity_scans.sqlite"
+            initialize_research_repository(database_path)
+            with closing(sqlite3.connect(database_path)) as connection:
+                connection.execute(
+                    """
+                    INSERT INTO opportunity_scans (
+                        scan_id, scan_timestamp, universe_name, run_mode, study_id
+                    )
+                    VALUES ('legacy-manual', '2026-07-01 10:00:00 AM EDT',
+                            'Legacy Universe', 'manual', 'SP-001')
+                    """
+                )
+                connection.execute(
+                    """
+                    INSERT INTO opportunity_scans (
+                        scan_id, scan_timestamp, universe_name, run_mode, study_id
+                    )
+                    VALUES ('legacy-app', '2026-07-01 10:01:00 AM EDT',
+                            'App Universe', 'app-triggered', 'SP-001')
+                    """
+                )
+                connection.execute(
+                    """
+                    INSERT INTO opportunity_scans (
+                        scan_id, scan_timestamp, universe_name, run_mode, study_id
+                    )
+                    VALUES ('missing-mode', '2026-07-01 10:02:00 AM EDT',
+                            'Missing Mode Universe', NULL, 'SP-001')
+                    """
+                )
+                connection.commit()
+
+            initialize_research_repository(database_path)
+
+            with closing(sqlite3.connect(database_path)) as connection:
+                rows = connection.execute(
+                    """
+                    SELECT scan_id, universe_name, run_mode, study_id
+                    FROM opportunity_scans
+                    ORDER BY scan_id
+                    """
+                ).fetchall()
+
+            self.assertEqual(
+                rows,
+                [
+                    ("legacy-app", "App Universe", RUN_MODE_MANUAL_UI, "SP-001"),
+                    ("legacy-manual", "Legacy Universe", RUN_MODE_MANUAL_UI, "SP-001"),
+                    (
+                        "missing-mode",
+                        "Missing Mode Universe",
+                        RUN_MODE_MANUAL_UI,
+                        "SP-001",
+                    ),
+                ],
+            )
+
+    def test_archive_normalizes_legacy_run_mode_for_future_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "opportunity_scans.sqlite"
+            archive_opportunity_scan(
+                scan_id="legacy-future",
+                scan_timestamp="2026-07-01 10:00:00 AM EDT",
+                universe_name="Test Universe",
+                option_type="Calls",
+                dte_min=10,
+                dte_max=45,
+                evaluation_profile=evaluation_profile_export_fields(),
+                evaluated_contract_rows=[],
+                contract_export_rows=[],
+                rule_export_rows=[],
+                study_protocol={"run_mode": "app-triggered"},
+                database_path=database_path,
+            )
+
+            with closing(sqlite3.connect(database_path)) as connection:
+                run_modes = connection.execute(
+                    "SELECT DISTINCT run_mode FROM opportunity_scans"
+                ).fetchall()
+
+            self.assertEqual(run_modes, [(RUN_MODE_MANUAL_UI,)])
 
 
 if __name__ == "__main__":

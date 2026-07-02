@@ -75,7 +75,7 @@ from src.research_repository import (
     archive_opportunity_scan,
     research_repository_status,
 )
-from src.study_protocol import DEFAULT_STUDY_PROTOCOL
+from src.study_protocol import DEFAULT_STUDY_PROTOCOL, RUN_MODE_MANUAL_UI
 from src.tradier_client import TradierAPIError, TradierClient, TradierConfigurationError
 from src.universe import UniverseError, load_universe
 
@@ -1311,32 +1311,168 @@ def archive_current_opportunity_scan(
     )
 
 
-def render_research_repository_status():
-    """Show the lightweight SQLite repository status without adding trend analytics."""
-    st.markdown("Research Repository")
+def render_sidebar_metric(label, value):
+    st.caption(label)
+    st.write(format_whole_number(value) if isinstance(value, Number) else value)
+
+
+def render_dashboard_section(title, key, expanded=True):
+    if key not in st.session_state:
+        st.session_state[key] = expanded
+    return st.checkbox(title, key=key)
+
+
+def render_research_dashboard(universe_path, security_count):
+    """Render operational research context in the persistent left sidebar."""
+    st.header("Research Dashboard")
     try:
-        status = research_repository_status(DEFAULT_RESEARCH_DB_PATH)
+        status = research_repository_status(
+            DEFAULT_RESEARCH_DB_PATH,
+            study_id=DEFAULT_STUDY_PROTOCOL.study_id,
+        )
     except (OSError, sqlite3.Error) as error:
-        st.error("Research Repository unavailable: " + str(error))
+        st.error("Research Dashboard unavailable: " + str(error))
         return
-    st.caption(f"Database path: {status.database_path}")
-    st.markdown("Active Study Protocol")
-    protocol_rows = [
-        {"Field": "Study ID", "Value": DEFAULT_STUDY_PROTOCOL.study_id},
-        {"Field": "Study Name", "Value": DEFAULT_STUDY_PROTOCOL.study_name},
-        {"Field": "Study Version", "Value": DEFAULT_STUDY_PROTOCOL.study_version},
-        {"Field": "Evaluation Profile", "Value": f"{DEFAULT_STUDY_PROTOCOL.evaluation_profile_name} {DEFAULT_STUDY_PROTOCOL.evaluation_profile_version}"},
-        {"Field": "Universe CSV", "Value": str(DEFAULT_STUDY_PROTOCOL.universe_csv)},
-        {"Field": "Option Type", "Value": DEFAULT_STUDY_PROTOCOL.option_type},
-        {"Field": "DTE Range", "Value": f"{DEFAULT_STUDY_PROTOCOL.dte_min}-{DEFAULT_STUDY_PROTOCOL.dte_max}"},
-        {"Field": "Suggested Schedule ET", "Value": ", ".join(DEFAULT_STUDY_PROTOCOL.suggested_schedule_times_et)},
-        {"Field": "Purpose", "Value": DEFAULT_STUDY_PROTOCOL.study_purpose},
-    ]
-    st.dataframe(pd.DataFrame(protocol_rows), hide_index=True, width="stretch")
-    total_column, latest_column, study_column = st.columns(3)
-    total_column.metric("Total scans stored", status.total_scans)
-    latest_column.metric("Latest scan timestamp", status.latest_scan_timestamp or UNAVAILABLE)
-    study_column.metric("Latest study_id", status.latest_study_id or UNAVAILABLE)
+
+    if render_dashboard_section("Study Protocol", "dashboard_study_protocol_open"):
+        st.write(DEFAULT_STUDY_PROTOCOL.study_id)
+        st.write(DEFAULT_STUDY_PROTOCOL.study_name)
+        st.write(DEFAULT_STUDY_PROTOCOL.study_version)
+        st.caption("Status")
+        st.write("Active")
+        st.caption("Purpose")
+        st.write(DEFAULT_STUDY_PROTOCOL.study_purpose)
+        st.caption("Scheduling Mode")
+        st.write("Scheduling mode: external scheduler required")
+        st.caption("Run Mode")
+        st.write(status.latest_run_mode or UNAVAILABLE)
+        st.caption("Schedule Metadata")
+        for schedule_time in DEFAULT_STUDY_PROTOCOL.suggested_schedule_times_et:
+            st.write(f"{schedule_time} ET")
+
+    if render_dashboard_section("Evaluation Profile", "dashboard_evaluation_profile_open"):
+        render_sidebar_metric("Name", DEFAULT_STUDY_PROTOCOL.evaluation_profile_name)
+        render_sidebar_metric("Version", DEFAULT_STUDY_PROTOCOL.evaluation_profile_version)
+
+    if render_dashboard_section("Reference Universe", "dashboard_reference_universe_open"):
+        render_sidebar_metric("Universe CSV", str(Path(universe_path).expanduser()))
+        render_sidebar_metric("Security Count", security_count)
+
+    if render_dashboard_section("Research Repository", "dashboard_repository_open"):
+        render_sidebar_metric("Database Path", status.database_path)
+        render_sidebar_metric("Total Scans", status.total_scans)
+        render_sidebar_metric(
+            "Total Contracts Evaluated", status.total_contracts_evaluated
+        )
+        render_sidebar_metric("Total Rule Evaluations", status.total_rule_evaluations)
+        render_sidebar_metric(
+            "Total Security Characterizations",
+            status.total_security_characterizations,
+        )
+
+    if render_dashboard_section("Latest Observation", "dashboard_latest_observation_open"):
+        rows_written = sum(status.latest_rows_written.values())
+        render_sidebar_metric("Latest Scan ID", status.latest_scan_id or UNAVAILABLE)
+        render_sidebar_metric(
+            "Schedule Metadata",
+            schedule_time_display(status.latest_scheduled_time_label)
+            if status.latest_scheduled_time_label
+            else UNAVAILABLE,
+        )
+        render_sidebar_metric(
+            "Actual Time", actual_time_label(status.latest_scan_timestamp)
+        )
+        render_sidebar_metric("Timestamp", status.latest_scan_timestamp or UNAVAILABLE)
+        render_sidebar_metric("Run Mode", status.latest_run_mode or UNAVAILABLE)
+        render_sidebar_metric("Rows Written", rows_written)
+        render_sidebar_metric(
+            "Opportunity Scan",
+            status.latest_rows_written.get("opportunity_scans", 0),
+        )
+        render_sidebar_metric(
+            "Evaluated Contracts",
+            status.latest_rows_written.get("evaluated_contracts", 0),
+        )
+        render_sidebar_metric(
+            "Rule Evaluations",
+            status.latest_rows_written.get("rule_evaluations", 0),
+        )
+        render_sidebar_metric(
+            "Security Characterizations",
+            status.latest_rows_written.get("security_characterization", 0),
+        )
+
+    if render_dashboard_section("Today's Observations", "dashboard_observations_open"):
+        st.caption("Manual scans are archived but excluded from scheduled study metrics.")
+        if status.today_observations:
+            st.dataframe(
+                pd.DataFrame(status.today_observations).rename(
+                    columns={
+                        "scan_id": "scan_id",
+                        "scan_timestamp": "actual scan timestamp",
+                        "study_id": "study_id",
+                        "scheduled_time_label": "scheduled_time_label",
+                        "run_mode": "run_mode",
+                    }
+                ),
+                hide_index=True,
+                width="stretch",
+            )
+        else:
+            st.write("No observations archived today.")
+
+    if render_dashboard_section("Study Protocol Progress", "dashboard_progress_open"):
+        st.caption("Only scheduled observations for the active study satisfy these slots.")
+        completed = set(status.today_completed_schedule_times)
+        for schedule_time in DEFAULT_STUDY_PROTOCOL.suggested_schedule_times_et:
+            status_label = (
+                "scheduled observation recorded"
+                if schedule_time in completed
+                else "not recorded"
+            )
+            st.write(f"{schedule_time} ET: {status_label}")
+
+    for title, key in (
+        ("Security Passports", "dashboard_security_passports_open"),
+        ("Outcome Tracking", "dashboard_outcome_tracking_open"),
+        ("Research Metrics", "dashboard_research_metrics_open"),
+    ):
+        if render_dashboard_section(title, key, expanded=False):
+            st.caption("Reserved for future enhancement.")
+
+    if render_dashboard_section("Scan History", "dashboard_scan_history_open", expanded=False):
+        if status.recent_observations:
+            st.dataframe(
+                pd.DataFrame(status.recent_observations).rename(
+                    columns={
+                        "scan_id": "scan_id",
+                        "scan_timestamp": "actual scan timestamp",
+                        "study_id": "study_id",
+                        "scheduled_time_label": "scheduled_time_label",
+                        "run_mode": "run_mode",
+                    }
+                ),
+                hide_index=True,
+                width="stretch",
+            )
+        else:
+            st.write("No scans archived yet.")
+
+
+def actual_time_label(scan_timestamp):
+    if not scan_timestamp:
+        return UNAVAILABLE
+    parts = str(scan_timestamp).split()
+    if len(parts) >= 4:
+        return f"{parts[1]} {parts[2]} {parts[3]}"
+    return scan_timestamp
+
+
+def schedule_time_display(scheduled_time_label):
+    if not scheduled_time_label:
+        return UNAVAILABLE
+    label = str(scheduled_time_label)
+    return label if label.endswith(" ET") else f"{label} ET"
 
 
 def render_quality_score_bucket_table(rows):
@@ -1704,6 +1840,7 @@ def render_opportunity_discovery_workflow(
                     min_discovery_dte,
                     max_discovery_dte,
                     discovery_symbols,
+                    DEFAULT_STUDY_PROTOCOL.metadata(run_mode=RUN_MODE_MANUAL_UI),
                 )
             except (OSError, ValueError, sqlite3.Error) as error:
                 st.session_state.opportunity_archive_counts = None
@@ -1712,25 +1849,6 @@ def render_opportunity_discovery_workflow(
                 st.session_state.opportunity_archive_counts = archive_counts
                 st.session_state.opportunity_archive_error = None
                 st.session_state.opportunity_archived_scan_id = scan_id
-
-    render_research_repository_status()
-    if st.session_state.get("opportunity_archive_error"):
-        st.error(
-            "Opportunity Scan was not archived to the research database: "
-            + st.session_state.opportunity_archive_error
-        )
-    elif (
-        st.session_state.get("opportunity_archived_scan_id")
-        == st.session_state.get("opportunity_scan_id")
-    ):
-        st.success("Opportunity Scan archived to research database.")
-        archive_counts = st.session_state.get("opportunity_archive_counts") or {}
-        st.caption(
-            "Rows written: "
-            + ", ".join(
-                f"{table}={count}" for table, count in archive_counts.items()
-            )
-        )
 
     opportunity_rows = st.session_state.get("opportunity_rows", [])
     opportunity_evaluated_rows = st.session_state.get("opportunity_evaluated_rows", [])
@@ -2137,6 +2255,9 @@ def main():
         render_option_chain_explorer_workflow()
     with quality_engine_diagnostics_tab:
         render_quality_engine_diagnostics_workflow()
+
+    with st.sidebar:
+        render_research_dashboard(path, len(universe_symbols))
 
 
 if __name__ == "__main__":
