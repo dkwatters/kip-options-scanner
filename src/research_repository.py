@@ -261,7 +261,15 @@ def research_repository_status(
         ).fetchall()
     today_observations = tuple(_observation_dict(row) for row in today_rows)
     today_completed_schedule_times = tuple(
-        sorted({row[0] for row in progress_rows if row[0]})
+        sorted(
+            {
+                normalized
+                for normalized in (
+                    _normalized_schedule_time_label(row[0]) for row in progress_rows
+                )
+                if normalized
+            }
+        )
     )
     recent_observations = tuple(_observation_dict(row) for row in recent_rows)
     return ResearchRepositoryStatus(
@@ -290,6 +298,16 @@ def _observation_dict(row: tuple[Any, ...]) -> dict[str, str | None]:
         "scheduled_time_label": row[3],
         "run_mode": row[4],
     }
+
+
+def _normalized_schedule_time_label(value: Any) -> str | None:
+    value = _none_if_unavailable(value)
+    if value is None:
+        return None
+    label = str(value).strip()
+    if label.upper().endswith(" ET"):
+        label = label[:-3].strip()
+    return label or None
 
 
 def archive_opportunity_scan(

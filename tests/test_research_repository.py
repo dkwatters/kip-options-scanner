@@ -2,8 +2,9 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from app import evaluated_contract_export_rows, option_chain_rows, rule_evaluation_export_rows
 from src.evaluation_profile import evaluation_profile_export_fields
@@ -14,6 +15,11 @@ from src.research_repository import (
     research_repository_status,
 )
 from src.study_protocol import RUN_MODE_MANUAL_UI, RUN_MODE_SCHEDULED
+
+
+def current_et_timestamp(time_label="10:00:00 AM") -> str:
+    today = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+    return f"{today} {time_label} EDT"
 
 
 def option_payload(symbol, option_type, delta, bid=8.0, ask=8.4, volume=750, open_interest=1500):
@@ -58,17 +64,18 @@ class ResearchRepositoryTest(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "opportunity_scans.sqlite"
+            scan_timestamp = current_et_timestamp()
             contract_rows = evaluated_contract_export_rows(
                 rows,
                 "scan-1",
-                "2026-07-01 10:00:00 AM EDT",
+                scan_timestamp,
                 "Test Universe",
                 ["SPY", "QQQ"],
             )
             rule_rows = rule_evaluation_export_rows(rows, "scan-1")
             counts = archive_opportunity_scan(
                 scan_id="scan-1",
-                scan_timestamp="2026-07-01 10:00:00 AM EDT",
+                scan_timestamp=scan_timestamp,
                 universe_name="Test Universe",
                 option_type="Calls",
                 dte_min=10,
@@ -82,7 +89,7 @@ class ResearchRepositoryTest(unittest.TestCase):
                     "study_name": "Intraday Technology Growth AI Calls",
                     "study_version": "v0.1",
                     "study_purpose": "Test purpose",
-                    "scheduled_time_label": "10:00",
+                    "scheduled_time_label": "10:00 ET",
                     "run_mode": RUN_MODE_SCHEDULED,
                 },
                 database_path=database_path,
@@ -100,7 +107,7 @@ class ResearchRepositoryTest(unittest.TestCase):
             self.assertEqual(latest_scan_row_counts(database_path)["scan_id"], "scan-1")
             status = research_repository_status(database_path, study_id="SP-001")
             self.assertEqual(status.total_scans, 1)
-            self.assertEqual(status.latest_scan_timestamp, "2026-07-01 10:00:00 AM EDT")
+            self.assertEqual(status.latest_scan_timestamp, scan_timestamp)
             self.assertEqual(status.latest_study_id, "SP-001")
 
             with closing(sqlite3.connect(database_path)) as connection:
@@ -140,7 +147,7 @@ class ResearchRepositoryTest(unittest.TestCase):
                         "Intraday Technology Growth AI Calls",
                         "v0.1",
                         "Test purpose",
-                        "10:00",
+                        "10:00 ET",
                         RUN_MODE_SCHEDULED,
                     ),
                 )
@@ -152,11 +159,11 @@ class ResearchRepositoryTest(unittest.TestCase):
             for scan_id, study_id, run_mode, scheduled_time_label in (
                 ("manual-scan", "SP-001", RUN_MODE_MANUAL_UI, "10:00"),
                 ("wrong-study-scan", "SP-OTHER", RUN_MODE_SCHEDULED, "12:00"),
-                ("scheduled-scan", "SP-001", RUN_MODE_SCHEDULED, "14:00"),
+                ("scheduled-scan", "SP-001", RUN_MODE_SCHEDULED, "14:00 ET"),
             ):
                 archive_opportunity_scan(
                     scan_id=scan_id,
-                    scan_timestamp="2026-07-01 10:00:00 AM EDT",
+                    scan_timestamp=current_et_timestamp(),
                     universe_name="Test Universe",
                     option_type="Calls",
                     dte_min=10,
