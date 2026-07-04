@@ -8,14 +8,17 @@ changing the current Contract Quality Model.
 from __future__ import annotations
 
 import sqlite3
+from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
 from math import isfinite
+import os
 from pathlib import Path
 from statistics import mean
 from typing import Any
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 from src.contract_quality import ALL_PASSED_YES, QUALITY_CHECKS, near_miss_contracts
@@ -29,6 +32,11 @@ from src.study_protocol import (
 
 
 DEFAULT_RESEARCH_DB_PATH = Path("data/research/opportunity_scans.sqlite")
+REPOSITORY_BACKEND_SQLITE = "sqlite"
+REPOSITORY_BACKEND_POSTGRES = "postgres"
+RESEARCH_REPOSITORY_BACKEND_ENV = "RESEARCH_REPOSITORY_BACKEND"
+RESEARCH_SQLITE_PATH_ENV = "RESEARCH_SQLITE_PATH"
+DATABASE_URL_ENV = "DATABASE_URL"
 CANONICAL_RUN_MODES = {
     RUN_MODE_MANUAL_UI,
     RUN_MODE_RESEARCH_SCRIPT,
@@ -38,6 +46,19 @@ LEGACY_RUN_MODE_MAP = {
     "manual": RUN_MODE_MANUAL_UI,
     "app-triggered": RUN_MODE_MANUAL_UI,
 }
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchRepositoryTarget:
+    backend: str
+    sqlite_path: Path | None = None
+    database_url: str | None = None
+
+    @property
+    def display_location(self) -> str:
+        if self.backend == REPOSITORY_BACKEND_SQLITE:
+            return str(self.sqlite_path or DEFAULT_RESEARCH_DB_PATH)
+        return self.database_url or ""
 
 
 @dataclass(frozen=True)
@@ -58,6 +79,465 @@ class ResearchRepositoryStatus:
     today_observations: tuple[dict[str, str | None], ...]
     today_completed_schedule_times: tuple[str, ...]
     recent_observations: tuple[dict[str, str | None], ...]
+
+
+class ResearchRepository(ABC):
+    """Storage boundary for archived research observations."""
+
+    @abstractmethod
+    def initialize(self) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def archive_opportunity_scan(self, **kwargs: Any) -> dict[str, int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def status(self, study_id: str | None = None) -> ResearchRepositoryStatus:
+        raise NotImplementedError
+
+    @abstractmethod
+    def latest_scan_row_counts(self) -> dict[str, int | str] | None:
+        raise NotImplementedError
+
+
+class SQLiteResearchRepository(ResearchRepository):
+    def __init__(self, database_path: Path | str = DEFAULT_RESEARCH_DB_PATH):
+        self.database_path = Path(database_path)
+
+    def initialize(self) -> str:
+        return str(initialize_research_repository(self.database_path))
+
+    def archive_opportunity_scan(self, **kwargs: Any) -> dict[str, int]:
+        return archive_opportunity_scan(database_path=self.database_path, **kwargs)
+
+    def status(self, study_id: str | None = None) -> ResearchRepositoryStatus:
+        return research_repository_status(self.database_path, study_id=study_id)
+
+    def latest_scan_row_counts(self) -> dict[str, int | str] | None:
+        return latest_scan_row_counts(self.database_path)
+
+
+class PostgresResearchRepository(ResearchRepository):
+    def __init__(self, database_url: str):
+        if not database_url:
+            raise ValueError("DATABASE_URL is required for the postgres research repository.")
+        self.database_url = database_url
+
+    def initialize(self) -> str:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                for statement in POSTGRES_SCHEMA_STATEMENTS:
+                    cursor.execute(statement)
+                cursor.execute(
+                    """
+                    UPDATE opportunity_scans
+                    SET run_mode = %s
+                    WHERE run_mode IS NULL
+                       OR run_mode = ''
+                       OR run_mode IN ('manual', 'app-triggered')
+                    """,
+                    (RUN_MODE_MANUAL_UI,),
+                )
+            connection.commit()
+        return self.database_url
+
+    def archive_opportunity_scan(self, **kwargs: Any) -> dict[str, int]:
+        self.initialize()
+        archive_payload = _archive_payload(**kwargs)
+
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM evaluated_contracts WHERE scan_id = %s",
+                    (archive_payload["scan_id"],),
+                )
+                cursor.execute(
+                    "DELETE FROM rule_evaluations WHERE scan_id = %s",
+                    (archive_payload["scan_id"],),
+                )
+                cursor.execute(
+                    "DELETE FROM security_characterization WHERE scan_id = %s",
+                    (archive_payload["scan_id"],),
+                )
+                cursor.execute(
+                    POSTGRES_OPPORTUNITY_SCAN_UPSERT,
+                    archive_payload["opportunity_scan_values"],
+                )
+                cursor.executemany(
+                    POSTGRES_EVALUATED_CONTRACT_INSERT,
+                    archive_payload["evaluated_contract_values"],
+                )
+                cursor.executemany(
+                    POSTGRES_RULE_EVALUATION_INSERT,
+                    archive_payload["rule_evaluation_values"],
+                )
+                cursor.executemany(
+                    POSTGRES_SECURITY_CHARACTERIZATION_INSERT,
+                    archive_payload["security_characterization_values"],
+                )
+            connection.commit()
+
+        return archive_payload["row_counts"]
+
+    def status(self, study_id: str | None = None) -> ResearchRepositoryStatus:
+        self.initialize()
+        today_prefix = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM opportunity_scans")
+                total_scans = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM evaluated_contracts")
+                total_contracts_evaluated = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM rule_evaluations")
+                total_rule_evaluations = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM security_characterization")
+                total_security_characterizations = cursor.fetchone()[0]
+                cursor.execute(
+                    """
+                    SELECT scan_id, scan_timestamp, study_id, scheduled_time_label, run_mode
+                    FROM opportunity_scans
+                    ORDER BY scan_timestamp DESC, scan_id DESC
+                    LIMIT 1
+                    """
+                )
+                latest = cursor.fetchone()
+                latest_rows_written: dict[str, int] = {}
+                if latest:
+                    latest_scan_id = latest[0]
+                    latest_rows_written = {}
+                    for table in RESEARCH_TABLES:
+                        cursor.execute(
+                            f"SELECT COUNT(*) FROM {table} WHERE scan_id = %s",
+                            (latest_scan_id,),
+                        )
+                        latest_rows_written[table] = cursor.fetchone()[0]
+                cursor.execute(
+                    """
+                    SELECT scan_id, scan_timestamp, study_id, scheduled_time_label, run_mode
+                    FROM opportunity_scans
+                    WHERE scan_timestamp LIKE %s
+                    ORDER BY scan_timestamp DESC, scan_id DESC
+                    """,
+                    (today_prefix + "%",),
+                )
+                today_rows = cursor.fetchall()
+                cursor.execute(
+                    """
+                    SELECT scheduled_time_label
+                    FROM opportunity_scans
+                    WHERE scan_timestamp LIKE %s
+                      AND run_mode = 'scheduled'
+                      AND study_id = %s
+                      AND scheduled_time_label IS NOT NULL
+                      AND scheduled_time_label <> ''
+                    """,
+                    (today_prefix + "%", study_id),
+                )
+                progress_rows = cursor.fetchall()
+                cursor.execute(
+                    """
+                    SELECT scan_id, scan_timestamp, study_id, scheduled_time_label, run_mode
+                    FROM opportunity_scans
+                    ORDER BY scan_timestamp DESC, scan_id DESC
+                    LIMIT 10
+                    """
+                )
+                recent_rows = cursor.fetchall()
+
+        today_observations = tuple(_observation_dict(row) for row in today_rows)
+        today_completed_schedule_times = tuple(
+            sorted(
+                {
+                    normalized
+                    for normalized in (
+                        _normalized_schedule_time_label(row[0]) for row in progress_rows
+                    )
+                    if normalized
+                }
+            )
+        )
+        recent_observations = tuple(_observation_dict(row) for row in recent_rows)
+        return ResearchRepositoryStatus(
+            database_path=self.database_url,
+            total_scans=int(total_scans or 0),
+            total_contracts_evaluated=int(total_contracts_evaluated or 0),
+            total_rule_evaluations=int(total_rule_evaluations or 0),
+            total_security_characterizations=int(total_security_characterizations or 0),
+            latest_scan_timestamp=latest[1] if latest else None,
+            latest_study_id=latest[2] if latest else None,
+            latest_scan_id=latest[0] if latest else None,
+            latest_scheduled_time_label=latest[3] if latest else None,
+            latest_run_mode=latest[4] if latest else None,
+            latest_rows_written=latest_rows_written,
+            today_observations=today_observations,
+            today_completed_schedule_times=today_completed_schedule_times,
+            recent_observations=recent_observations,
+        )
+
+    def latest_scan_row_counts(self) -> dict[str, int | str] | None:
+        self.initialize()
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT scan_id
+                    FROM opportunity_scans
+                    ORDER BY scan_timestamp DESC, scan_id DESC
+                    LIMIT 1
+                    """
+                )
+                latest = cursor.fetchone()
+                if latest is None:
+                    return None
+                scan_id = latest[0]
+                counts: dict[str, int | str] = {"scan_id": scan_id}
+                for table in RESEARCH_TABLES:
+                    cursor.execute(
+                        f"SELECT COUNT(*) FROM {table} WHERE scan_id = %s",
+                        (scan_id,),
+                    )
+                    counts[table] = cursor.fetchone()[0]
+        return counts
+
+    def _connect(self):
+        psycopg = _require_psycopg()
+        return psycopg.connect(self.database_url)
+
+
+def research_repository_target_from_env(
+    env: dict[str, str] | None = None,
+) -> ResearchRepositoryTarget:
+    """Resolve repository configuration from environment variables."""
+    env = os.environ if env is None else env
+    configured_backend = env.get(RESEARCH_REPOSITORY_BACKEND_ENV, "").strip().lower()
+    database_url = env.get(DATABASE_URL_ENV, "").strip() or None
+
+    if configured_backend:
+        backend = configured_backend
+    elif database_url:
+        backend = REPOSITORY_BACKEND_POSTGRES
+    else:
+        backend = REPOSITORY_BACKEND_SQLITE
+
+    if backend == REPOSITORY_BACKEND_SQLITE:
+        sqlite_path = Path(env.get(RESEARCH_SQLITE_PATH_ENV, "") or DEFAULT_RESEARCH_DB_PATH)
+        return ResearchRepositoryTarget(backend=backend, sqlite_path=sqlite_path)
+
+    if backend == REPOSITORY_BACKEND_POSTGRES:
+        if not database_url:
+            raise ValueError("DATABASE_URL is required when RESEARCH_REPOSITORY_BACKEND=postgres.")
+        scheme = urlparse(database_url).scheme
+        if scheme not in ("postgres", "postgresql"):
+            raise ValueError("DATABASE_URL must use a postgres or postgresql URL scheme.")
+        return ResearchRepositoryTarget(backend=backend, database_url=database_url)
+
+    raise ValueError(
+        "RESEARCH_REPOSITORY_BACKEND must be sqlite or postgres; "
+        f"received {configured_backend!r}."
+    )
+
+
+def research_repository_from_target(target: ResearchRepositoryTarget) -> ResearchRepository:
+    if target.backend == REPOSITORY_BACKEND_SQLITE:
+        return SQLiteResearchRepository(target.sqlite_path or DEFAULT_RESEARCH_DB_PATH)
+    if target.backend == REPOSITORY_BACKEND_POSTGRES:
+        return PostgresResearchRepository(target.database_url or "")
+    raise ValueError(f"Unsupported research repository backend: {target.backend}")
+
+
+def research_repository_from_env(env: dict[str, str] | None = None) -> ResearchRepository:
+    return research_repository_from_target(research_repository_target_from_env(env))
+
+
+RESEARCH_TABLES = (
+    "opportunity_scans",
+    "evaluated_contracts",
+    "rule_evaluations",
+    "security_characterization",
+)
+
+POSTGRES_SCHEMA_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS opportunity_scans (
+        scan_id TEXT PRIMARY KEY,
+        scan_timestamp TEXT,
+        universe_name TEXT,
+        evaluation_profile_name TEXT,
+        evaluation_profile_version TEXT,
+        contract_quality_model_name TEXT,
+        contract_quality_model_version TEXT,
+        option_type TEXT,
+        dte_min INTEGER,
+        dte_max INTEGER,
+        contracts_evaluated INTEGER,
+        passing_count INTEGER,
+        true_near_miss_count INTEGER,
+        rejected_count INTEGER,
+        average_quality_score DOUBLE PRECISION,
+        median_quality_score DOUBLE PRECISION,
+        highest_quality_score DOUBLE PRECISION,
+        lowest_quality_score DOUBLE PRECISION,
+        study_id TEXT,
+        study_name TEXT,
+        study_version TEXT,
+        study_purpose TEXT,
+        scheduled_time_label TEXT,
+        run_mode TEXT
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS evaluated_contracts (
+        scan_id TEXT,
+        ticker TEXT,
+        contract_symbol TEXT,
+        option_type TEXT,
+        expiration TEXT,
+        strike DOUBLE PRECISION,
+        dte INTEGER,
+        underlying_price DOUBLE PRECISION,
+        bid DOUBLE PRECISION,
+        ask DOUBLE PRECISION,
+        mid DOUBLE PRECISION,
+        spread_pct DOUBLE PRECISION,
+        delta DOUBLE PRECISION,
+        open_interest INTEGER,
+        volume INTEGER,
+        quality_score DOUBLE PRECISION,
+        classification TEXT,
+        failed_rules TEXT,
+        primary_strength TEXT,
+        primary_weakness TEXT
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS rule_evaluations (
+        scan_id TEXT,
+        contract_symbol TEXT,
+        ticker TEXT,
+        rule_name TEXT,
+        rule_weight DOUBLE PRECISION,
+        actual_value TEXT,
+        target TEXT,
+        pass_fail_status TEXT,
+        threshold_distance DOUBLE PRECISION,
+        rule_score DOUBLE PRECISION,
+        max_rule_score DOUBLE PRECISION
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS security_characterization (
+        scan_id TEXT,
+        ticker TEXT,
+        contracts_evaluated INTEGER,
+        passing_count INTEGER,
+        true_near_miss_count INTEGER,
+        rejected_count INTEGER,
+        best_quality_score DOUBLE PRECISION,
+        average_quality_score DOUBLE PRECISION,
+        pass_rate DOUBLE PRECISION,
+        near_miss_rate DOUBLE PRECISION,
+        dominant_failed_rule TEXT,
+        dominant_failure_signature TEXT
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_evaluated_contracts_scan ON evaluated_contracts (scan_id)",
+    """
+    CREATE INDEX IF NOT EXISTS idx_rule_evaluations_scan_contract
+        ON rule_evaluations (scan_id, contract_symbol)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_security_characterization_scan
+        ON security_characterization (scan_id)
+    """,
+    "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS study_id TEXT",
+    "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS study_name TEXT",
+    "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS study_version TEXT",
+    "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS study_purpose TEXT",
+    "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS scheduled_time_label TEXT",
+    "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS run_mode TEXT",
+)
+
+POSTGRES_OPPORTUNITY_SCAN_UPSERT = """
+    INSERT INTO opportunity_scans (
+        scan_id, scan_timestamp, universe_name,
+        evaluation_profile_name, evaluation_profile_version,
+        contract_quality_model_name, contract_quality_model_version,
+        option_type, dte_min, dte_max, contracts_evaluated,
+        passing_count, true_near_miss_count, rejected_count,
+        average_quality_score, median_quality_score, highest_quality_score,
+        lowest_quality_score, study_id, study_name, study_version,
+        study_purpose, scheduled_time_label, run_mode
+    )
+    VALUES (
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+    )
+    ON CONFLICT (scan_id) DO UPDATE SET
+        scan_timestamp = EXCLUDED.scan_timestamp,
+        universe_name = EXCLUDED.universe_name,
+        evaluation_profile_name = EXCLUDED.evaluation_profile_name,
+        evaluation_profile_version = EXCLUDED.evaluation_profile_version,
+        contract_quality_model_name = EXCLUDED.contract_quality_model_name,
+        contract_quality_model_version = EXCLUDED.contract_quality_model_version,
+        option_type = EXCLUDED.option_type,
+        dte_min = EXCLUDED.dte_min,
+        dte_max = EXCLUDED.dte_max,
+        contracts_evaluated = EXCLUDED.contracts_evaluated,
+        passing_count = EXCLUDED.passing_count,
+        true_near_miss_count = EXCLUDED.true_near_miss_count,
+        rejected_count = EXCLUDED.rejected_count,
+        average_quality_score = EXCLUDED.average_quality_score,
+        median_quality_score = EXCLUDED.median_quality_score,
+        highest_quality_score = EXCLUDED.highest_quality_score,
+        lowest_quality_score = EXCLUDED.lowest_quality_score,
+        study_id = EXCLUDED.study_id,
+        study_name = EXCLUDED.study_name,
+        study_version = EXCLUDED.study_version,
+        study_purpose = EXCLUDED.study_purpose,
+        scheduled_time_label = EXCLUDED.scheduled_time_label,
+        run_mode = EXCLUDED.run_mode
+"""
+
+POSTGRES_EVALUATED_CONTRACT_INSERT = """
+    INSERT INTO evaluated_contracts (
+        scan_id, ticker, contract_symbol, option_type, expiration, strike,
+        dte, underlying_price, bid, ask, mid, spread_pct, delta,
+        open_interest, volume, quality_score, classification, failed_rules,
+        primary_strength, primary_weakness
+    )
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+"""
+
+POSTGRES_RULE_EVALUATION_INSERT = """
+    INSERT INTO rule_evaluations (
+        scan_id, contract_symbol, ticker, rule_name, rule_weight,
+        actual_value, target, pass_fail_status, threshold_distance,
+        rule_score, max_rule_score
+    )
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+"""
+
+POSTGRES_SECURITY_CHARACTERIZATION_INSERT = """
+    INSERT INTO security_characterization (
+        scan_id, ticker, contracts_evaluated, passing_count,
+        true_near_miss_count, rejected_count, best_quality_score,
+        average_quality_score, pass_rate, near_miss_rate,
+        dominant_failed_rule, dominant_failure_signature
+    )
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+"""
+
+
+def _require_psycopg():
+    try:
+        import psycopg
+    except ImportError as error:
+        raise RuntimeError(
+            "Postgres research repository requires psycopg. "
+            "Install project dependencies before using RESEARCH_REPOSITORY_BACKEND=postgres."
+        ) from error
+    return psycopg
 
 
 def initialize_research_repository(database_path: Path | str = DEFAULT_RESEARCH_DB_PATH) -> Path:
@@ -308,6 +788,74 @@ def _normalized_schedule_time_label(value: Any) -> str | None:
     if label.upper().endswith(" ET"):
         label = label[:-3].strip()
     return label or None
+
+
+def _archive_payload(
+    *,
+    scan_id: str,
+    scan_timestamp: str,
+    universe_name: str,
+    option_type: str,
+    dte_min: int,
+    dte_max: int,
+    evaluation_profile: dict[str, Any],
+    evaluated_contract_rows: list[dict[str, Any]],
+    contract_export_rows: list[dict[str, Any]],
+    rule_export_rows: list[dict[str, Any]],
+    study_protocol: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    summary = discovery_diagnostic_summary(evaluated_contract_rows)
+    security_rows = security_characterization_rows(evaluated_contract_rows, scan_id)
+    study_protocol = dict(study_protocol or {})
+    study_protocol["run_mode"] = _normalized_run_mode(study_protocol.get("run_mode"))
+    ticker_by_contract = {
+        row.get("contract_symbol"): row.get("ticker") for row in contract_export_rows
+    }
+    return {
+        "scan_id": scan_id,
+        "opportunity_scan_values": (
+            scan_id,
+            scan_timestamp,
+            universe_name,
+            evaluation_profile.get("evaluation_profile_name"),
+            evaluation_profile.get("evaluation_profile_version"),
+            evaluation_profile.get("contract_quality_model_name"),
+            evaluation_profile.get("contract_quality_model_version"),
+            option_type,
+            int(dte_min),
+            int(dte_max),
+            summary["Contracts Evaluated"],
+            summary["Passing Contracts Count"],
+            summary["True Near Miss Count"],
+            summary["Rejected Count"],
+            _number_or_none(summary["Average Quality Score"]),
+            _number_or_none(summary["Median Quality Score"]),
+            _number_or_none(summary["Highest Quality Score"]),
+            _number_or_none(summary["Lowest Quality Score"]),
+            study_protocol.get("study_id"),
+            study_protocol.get("study_name"),
+            study_protocol.get("study_version"),
+            study_protocol.get("study_purpose"),
+            study_protocol.get("scheduled_time_label"),
+            study_protocol.get("run_mode"),
+        ),
+        "evaluated_contract_values": [
+            _evaluated_contract_values(row) for row in contract_export_rows
+        ],
+        "rule_evaluation_values": [
+            _rule_evaluation_values(row, ticker_by_contract.get(row.get("contract_symbol")))
+            for row in rule_export_rows
+        ],
+        "security_characterization_values": [
+            _security_characterization_values(row) for row in security_rows
+        ],
+        "row_counts": {
+            "opportunity_scans": 1,
+            "evaluated_contracts": len(contract_export_rows),
+            "rule_evaluations": len(rule_export_rows),
+            "security_characterization": len(security_rows),
+        },
+    }
 
 
 def archive_opportunity_scan(

@@ -12,7 +12,7 @@ It is intentionally aspirational. It captures the intended research direction ra
 
 Research Foundation
 
-Completed / In Progress
+Complete / Substantially Complete
 
 - Evaluation Profiles
 - Reference Universe
@@ -21,10 +21,26 @@ Completed / In Progress
 - SQLite Research Repository
 - Study Protocols
 - Export Instrumentation
+- Scheduled Observation execution
+- Research Dashboard protocol progress
 
 ---
 
 ## Phase 2
+
+Cloud Continuous Observation Infrastructure
+
+Planned
+
+- Cloud scheduler
+- Cloud research runner
+- Cloud database
+- Repository abstraction
+- Cloud-hosted dashboard or dashboard reading cloud data
+
+---
+
+## Phase 3
 
 Research Characterization
 
@@ -39,7 +55,7 @@ Planned
 
 ---
 
-## Phase 3
+## Phase 4
 
 Longitudinal Research
 
@@ -55,7 +71,7 @@ Planned
 
 ---
 
-## Phase 4
+## Phase 5
 
 Outcome Research
 
@@ -69,7 +85,7 @@ Planned
 
 ---
 
-## Phase 5
+## Phase 6
 
 Scientific Evaluation
 

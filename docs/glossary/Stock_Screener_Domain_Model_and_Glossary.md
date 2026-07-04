@@ -13,8 +13,16 @@
 | Opportunity Discovery | The workflow that evaluates a universe and ranks candidate contracts. | What opportunities are visible in the current scan? | `app.py`, `src/opportunity_ranking.py` |
 | Quick Evaluation (QED) | A diagnostic view of one scan's quality-engine behavior. | What happened during this scan? | `src/quality_diagnostics.py`, `app.py` |
 | Opportunity Scan | One completed Opportunity Discovery run. | What was observed at one point in time? | `src/research_repository.py`, `research_scan.py` |
-| Study Protocol | A repeatable observational study definition. | Why and how is this scan being repeated? | `src/study_protocol.py` |
-| SQLite Research Repository | The local persistent archive for completed scans and linked research data. | Where is scan evidence stored? | `src/research_repository.py` |
+| Study Protocol | A repeatable observational study definition with purpose, configuration, run mode, and schedule context. | Why and how is this scan being repeated? | `src/study_protocol.py` |
+| Observation | One archived scan instance that records what was observed under a research context. | What evidence was captured from this run? | `src/research_repository.py`, `research_scan.py` |
+| Scheduled Observation | An unattended Study Protocol run archived with a scheduled run mode and scheduled time label. | Which planned study slot did this observation satisfy? | `research_scan.py`, `src/research_repository.py` |
+| Exploratory Observation | A manual or ad hoc scan archived outside the scheduled Study Protocol metrics. | What did a researcher inspect outside the schedule? | `research_scan.py`, `src/research_repository.py` |
+| Run Mode | The archived execution category for an Opportunity Scan. | Was this observation scheduled, manual, or script-driven? | `research_scan.py`, `src/research_repository.py` |
+| Scheduled Time Label | The intended schedule slot stored with a scheduled observation. | Which planned observation time does this scan represent? | `research_scan.py`, `src/research_repository.py` |
+| Research Dashboard | The UI surface that displays archived research scans and protocol progress. | What research evidence and progress are visible now? | `app.py` |
+| Research Repository | The persistent archive for completed scans and linked research data. | Where is scan evidence stored? | `src/research_repository.py` |
+| SQLite Research Repository | The local SQLite implementation of the Research Repository. | Where is local scan evidence stored? | `src/research_repository.py` |
+| Protocol Progress | A dashboard summary of completed scheduled observations for a Study Protocol. | Which scheduled study observations have been recorded? | `app.py`, `src/research_repository.py` |
 | Research Notebook | The permanent research journal. | What observations, hypotheses, and conclusions have accumulated? | `docs/research/Research_Notebook.md` |
 | Security Characterization | A ticker-level summary of scan behavior. | How did each security behave in a scan? | `src/research_repository.py` |
 | Rule Characterization | A summary of rule outcomes and failures. | Which rules passed, failed, or constrained opportunities? | `src/rule_evaluation.py`, `src/quality_diagnostics.py` |
@@ -207,7 +215,7 @@ Status: Stable
 
 ### Opportunity Scan
 
-Definition: One completed Opportunity Discovery run with scan metadata, evaluated contracts, rule evaluations, and security characterization.
+Definition: One completed Opportunity Discovery run with scan metadata, evaluated contracts, rule evaluations, security characterization, run mode, and optional Study Protocol context.
 
 Purpose: Preserve a point-in-time observation for future research.
 
@@ -221,7 +229,7 @@ Owns: Scan identity and point-in-time evidence.
 
 Does NOT Own: Model thresholds, future outcomes, research conclusions.
 
-Relationships: Produced by Opportunity Discovery. Archived by SQLite Research Repository. Associated with Study Protocols.
+Relationships: Produced by Opportunity Discovery. Archived by a Research Repository. Associated with Study Protocols when run under a defined protocol. May be a Scheduled Observation or Exploratory Observation depending on run mode.
 
 Module(s): `src/research_repository.py`, `research_scan.py`
 
@@ -381,6 +389,50 @@ Module(s): Planned
 
 Status: Emerging
 
+### Scheduled Observation
+
+Definition: An unattended Opportunity Scan run for a planned Study Protocol schedule slot and archived with `run_mode = scheduled`.
+
+Purpose: Preserve evidence that a scheduled study observation occurred without manual intervention.
+
+Questions Answered: Which planned observation time was recorded? Did the scheduled run produce archived evidence? Should it count toward protocol progress?
+
+Inputs: Study Protocol, scheduled task trigger, scheduled time label, Evaluation Profile, Reference Universe, scan parameters.
+
+Outputs: Archived Opportunity Scan with scheduled run mode and scheduled time label.
+
+Owns: Scheduled observation identity and its relationship to a planned study slot.
+
+Does NOT Own: Scheduler implementation, model scoring logic, research conclusions.
+
+Relationships: Satisfies one scheduled slot in Protocol Progress. Stored in the Research Repository.
+
+Module(s): `research_scan.py`, `src/research_repository.py`
+
+Status: Stable
+
+### Exploratory Observation
+
+Definition: A manual, test, or ad hoc Opportunity Scan that is useful as evidence but is not counted as a scheduled Study Protocol observation.
+
+Purpose: Support research inspection without contaminating scheduled study metrics.
+
+Questions Answered: What did a researcher inspect outside the formal schedule? Which evidence should remain separate from protocol progress?
+
+Inputs: Manual scan command, researcher-selected context, optional Study Protocol metadata.
+
+Outputs: Archived Opportunity Scan with a non-scheduled run mode.
+
+Owns: Exploratory scan context.
+
+Does NOT Own: Scheduled protocol completion, production automation, model changes.
+
+Relationships: Stored in the Research Repository. May inform notebook observations but remains excluded from scheduled protocol metrics.
+
+Module(s): `research_scan.py`, `src/research_repository.py`
+
+Status: Stable
+
 ### Historical Repository
 
 Definition: The accumulated body of persisted scan evidence.
@@ -427,21 +479,21 @@ Status: Stable
 
 ### Study Protocol
 
-Definition: A repeatable observational study definition with purpose, configuration, and schedule context.
+Definition: A repeatable observational study definition with purpose, configuration, run mode expectations, and schedule context.
 
-Purpose: Make repeated scans comparable.
+Purpose: Make repeated observations comparable and separate planned study evidence from exploratory scans.
 
-Questions Answered: Why is this scan being run? Which configuration should it use? How should it be repeated?
+Questions Answered: Why is this scan being run? Which configuration should it use? How should it be repeated? Which scheduled observations are expected?
 
-Inputs: Evaluation Profile, Reference Universe, option type, DTE range, purpose, suggested schedule.
+Inputs: Evaluation Profile, Reference Universe, option type, DTE range, purpose, suggested schedule, scheduled time labels.
 
-Outputs: Study metadata persisted with Opportunity Scans.
+Outputs: Study metadata persisted with Opportunity Scans and surfaced in Protocol Progress.
 
-Owns: Repeatable study configuration and purpose.
+Owns: Repeatable study configuration, purpose, and schedule definition.
 
 Does NOT Own: Model logic, scoring thresholds, scan outcomes.
 
-Relationships: Associated with Opportunity Scans and Research Notebook entries.
+Relationships: Associated with Opportunity Scans, Scheduled Observations, Research Dashboard protocol progress, and Research Notebook entries.
 
 Module(s): `src/study_protocol.py`, `research_scan.py`
 
@@ -471,13 +523,13 @@ Status: Emerging
 
 ### Observation
 
-Definition: A recorded empirical statement supported by evidence.
+Definition: A recorded empirical statement or archived scan instance supported by evidence.
 
-Purpose: Capture what has been seen without over-claiming causality.
+Purpose: Capture what has been seen without over-claiming causality. In repository context, an Observation is one archived scan; in notebook context, it is an evidence-backed statement.
 
 Questions Answered: What did the evidence show?
 
-Inputs: Scan evidence, diagnostics, repository summaries.
+Inputs: Scan evidence, diagnostics, repository summaries, Study Protocol context.
 
 Outputs: Observation log entries.
 
@@ -485,7 +537,7 @@ Owns: Evidence-backed statements.
 
 Does NOT Own: Speculation, model changes, conclusions beyond evidence.
 
-Relationships: Can support or conflict with Hypotheses.
+Relationships: Can support or conflict with Hypotheses. Scheduled Observations contribute to Protocol Progress.
 
 Module(s): `docs/research/Research_Notebook.md`
 
@@ -563,7 +615,7 @@ Status: Emerging
 
 ### SQLite Research Repository
 
-Definition: The local SQLite database that stores archived Opportunity Scans and linked research rows.
+Definition: The local SQLite database that implements the Research Repository by storing archived Opportunity Scans and linked research rows.
 
 Purpose: Persist empirical evidence outside the UI runtime.
 
@@ -577,9 +629,119 @@ Owns: Database schema and persistence mechanics.
 
 Does NOT Own: Research conclusions, charts, or model behavior.
 
-Relationships: Implements the Historical Repository.
+Relationships: Implements the Research Repository and contributes to the Historical Repository.
 
 Module(s): `src/research_repository.py`, `data/research/opportunity_scans.sqlite`
+
+Status: Stable
+
+### Research Repository
+
+Definition: The persistent archive interface and storage responsibility for completed Opportunity Scans and linked research data.
+
+Purpose: Preserve empirical evidence independent of the UI and execution environment.
+
+Questions Answered: Where is scan evidence stored? How can research tools retrieve archived observations?
+
+Inputs: Scan metadata, evaluated contract rows, rule evaluation rows, security characterization rows, Study Protocol metadata.
+
+Outputs: Queryable archived observations, protocol progress inputs, historical datasets.
+
+Owns: Persistence contract for research evidence.
+
+Does NOT Own: Research interpretation, dashboard layout, cloud scheduler behavior.
+
+Relationships: Implemented locally by the SQLite Research Repository and expected to support future cloud storage through repository abstraction.
+
+Module(s): `src/research_repository.py`
+
+Status: Stable
+
+### Research Dashboard
+
+Definition: The UI surface that displays archived research scans, Study Protocol context, and protocol progress.
+
+Purpose: Let researchers review accumulated evidence and confirm scheduled observation status.
+
+Questions Answered: Which observations have been archived? Which Study Protocol slots have been recorded? Are manual scans excluded from scheduled metrics?
+
+Inputs: Research Repository summaries, Opportunity Scan metadata, Study Protocol definitions.
+
+Outputs: Research-facing summaries, protocol progress display, scan review context.
+
+Owns: Presentation of research evidence and progress.
+
+Does NOT Own: Scan execution, scheduler reliability, repository persistence.
+
+Relationships: Reads from the Research Repository and displays Protocol Progress for Study Protocols.
+
+Module(s): `app.py`
+
+Status: Stable
+
+### Protocol Progress
+
+Definition: A summary of scheduled Study Protocol observations that have been archived for expected schedule slots.
+
+Purpose: Verify that unattended study execution is producing the intended evidence.
+
+Questions Answered: Which scheduled observations have been recorded? Which expected labels remain missing? Are only scheduled runs counted?
+
+Inputs: Study Protocol schedule definition, archived scan run mode, scheduled time label.
+
+Outputs: Progress indicators in the Research Dashboard.
+
+Owns: Scheduled observation completion status.
+
+Does NOT Own: Manual scan counts, scheduler registration, research conclusions.
+
+Relationships: Built from Scheduled Observations stored in the Research Repository and displayed by the Research Dashboard.
+
+Module(s): `app.py`, `src/research_repository.py`
+
+Status: Stable
+
+### Run Mode
+
+Definition: The archived execution category for an Opportunity Scan, such as scheduled or manual script-driven execution.
+
+Purpose: Separate scheduled study evidence from exploratory or diagnostic runs.
+
+Questions Answered: Should this observation count toward scheduled protocol metrics? How was the scan initiated?
+
+Inputs: Research scan command-line arguments or application execution context.
+
+Outputs: `run_mode` metadata persisted with the Opportunity Scan.
+
+Owns: Execution-category labeling.
+
+Does NOT Own: Scheduler triggers, scan results, research conclusions.
+
+Relationships: Used by Protocol Progress to count Scheduled Observations and exclude Exploratory Observations.
+
+Module(s): `research_scan.py`, `src/research_repository.py`
+
+Status: Stable
+
+### Scheduled Time Label
+
+Definition: A persisted label identifying the intended scheduled observation slot, such as `10:00 ET`.
+
+Purpose: Connect an archived scheduled run to a planned Study Protocol time.
+
+Questions Answered: Which schedule slot does this observation satisfy? Are expected intraday labels present?
+
+Inputs: Scheduled task command arguments.
+
+Outputs: `scheduled_time_label` metadata persisted with the Opportunity Scan.
+
+Owns: Human-readable schedule-slot identity.
+
+Does NOT Own: Local timezone conversion, task trigger registration, scan timing accuracy.
+
+Relationships: Used with Run Mode by Protocol Progress and the Research Dashboard.
+
+Module(s): `research_scan.py`, `src/research_repository.py`
 
 Status: Stable
 

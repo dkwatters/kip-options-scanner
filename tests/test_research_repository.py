@@ -1,4 +1,5 @@
 import sqlite3
+import sys
 import tempfile
 import unittest
 from contextlib import closing
@@ -9,9 +10,13 @@ from zoneinfo import ZoneInfo
 from app import evaluated_contract_export_rows, option_chain_rows, rule_evaluation_export_rows
 from src.evaluation_profile import evaluation_profile_export_fields
 from src.research_repository import (
+    PostgresResearchRepository,
+    REPOSITORY_BACKEND_POSTGRES,
+    REPOSITORY_BACKEND_SQLITE,
     archive_opportunity_scan,
     initialize_research_repository,
     latest_scan_row_counts,
+    research_repository_target_from_env,
     research_repository_status,
 )
 from src.study_protocol import RUN_MODE_MANUAL_UI, RUN_MODE_SCHEDULED
@@ -39,6 +44,53 @@ def option_payload(symbol, option_type, delta, bid=8.0, ask=8.4, volume=750, ope
             }
         }
     }
+
+
+class FakePostgresCursor:
+    def __init__(self, connection):
+        self.connection = connection
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def execute(self, statement, params=None):
+        self.connection.executed.append((statement, params))
+
+    def executemany(self, statement, rows):
+        self.connection.executed_many.append((statement, list(rows)))
+
+
+class FakePostgresConnection:
+    def __init__(self):
+        self.executed = []
+        self.executed_many = []
+        self.commits = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def cursor(self):
+        return FakePostgresCursor(self)
+
+    def commit(self):
+        self.commits += 1
+
+
+class FakePsycopg:
+    def __init__(self):
+        self.connections = []
+
+    def connect(self, database_url):
+        connection = FakePostgresConnection()
+        connection.database_url = database_url
+        self.connections.append(connection)
+        return connection
 
 
 class ResearchRepositoryTest(unittest.TestCase):
@@ -275,6 +327,122 @@ class ResearchRepositoryTest(unittest.TestCase):
                 ).fetchall()
 
             self.assertEqual(run_modes, [(RUN_MODE_MANUAL_UI,)])
+
+    def test_repository_target_defaults_to_sqlite(self):
+        target = research_repository_target_from_env({})
+
+        self.assertEqual(target.backend, REPOSITORY_BACKEND_SQLITE)
+        self.assertEqual(target.display_location, "data\\research\\opportunity_scans.sqlite")
+
+    def test_repository_target_uses_configured_sqlite_path(self):
+        target = research_repository_target_from_env(
+            {
+                "RESEARCH_REPOSITORY_BACKEND": "sqlite",
+                "RESEARCH_SQLITE_PATH": "tmp/research.sqlite",
+            }
+        )
+
+        self.assertEqual(target.backend, REPOSITORY_BACKEND_SQLITE)
+        self.assertEqual(str(target.sqlite_path), "tmp\\research.sqlite")
+
+    def test_repository_target_validates_postgres_database_url(self):
+        target = research_repository_target_from_env(
+            {
+                "RESEARCH_REPOSITORY_BACKEND": "postgres",
+                "DATABASE_URL": "postgresql://user:pass@example.com:5432/research",
+            }
+        )
+
+        self.assertEqual(target.backend, REPOSITORY_BACKEND_POSTGRES)
+        self.assertEqual(
+            target.display_location,
+            "postgresql://user:pass@example.com:5432/research",
+        )
+
+    def test_repository_target_requires_database_url_for_postgres(self):
+        with self.assertRaises(ValueError):
+            research_repository_target_from_env({"RESEARCH_REPOSITORY_BACKEND": "postgres"})
+
+    def test_postgres_repository_requires_database_url(self):
+        with self.assertRaises(ValueError):
+            PostgresResearchRepository("")
+
+    def test_postgres_archive_uses_schema_and_equivalent_table_writes(self):
+        rows = option_chain_rows(
+            option_payload("SPY260717C00600000", "call", 0.58),
+            expiration="2026-07-17",
+            today=date(2026, 6, 30),
+            underlying_price=590,
+            ticker="SPY",
+        )
+        scan_timestamp = current_et_timestamp()
+        contract_rows = evaluated_contract_export_rows(
+            rows,
+            "pg-scan-1",
+            scan_timestamp,
+            "Test Universe",
+            ["SPY"],
+        )
+        rule_rows = rule_evaluation_export_rows(rows, "pg-scan-1")
+        fake_psycopg = FakePsycopg()
+
+        original_psycopg = sys.modules.get("psycopg")
+        sys.modules["psycopg"] = fake_psycopg
+        try:
+            repository = PostgresResearchRepository(
+                "postgresql://user:pass@example.com:5432/research"
+            )
+            counts = repository.archive_opportunity_scan(
+                scan_id="pg-scan-1",
+                scan_timestamp=scan_timestamp,
+                universe_name="Test Universe",
+                option_type="Calls",
+                dte_min=10,
+                dte_max=45,
+                evaluation_profile=evaluation_profile_export_fields(),
+                evaluated_contract_rows=rows,
+                contract_export_rows=contract_rows,
+                rule_export_rows=rule_rows,
+                study_protocol={
+                    "study_id": "SP-001",
+                    "study_name": "Intraday Technology Growth AI Calls",
+                    "study_version": "v0.1",
+                    "study_purpose": "Test purpose",
+                    "scheduled_time_label": "10:00 ET",
+                    "run_mode": RUN_MODE_SCHEDULED,
+                },
+            )
+        finally:
+            if original_psycopg is None:
+                sys.modules.pop("psycopg", None)
+            else:
+                sys.modules["psycopg"] = original_psycopg
+
+        self.assertEqual(
+            counts,
+            {
+                "opportunity_scans": 1,
+                "evaluated_contracts": 1,
+                "rule_evaluations": 4,
+                "security_characterization": 1,
+            },
+        )
+        all_statements = "\n".join(
+            statement
+            for connection in fake_psycopg.connections
+            for statement, _params in connection.executed
+        )
+        self.assertIn("CREATE TABLE IF NOT EXISTS opportunity_scans", all_statements)
+        self.assertIn("CREATE TABLE IF NOT EXISTS evaluated_contracts", all_statements)
+        self.assertIn("CREATE TABLE IF NOT EXISTS rule_evaluations", all_statements)
+        self.assertIn("CREATE TABLE IF NOT EXISTS security_characterization", all_statements)
+        self.assertIn("ON CONFLICT (scan_id) DO UPDATE", all_statements)
+        executemany_lengths = [
+            len(rows)
+            for connection in fake_psycopg.connections
+            for _statement, rows in connection.executed_many
+        ]
+        self.assertEqual(executemany_lengths, [1, 4, 1])
 
 
 if __name__ == "__main__":

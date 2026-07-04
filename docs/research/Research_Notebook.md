@@ -8,6 +8,27 @@ It records observed behavior, hypotheses, experiments, conclusions, and future r
 
 ---
 
+## Milestone Log
+
+### Milestone M3 - Autonomous Observation Achieved
+
+Date: 2026-07-03
+
+Definition:
+The first successful end-to-end execution of an unattended Study Protocol resulting in correctly archived observations, accurate protocol progress, and synchronized Research Dashboard display.
+
+Evidence:
+
+- SP-001 produced scheduled observations for 10:00 ET, 12:00 ET, and 14:00 ET.
+- Each observation archived with `run_mode = scheduled`.
+- Study Protocol Progress correctly displayed all three scheduled observations as recorded.
+- Manual scans remain excluded from scheduled study metrics.
+
+Status:
+Complete
+
+---
+
 ## Observation Log
 
 ### Observation 001
