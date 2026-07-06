@@ -29,6 +29,43 @@ Complete
 
 ---
 
+### Milestone M4 - Technical Analysis Model v0.1 Added
+
+Date: 2026-07-06
+
+Definition:
+The first independent stock-level technical research layer was added as Technical Analysis Model v0.1.
+
+Evidence:
+
+- Technical observations archive to `technical_characterization`.
+- Initial indicators include price, 20/50/200-day SMA relationships, RSI 14, MACD, and 20-day realized volatility when price history supports it.
+- TAM rows are linked to Opportunity Scans by `scan_id` when generated during scans.
+- TAM remains research metadata and does not alter CQM scoring, Opportunity Discovery ranking, QED, thresholds, or Evaluation Profile behavior.
+
+Status:
+Complete
+
+---
+
+### Milestone M5 - Technical Analysis Explorer v0.1 Added
+
+Date: 2026-07-06
+
+Definition:
+A read-only Technical Analysis Explorer was added to visualize and QA TAM output.
+
+Evidence:
+
+- The explorer reads existing rows from `technical_characterization`.
+- It shows latest TAM observations, filters by ticker, state, latest scan, and optional `scan_id`, and surfaces summary cards plus QA distributions.
+- The explorer is observational only and does not alter options filtering, ranking, CQM scoring, QED, thresholds, or Evaluation Profile behavior.
+
+Status:
+Complete
+
+---
+
 ## Observation Log
 
 ### Observation 001
@@ -110,6 +147,22 @@ Evidence: A manual research scan archived one opportunity scan with linked rows 
 Confidence: High
 
 Follow-up Questions: What repository summaries are most useful for recurring research review without adding premature trend conclusions?
+
+### Observation 006
+
+Observation ID: OBS-006
+
+Date: 2026-07-06
+
+Study Protocol: SP-001 Intraday Technology Growth AI Calls
+
+Observation: Stock-level technical characterization is now captured independently from option contract quality evaluation.
+
+Evidence: TAM rows persist separately in `technical_characterization`, while contract-level rows and rule evaluations continue to be archived through the existing CQM path.
+
+Confidence: High
+
+Follow-up Questions: Do specific TAM states correlate with later option quality, opportunity persistence, or forward outcomes across repeated scans?
 
 ---
 

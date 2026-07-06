@@ -9,6 +9,35 @@ Phase 4B is a Streamlit research tool for inspecting Tradier option-chain market
 3. Copy `.env.example` to `.env` and configure a Tradier token if needed later.
 4. Start: `streamlit run app.py`.
 
+Local runs default to the SQLite research repository at
+`data/research/opportunity_scans.sqlite`. A local `.env` file is optional; cloud
+deployments should use platform environment variables instead.
+
+## Render Web Service Deployment
+
+Deploy the dashboard as a Render Web Service backed by the cloud Postgres
+Research Repository.
+
+Use this web command:
+
+```bash
+streamlit run app.py --server.port $PORT --server.address 0.0.0.0
+```
+
+Set these Render environment variables:
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `RESEARCH_REPOSITORY_BACKEND` | Yes | Set to `postgres` for the cloud Research Repository. |
+| `DATABASE_URL` | Yes | Render Postgres connection URL. Must use a `postgres` or `postgresql` scheme. |
+| `TRADIER_API_TOKEN` | Yes for market-data actions | Tradier market-data API token. |
+| `TRADIER_ENVIRONMENT` | Yes for market-data actions | Tradier environment, usually `sandbox` or `production`. |
+| `APP_PASSWORD` | No | Optional shared password gate for demo protection. |
+
+On startup, the app sidebar shows a Startup Check with the resolved repository
+backend, database connectivity, and latest scan timestamp. If
+`APP_PASSWORD` is unset, the app runs without a password prompt.
+
 ## Architecture
 
 - `app.py`: quote view, Opportunity Discovery, and Option Chain Explorer. Opportunity Discovery filters watchlist contracts by Calls/Puts and a configurable DTE range before selecting the highest-quality passing contract or highest-quality true near miss, then renders a selectable ranking table that reuses the Contract Detail Summary. The explorer retrieves expirations, then presents Opportunity Analysis, passing contracts, and true near misses for the selected Calls/Puts type. An Advanced Diagnostics expander contains test-specific near misses, threshold-analysis tables, and the raw chain response used for validation.

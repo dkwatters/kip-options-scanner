@@ -46,12 +46,18 @@ Research Characterization
 
 Planned
 
+- Technical Analysis Model v0.1 stock-level observations
+- Technical Analysis Explorer v0.1 QA and observation view
 - Security Characterization
 - Excellent Contract Characterization
 - Rule Characterization
 - Near Miss Characterization
 - Opportunity Concentration
 - Security Passports
+
+Technical Analysis Model v0.1 is a research-only layer. It persists underlying-security technical observations but does not filter, score, rank, or otherwise change Contract Quality Model or Opportunity Discovery behavior.
+
+Technical Analysis Explorer v0.1 is the read-only UI surface for TAM QA. It displays persisted `technical_characterization` rows, summary counts, distributions, and missing-indicator checks without changing Opportunity Discovery, CQM scoring, rankings, thresholds, QED, or Evaluation Profile behavior.
 
 ---
 

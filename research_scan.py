@@ -30,6 +30,7 @@ from src.study_protocol import (
     RUN_MODE_SCHEDULED,
     RunMode,
 )
+from src.technical_analysis import technical_analysis_rows_for_symbols
 from src.tradier_client import TradierClient
 from src.universe import load_universe
 
@@ -86,13 +87,21 @@ def run_default_research_scan(
     scan_id = f"research-scan-{scan_timestamp:%Y%m%d-%H%M%S}-{uuid4().hex[:8]}"
     formatted_scan_timestamp = scan_timestamp.strftime("%Y-%m-%d %I:%M:%S %p %Z")
 
+    client = TradierClient()
     _opportunity_rows, discovery_errors, evaluated_rows = discover_universe_opportunities(
-        TradierClient(),
+        client,
         universe_symbols,
         scan_timestamp.date(),
         option_type=protocol.option_type,
         min_dte=protocol.dte_min,
         max_dte=protocol.dte_max,
+    )
+    technical_rows, technical_errors = technical_analysis_rows_for_symbols(
+        client,
+        universe_symbols,
+        scan_id=scan_id,
+        technical_timestamp=formatted_scan_timestamp,
+        end_date=scan_timestamp.date(),
     )
     contract_rows = evaluated_contract_export_rows(
         evaluated_rows,
@@ -113,6 +122,7 @@ def run_default_research_scan(
         evaluated_contract_rows=evaluated_rows,
         contract_export_rows=contract_rows,
         rule_export_rows=rule_rows,
+        technical_rows=technical_rows,
         study_protocol=protocol.metadata(
             scheduled_time_label=scheduled_time_label,
             run_mode=run_mode,
@@ -130,6 +140,7 @@ def run_default_research_scan(
         "repository_backend": repository_target.backend,
         "row_counts": row_counts,
         "discovery_error_count": len(discovery_errors),
+        "technical_error_count": len(technical_errors),
         "run_mode": run_mode,
         "scheduled_time_label": scheduled_time_label,
         "skipped": False,
@@ -235,6 +246,8 @@ def main() -> None:
     print(f"passing count: {result['passing_count']}")
     print(f"near miss count: {result['near_miss_count']}")
     print(f"rejected count: {result['rejected_count']}")
+    print(f"technical characterization rows: {result['row_counts'].get('technical_characterization', 0)}")
+    print(f"technical error count: {result['technical_error_count']}")
     print(f"database path: {result['database_path']}")
 
 

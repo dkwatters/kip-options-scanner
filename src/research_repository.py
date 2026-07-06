@@ -70,6 +70,7 @@ class ResearchRepositoryStatus:
     total_contracts_evaluated: int
     total_rule_evaluations: int
     total_security_characterizations: int
+    total_technical_characterizations: int
     latest_scan_timestamp: str | None
     latest_study_id: str | None
     latest_scan_id: str | None
@@ -100,6 +101,19 @@ class ResearchRepository(ABC):
     def latest_scan_row_counts(self) -> dict[str, int | str] | None:
         raise NotImplementedError
 
+    @abstractmethod
+    def technical_analysis_observations(
+        self,
+        *,
+        tickers: list[str] | None = None,
+        trend_states: list[str] | None = None,
+        momentum_states: list[str] | None = None,
+        volatility_states: list[str] | None = None,
+        latest_scan_only: bool = True,
+        scan_id: str | None = None,
+    ) -> dict[str, Any]:
+        raise NotImplementedError
+
 
 class SQLiteResearchRepository(ResearchRepository):
     def __init__(self, database_path: Path | str = DEFAULT_RESEARCH_DB_PATH):
@@ -116,6 +130,26 @@ class SQLiteResearchRepository(ResearchRepository):
 
     def latest_scan_row_counts(self) -> dict[str, int | str] | None:
         return latest_scan_row_counts(self.database_path)
+
+    def technical_analysis_observations(
+        self,
+        *,
+        tickers: list[str] | None = None,
+        trend_states: list[str] | None = None,
+        momentum_states: list[str] | None = None,
+        volatility_states: list[str] | None = None,
+        latest_scan_only: bool = True,
+        scan_id: str | None = None,
+    ) -> dict[str, Any]:
+        return technical_analysis_observations(
+            database_path=self.database_path,
+            tickers=tickers,
+            trend_states=trend_states,
+            momentum_states=momentum_states,
+            volatility_states=volatility_states,
+            latest_scan_only=latest_scan_only,
+            scan_id=scan_id,
+        )
 
 
 class PostgresResearchRepository(ResearchRepository):
@@ -161,6 +195,10 @@ class PostgresResearchRepository(ResearchRepository):
                     (archive_payload["scan_id"],),
                 )
                 cursor.execute(
+                    "DELETE FROM technical_characterization WHERE scan_id = %s",
+                    (archive_payload["scan_id"],),
+                )
+                cursor.execute(
                     POSTGRES_OPPORTUNITY_SCAN_UPSERT,
                     archive_payload["opportunity_scan_values"],
                 )
@@ -175,6 +213,10 @@ class PostgresResearchRepository(ResearchRepository):
                 cursor.executemany(
                     POSTGRES_SECURITY_CHARACTERIZATION_INSERT,
                     archive_payload["security_characterization_values"],
+                )
+                cursor.executemany(
+                    POSTGRES_TECHNICAL_CHARACTERIZATION_INSERT,
+                    archive_payload["technical_characterization_values"],
                 )
             connection.commit()
 
@@ -193,6 +235,8 @@ class PostgresResearchRepository(ResearchRepository):
                 total_rule_evaluations = cursor.fetchone()[0]
                 cursor.execute("SELECT COUNT(*) FROM security_characterization")
                 total_security_characterizations = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM technical_characterization")
+                total_technical_characterizations = cursor.fetchone()[0]
                 cursor.execute(
                     """
                     SELECT scan_id, scan_timestamp, study_id, scheduled_time_label, run_mode
@@ -263,7 +307,8 @@ class PostgresResearchRepository(ResearchRepository):
             total_scans=int(total_scans or 0),
             total_contracts_evaluated=int(total_contracts_evaluated or 0),
             total_rule_evaluations=int(total_rule_evaluations or 0),
-            total_security_characterizations=int(total_security_characterizations or 0),
+                total_security_characterizations=int(total_security_characterizations or 0),
+                total_technical_characterizations=int(total_technical_characterizations or 0),
             latest_scan_timestamp=latest[1] if latest else None,
             latest_study_id=latest[2] if latest else None,
             latest_scan_id=latest[0] if latest else None,
@@ -299,6 +344,30 @@ class PostgresResearchRepository(ResearchRepository):
                     )
                     counts[table] = cursor.fetchone()[0]
         return counts
+
+    def technical_analysis_observations(
+        self,
+        *,
+        tickers: list[str] | None = None,
+        trend_states: list[str] | None = None,
+        momentum_states: list[str] | None = None,
+        volatility_states: list[str] | None = None,
+        latest_scan_only: bool = True,
+        scan_id: str | None = None,
+    ) -> dict[str, Any]:
+        self.initialize()
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                return _technical_analysis_observations_for_cursor(
+                    cursor,
+                    placeholder="%s",
+                    tickers=tickers,
+                    trend_states=trend_states,
+                    momentum_states=momentum_states,
+                    volatility_states=volatility_states,
+                    latest_scan_only=latest_scan_only,
+                    scan_id=scan_id,
+                )
 
     def _connect(self):
         psycopg = _require_psycopg()
@@ -355,6 +424,7 @@ RESEARCH_TABLES = (
     "evaluated_contracts",
     "rule_evaluations",
     "security_characterization",
+    "technical_characterization",
 )
 
 POSTGRES_SCHEMA_STATEMENTS = (
@@ -441,6 +511,32 @@ POSTGRES_SCHEMA_STATEMENTS = (
         dominant_failure_signature TEXT
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS technical_characterization (
+        scan_id TEXT,
+        ticker TEXT,
+        technical_timestamp TEXT,
+        price DOUBLE PRECISION,
+        sma_20 DOUBLE PRECISION,
+        sma_50 DOUBLE PRECISION,
+        sma_200 DOUBLE PRECISION,
+        price_vs_sma_20 DOUBLE PRECISION,
+        price_vs_sma_50 DOUBLE PRECISION,
+        price_vs_sma_200 DOUBLE PRECISION,
+        sma_20_vs_sma_50 DOUBLE PRECISION,
+        sma_50_vs_sma_200 DOUBLE PRECISION,
+        rsi_14 DOUBLE PRECISION,
+        macd_line DOUBLE PRECISION,
+        macd_signal DOUBLE PRECISION,
+        macd_histogram DOUBLE PRECISION,
+        realized_volatility_20d DOUBLE PRECISION,
+        trend_state TEXT,
+        momentum_state TEXT,
+        volatility_state TEXT,
+        technical_score DOUBLE PRECISION,
+        technical_notes TEXT
+    )
+    """,
     "CREATE INDEX IF NOT EXISTS idx_evaluated_contracts_scan ON evaluated_contracts (scan_id)",
     """
     CREATE INDEX IF NOT EXISTS idx_rule_evaluations_scan_contract
@@ -449,6 +545,14 @@ POSTGRES_SCHEMA_STATEMENTS = (
     """
     CREATE INDEX IF NOT EXISTS idx_security_characterization_scan
         ON security_characterization (scan_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_technical_characterization_scan
+        ON technical_characterization (scan_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_technical_characterization_ticker
+        ON technical_characterization (ticker)
     """,
     "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS study_id TEXT",
     "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS study_name TEXT",
@@ -526,6 +630,18 @@ POSTGRES_SECURITY_CHARACTERIZATION_INSERT = """
         dominant_failed_rule, dominant_failure_signature
     )
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+"""
+
+POSTGRES_TECHNICAL_CHARACTERIZATION_INSERT = """
+    INSERT INTO technical_characterization (
+        scan_id, ticker, technical_timestamp, price, sma_20, sma_50, sma_200,
+        price_vs_sma_20, price_vs_sma_50, price_vs_sma_200,
+        sma_20_vs_sma_50, sma_50_vs_sma_200, rsi_14, macd_line,
+        macd_signal, macd_histogram, realized_volatility_20d,
+        trend_state, momentum_state, volatility_state, technical_score,
+        technical_notes
+    )
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
 
 
@@ -620,12 +736,41 @@ def initialize_research_repository(database_path: Path | str = DEFAULT_RESEARCH_
                 dominant_failure_signature TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS technical_characterization (
+                scan_id TEXT,
+                ticker TEXT,
+                technical_timestamp TEXT,
+                price REAL,
+                sma_20 REAL,
+                sma_50 REAL,
+                sma_200 REAL,
+                price_vs_sma_20 REAL,
+                price_vs_sma_50 REAL,
+                price_vs_sma_200 REAL,
+                sma_20_vs_sma_50 REAL,
+                sma_50_vs_sma_200 REAL,
+                rsi_14 REAL,
+                macd_line REAL,
+                macd_signal REAL,
+                macd_histogram REAL,
+                realized_volatility_20d REAL,
+                trend_state TEXT,
+                momentum_state TEXT,
+                volatility_state TEXT,
+                technical_score REAL,
+                technical_notes TEXT
+            );
+
             CREATE INDEX IF NOT EXISTS idx_evaluated_contracts_scan
                 ON evaluated_contracts (scan_id);
             CREATE INDEX IF NOT EXISTS idx_rule_evaluations_scan_contract
                 ON rule_evaluations (scan_id, contract_symbol);
             CREATE INDEX IF NOT EXISTS idx_security_characterization_scan
                 ON security_characterization (scan_id);
+            CREATE INDEX IF NOT EXISTS idx_technical_characterization_scan
+                ON technical_characterization (scan_id);
+            CREATE INDEX IF NOT EXISTS idx_technical_characterization_ticker
+                ON technical_characterization (ticker);
             """
         )
         _migrate_opportunity_scans_study_protocol_columns(connection)
@@ -681,6 +826,9 @@ def research_repository_status(
         total_security_characterizations = connection.execute(
             "SELECT COUNT(*) FROM security_characterization"
         ).fetchone()[0]
+        total_technical_characterizations = connection.execute(
+            "SELECT COUNT(*) FROM technical_characterization"
+        ).fetchone()[0]
         latest = connection.execute(
             """
             SELECT scan_id, scan_timestamp, study_id, scheduled_time_label, run_mode
@@ -692,24 +840,12 @@ def research_repository_status(
         latest_rows_written: dict[str, int] = {}
         if latest:
             latest_scan_id = latest[0]
-            latest_rows_written = {
-                "opportunity_scans": connection.execute(
-                    "SELECT COUNT(*) FROM opportunity_scans WHERE scan_id = ?",
+            latest_rows_written = {}
+            for table in RESEARCH_TABLES:
+                latest_rows_written[table] = connection.execute(
+                    f"SELECT COUNT(*) FROM {table} WHERE scan_id = ?",
                     (latest_scan_id,),
-                ).fetchone()[0],
-                "evaluated_contracts": connection.execute(
-                    "SELECT COUNT(*) FROM evaluated_contracts WHERE scan_id = ?",
-                    (latest_scan_id,),
-                ).fetchone()[0],
-                "rule_evaluations": connection.execute(
-                    "SELECT COUNT(*) FROM rule_evaluations WHERE scan_id = ?",
-                    (latest_scan_id,),
-                ).fetchone()[0],
-                "security_characterization": connection.execute(
-                    "SELECT COUNT(*) FROM security_characterization WHERE scan_id = ?",
-                    (latest_scan_id,),
-                ).fetchone()[0],
-            }
+                ).fetchone()[0]
         today_rows = connection.execute(
             """
             SELECT scan_id, scan_timestamp, study_id, scheduled_time_label, run_mode
@@ -758,6 +894,7 @@ def research_repository_status(
         total_contracts_evaluated=int(total_contracts_evaluated or 0),
         total_rule_evaluations=int(total_rule_evaluations or 0),
         total_security_characterizations=int(total_security_characterizations or 0),
+        total_technical_characterizations=int(total_technical_characterizations or 0),
         latest_scan_timestamp=latest[1] if latest else None,
         latest_study_id=latest[2] if latest else None,
         latest_scan_id=latest[0] if latest else None,
@@ -802,6 +939,7 @@ def _archive_payload(
     evaluated_contract_rows: list[dict[str, Any]],
     contract_export_rows: list[dict[str, Any]],
     rule_export_rows: list[dict[str, Any]],
+    technical_rows: list[dict[str, Any]] | None = None,
     study_protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     summary = discovery_diagnostic_summary(evaluated_contract_rows)
@@ -849,11 +987,15 @@ def _archive_payload(
         "security_characterization_values": [
             _security_characterization_values(row) for row in security_rows
         ],
+        "technical_characterization_values": [
+            _technical_characterization_values(row) for row in technical_rows or []
+        ],
         "row_counts": {
             "opportunity_scans": 1,
             "evaluated_contracts": len(contract_export_rows),
             "rule_evaluations": len(rule_export_rows),
             "security_characterization": len(security_rows),
+            "technical_characterization": len(technical_rows or []),
         },
     }
 
@@ -870,6 +1012,7 @@ def archive_opportunity_scan(
     evaluated_contract_rows: list[dict[str, Any]],
     contract_export_rows: list[dict[str, Any]],
     rule_export_rows: list[dict[str, Any]],
+    technical_rows: list[dict[str, Any]] | None = None,
     study_protocol: dict[str, Any] | None = None,
     database_path: Path | str = DEFAULT_RESEARCH_DB_PATH,
 ) -> dict[str, int]:
@@ -887,6 +1030,7 @@ def archive_opportunity_scan(
     ticker_by_contract = {
         row.get("contract_symbol"): row.get("ticker") for row in contract_export_rows
     }
+    technical_rows = list(technical_rows or [])
 
     with closing(sqlite3.connect(path)) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
@@ -894,6 +1038,7 @@ def archive_opportunity_scan(
         connection.execute("DELETE FROM evaluated_contracts WHERE scan_id = ?", (scan_id,))
         connection.execute("DELETE FROM rule_evaluations WHERE scan_id = ?", (scan_id,))
         connection.execute("DELETE FROM security_characterization WHERE scan_id = ?", (scan_id,))
+        connection.execute("DELETE FROM technical_characterization WHERE scan_id = ?", (scan_id,))
         connection.execute(
             """
             INSERT OR REPLACE INTO opportunity_scans (
@@ -973,6 +1118,20 @@ def archive_opportunity_scan(
             """,
             [_security_characterization_values(row) for row in security_rows],
         )
+        connection.executemany(
+            """
+            INSERT INTO technical_characterization (
+                scan_id, ticker, technical_timestamp, price, sma_20, sma_50, sma_200,
+                price_vs_sma_20, price_vs_sma_50, price_vs_sma_200,
+                sma_20_vs_sma_50, sma_50_vs_sma_200, rsi_14, macd_line,
+                macd_signal, macd_histogram, realized_volatility_20d,
+                trend_state, momentum_state, volatility_state, technical_score,
+                technical_notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [_technical_characterization_values(row) for row in technical_rows],
+        )
         connection.commit()
 
     return {
@@ -980,6 +1139,7 @@ def archive_opportunity_scan(
         "evaluated_contracts": len(contract_export_rows),
         "rule_evaluations": len(rule_export_rows),
         "security_characterization": len(security_rows),
+        "technical_characterization": len(technical_rows),
     }
 
 
@@ -1001,16 +1161,211 @@ def latest_scan_row_counts(
             return None
         scan_id = latest[0]
         counts: dict[str, int | str] = {"scan_id": scan_id}
-        for table in (
-            "opportunity_scans",
-            "evaluated_contracts",
-            "rule_evaluations",
-            "security_characterization",
-        ):
+        for table in RESEARCH_TABLES:
             counts[table] = connection.execute(
                 f"SELECT COUNT(*) FROM {table} WHERE scan_id = ?", (scan_id,)
             ).fetchone()[0]
     return counts
+
+
+TECHNICAL_ANALYSIS_EXPLORER_COLUMNS = (
+    "scan_id",
+    "ticker",
+    "technical_timestamp",
+    "price",
+    "sma_20",
+    "sma_50",
+    "sma_200",
+    "rsi_14",
+    "macd_line",
+    "macd_signal",
+    "macd_histogram",
+    "trend_state",
+    "momentum_state",
+    "volatility_state",
+    "technical_score",
+    "technical_notes",
+)
+
+
+def technical_analysis_observations(
+    *,
+    database_path: Path | str = DEFAULT_RESEARCH_DB_PATH,
+    tickers: list[str] | None = None,
+    trend_states: list[str] | None = None,
+    momentum_states: list[str] | None = None,
+    volatility_states: list[str] | None = None,
+    latest_scan_only: bool = True,
+    scan_id: str | None = None,
+) -> dict[str, Any]:
+    """Return read-only Technical Analysis Model observations for QA views."""
+    path = initialize_research_repository(database_path)
+    with closing(sqlite3.connect(path)) as connection:
+        return _technical_analysis_observations_for_cursor(
+            connection,
+            placeholder="?",
+            tickers=tickers,
+            trend_states=trend_states,
+            momentum_states=momentum_states,
+            volatility_states=volatility_states,
+            latest_scan_only=latest_scan_only,
+            scan_id=scan_id,
+        )
+
+
+def _technical_analysis_observations_for_cursor(
+    cursor: Any,
+    *,
+    placeholder: str,
+    tickers: list[str] | None,
+    trend_states: list[str] | None,
+    momentum_states: list[str] | None,
+    volatility_states: list[str] | None,
+    latest_scan_only: bool,
+    scan_id: str | None,
+) -> dict[str, Any]:
+    available_scan_ids = tuple(
+        row[0]
+        for row in _execute_fetchall(
+            cursor,
+            """
+            SELECT DISTINCT scan_id
+            FROM technical_characterization
+            WHERE scan_id IS NOT NULL AND scan_id <> ''
+            ORDER BY scan_id DESC
+            """,
+        )
+    )
+    available_tickers = _technical_distinct_values(cursor, "ticker")
+    available_trend_states = _technical_distinct_values(cursor, "trend_state")
+    available_momentum_states = _technical_distinct_values(cursor, "momentum_state")
+    available_volatility_states = _technical_distinct_values(cursor, "volatility_state")
+    latest_scan_id = _latest_technical_scan_id(cursor)
+
+    effective_scan_id = scan_id or (latest_scan_id if latest_scan_only else None)
+    where_clauses: list[str] = []
+    params: list[Any] = []
+    if effective_scan_id:
+        where_clauses.append(f"scan_id = {placeholder}")
+        params.append(effective_scan_id)
+    _add_in_filter(where_clauses, params, "ticker", _normalized_filter_values(tickers), placeholder)
+    _add_in_filter(
+        where_clauses,
+        params,
+        "trend_state",
+        _normalized_filter_values(trend_states, uppercase=False),
+        placeholder,
+    )
+    _add_in_filter(
+        where_clauses,
+        params,
+        "momentum_state",
+        _normalized_filter_values(momentum_states, uppercase=False),
+        placeholder,
+    )
+    _add_in_filter(
+        where_clauses,
+        params,
+        "volatility_state",
+        _normalized_filter_values(volatility_states, uppercase=False),
+        placeholder,
+    )
+
+    where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+    rows = _execute_fetchall(
+        cursor,
+        f"""
+        SELECT {", ".join(TECHNICAL_ANALYSIS_EXPLORER_COLUMNS)}
+        FROM technical_characterization
+        {where_sql}
+        ORDER BY technical_timestamp DESC, scan_id DESC, ticker ASC
+        """,
+        tuple(params),
+    )
+    row_dicts = tuple(
+        dict(zip(TECHNICAL_ANALYSIS_EXPLORER_COLUMNS, row, strict=True)) for row in rows
+    )
+    latest_technical_timestamp = next(
+        (row["technical_timestamp"] for row in row_dicts if row.get("technical_timestamp")),
+        None,
+    )
+    return {
+        "rows": row_dicts,
+        "available_scan_ids": available_scan_ids,
+        "available_tickers": available_tickers,
+        "available_trend_states": available_trend_states,
+        "available_momentum_states": available_momentum_states,
+        "available_volatility_states": available_volatility_states,
+        "latest_scan_id": latest_scan_id,
+        "selected_scan_id": effective_scan_id,
+        "latest_technical_timestamp": latest_technical_timestamp,
+    }
+
+
+def _technical_distinct_values(cursor: Any, column_name: str) -> tuple[str, ...]:
+    rows = _execute_fetchall(
+        cursor,
+        f"""
+        SELECT DISTINCT {column_name}
+        FROM technical_characterization
+        WHERE {column_name} IS NOT NULL AND {column_name} <> ''
+        ORDER BY {column_name}
+        """,
+    )
+    return tuple(str(row[0]) for row in rows)
+
+
+def _latest_technical_scan_id(cursor: Any) -> str | None:
+    row = _execute_fetchone(
+        cursor,
+        """
+        SELECT scan_id
+        FROM technical_characterization
+        WHERE scan_id IS NOT NULL AND scan_id <> ''
+        ORDER BY technical_timestamp DESC, scan_id DESC
+        LIMIT 1
+        """,
+    )
+    return row[0] if row else None
+
+
+def _add_in_filter(
+    where_clauses: list[str],
+    params: list[Any],
+    column_name: str,
+    values: tuple[str, ...],
+    placeholder: str,
+) -> None:
+    if not values:
+        return
+    placeholders = ", ".join([placeholder] * len(values))
+    where_clauses.append(f"{column_name} IN ({placeholders})")
+    params.extend(values)
+
+
+def _normalized_filter_values(
+    values: list[str] | None,
+    *,
+    uppercase: bool = True,
+) -> tuple[str, ...]:
+    normalized = []
+    for value in values or []:
+        text = str(value).strip()
+        if text:
+            normalized.append(text.upper() if uppercase else text)
+    return tuple(dict.fromkeys(normalized))
+
+
+def _execute_fetchall(cursor: Any, statement: str, params: tuple[Any, ...] = ()) -> list[Any]:
+    executed = cursor.execute(statement, params) if params else cursor.execute(statement)
+    fetch_cursor = executed if executed is not None else cursor
+    return fetch_cursor.fetchall()
+
+
+def _execute_fetchone(cursor: Any, statement: str, params: tuple[Any, ...] = ()) -> Any:
+    executed = cursor.execute(statement, params) if params else cursor.execute(statement)
+    fetch_cursor = executed if executed is not None else cursor
+    return fetch_cursor.fetchone()
 
 
 def _normalized_run_mode(value: Any) -> str:
@@ -1143,6 +1498,33 @@ def _security_characterization_values(row: dict[str, Any]) -> tuple[Any, ...]:
         _number_or_none(row.get("near_miss_rate")),
         row.get("dominant_failed_rule"),
         row.get("dominant_failure_signature"),
+    )
+
+
+def _technical_characterization_values(row: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        row.get("scan_id"),
+        row.get("ticker"),
+        row.get("technical_timestamp"),
+        _number_or_none(row.get("price")),
+        _number_or_none(row.get("sma_20")),
+        _number_or_none(row.get("sma_50")),
+        _number_or_none(row.get("sma_200")),
+        _number_or_none(row.get("price_vs_sma_20")),
+        _number_or_none(row.get("price_vs_sma_50")),
+        _number_or_none(row.get("price_vs_sma_200")),
+        _number_or_none(row.get("sma_20_vs_sma_50")),
+        _number_or_none(row.get("sma_50_vs_sma_200")),
+        _number_or_none(row.get("rsi_14")),
+        _number_or_none(row.get("macd_line")),
+        _number_or_none(row.get("macd_signal")),
+        _number_or_none(row.get("macd_histogram")),
+        _number_or_none(row.get("realized_volatility_20d")),
+        _text_or_none(row.get("trend_state")),
+        _text_or_none(row.get("momentum_state")),
+        _text_or_none(row.get("volatility_state")),
+        _number_or_none(row.get("technical_score")),
+        _text_or_none(row.get("technical_notes")),
     )
 
 

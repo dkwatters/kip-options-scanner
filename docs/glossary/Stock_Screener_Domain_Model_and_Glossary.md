@@ -9,7 +9,8 @@
 | Security | A tradable underlying instrument such as an equity or ETF. | What underlying asset is being studied? | `src/universe.py`, `app.py` |
 | Option Contract | A listed derivative contract for a security. | What specific contract is being evaluated? | `app.py`, `src/contract_quality.py` |
 | Contract Quality Model (CQM) | The model that evaluates option contract quality using contract-level rules. | Is this contract structurally acceptable? | `src/contract_quality.py`, `src/contract_scoring.py` |
-| Technical Opportunity Model (TOM) | A planned model for evaluating underlying security setup quality. | Is the security technically interesting? | Planned |
+| Technical Analysis Model (TAM) | The independent stock-level model that records underlying technical condition. | What was the security's technical condition at scan time? | `src/technical_analysis.py`, `src/research_repository.py` |
+| Technical Analysis Explorer | A read-only QA surface for persisted TAM observations. | What TAM observations and data-quality issues are visible? | `app.py`, `src/research_repository.py` |
 | Opportunity Discovery | The workflow that evaluates a universe and ranks candidate contracts. | What opportunities are visible in the current scan? | `app.py`, `src/opportunity_ranking.py` |
 | Quick Evaluation (QED) | A diagnostic view of one scan's quality-engine behavior. | What happened during this scan? | `src/quality_diagnostics.py`, `app.py` |
 | Opportunity Scan | One completed Opportunity Discovery run. | What was observed at one point in time? | `src/research_repository.py`, `research_scan.py` |
@@ -49,7 +50,7 @@ Owns: Evaluation configuration, model references, profile version.
 
 Does NOT Own: Contract scoring logic, security universe contents, market data, research conclusions.
 
-Relationships: Orchestrates Contract Quality Model and future Technical Opportunity Model. Associated with Study Protocols and Opportunity Scans.
+Relationships: Orchestrates Contract Quality Model and independent research layers such as the Technical Analysis Model. Associated with Study Protocols and Opportunity Scans.
 
 Module(s): `src/evaluation_profile.py`
 
@@ -143,27 +144,49 @@ Module(s): `src/contract_quality.py`, `src/contract_scoring.py`
 
 Status: Stable
 
-### Technical Opportunity Model (TOM)
+### Technical Analysis Model (TAM)
 
-Definition: A planned security-level model for evaluating whether an underlying security has an attractive technical setup.
+Definition: An independent security-level model for recording an underlying security's technical condition at scan time.
 
-Purpose: Separate security attractiveness from contract quality.
+Purpose: Preserve stock-level technical observations for later research without changing contract evaluation.
 
-Questions Answered: Is this security technically interesting? What market or indicator context supports that view?
+Questions Answered: What was the current price? Where was price relative to 20/50/200-day SMAs? What did RSI, MACD, and realized volatility show?
 
-Inputs: Planned technical indicators, price behavior, market context.
+Inputs: Underlying price history and optional Opportunity Scan context.
 
-Outputs: Planned security-level opportunity evaluation.
+Outputs: `technical_characterization` rows containing price, 20/50/200-day SMAs, price/SMA relationships, RSI 14, MACD line/signal/histogram, 20-day realized volatility when available, trend state, momentum state, volatility state, optional technical score, and technical notes.
 
-Owns: Security-level technical evaluation.
+Owns: Security-level technical observations and classifications.
 
-Does NOT Own: Contract liquidity, contract delta fit, contract spread, CQM rule scoring.
+Does NOT Own: Contract liquidity, contract delta fit, contract spread, CQM rule scoring, Opportunity Discovery filtering, candidate ranking, QED conclusions, or Evaluation Profile behavior.
 
-Relationships: Expected to be orchestrated by Evaluation Profiles alongside CQM.
+Relationships: May be generated during Opportunity Discovery scans as persisted metadata linked by `scan_id`. It is logically independent from CQM, which evaluates option contracts.
 
-Module(s): Planned
+Module(s): `src/technical_analysis.py`, `src/research_repository.py`, `research_scan.py`
 
-Status: Emerging
+Status: v0.1
+
+### Technical Analysis Explorer
+
+Definition: A read-only application section for inspecting persisted Technical Analysis Model observations.
+
+Purpose: Make TAM output observable and auditable for QA without introducing TAM values into option selection.
+
+Questions Answered: Which latest technical observations were captured? How are trend, momentum, volatility, and RSI distributed? Which rows are missing required indicators?
+
+Inputs: Existing `technical_characterization` rows from the Research Repository.
+
+Outputs: Filtered TAM observation tables, summary cards, RSI distribution, state counts, and missing-indicator rows.
+
+Owns: UI-only inspection of TAM evidence.
+
+Does NOT Own: Opportunity Discovery filters, CQM scoring, option rankings, thresholds, QED conclusions, Evaluation Profile behavior, or option contract mutation.
+
+Relationships: Reads from the Technical Analysis Model's persisted repository table and supports Research Notebook QA observations.
+
+Module(s): `app.py`, `src/research_repository.py`
+
+Status: v0.1
 
 ### Opportunity Discovery
 
@@ -895,6 +918,10 @@ Platform
 
 -> Contract Quality Model
 
+-> Technical Analysis Model
+
+-> Technical Analysis Explorer
+
 -> Quick Evaluation
 
 -> Opportunity Scans
@@ -925,7 +952,7 @@ Platform
 
 -> Future Outcome Tracking
 
-Evaluation Profiles orchestrate analytical models. Reference Universes define the population being evaluated. Opportunity Discovery executes the scan. The Contract Quality Model evaluates contracts. QED explains one scan. The SQLite Research Repository stores evidence. The Research Notebook records what is observed, interpreted, hypothesized, and tested.
+Evaluation Profiles orchestrate analytical models. Reference Universes define the population being evaluated. Opportunity Discovery executes the scan. The Contract Quality Model evaluates contracts. The Technical Analysis Model records independent stock-level technical observations. QED explains one scan. The SQLite Research Repository stores evidence. The Research Notebook records what is observed, interpreted, hypothesized, and tested.
 
 ---
 
@@ -988,4 +1015,4 @@ Planned capture of broad market, sector, volatility, and liquidity context at sc
 
 ### Technical Indicator Repository
 
-Planned storage of technical indicators used by future security-level analytical models.
+The first implementation exists as `technical_characterization`, a research table populated by the Technical Analysis Model. Future work may expand this into a broader indicator repository with additional market, sector, and regime context.

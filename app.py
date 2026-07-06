@@ -1,6 +1,7 @@
 import json
-import sqlite3
+import os
 from datetime import date, datetime, timezone
+from hmac import compare_digest
 from math import isfinite
 from numbers import Number
 from pathlib import Path
@@ -71,11 +72,13 @@ from src.quality_diagnostics import (
     status_distribution,
 )
 from src.research_repository import (
-    DEFAULT_RESEARCH_DB_PATH,
-    archive_opportunity_scan,
-    research_repository_status,
+    DATABASE_URL_ENV,
+    RESEARCH_REPOSITORY_BACKEND_ENV,
+    research_repository_from_env,
+    research_repository_target_from_env,
 )
 from src.study_protocol import DEFAULT_STUDY_PROTOCOL, RUN_MODE_MANUAL_UI
+from src.technical_analysis import technical_analysis_rows_for_symbols
 from src.tradier_client import TradierAPIError, TradierClient, TradierConfigurationError
 from src.universe import UniverseError, load_universe
 
@@ -84,6 +87,7 @@ EASTERN_TIME = ZoneInfo("America/New_York")
 UNAVAILABLE = "-"
 DEFAULT_DISCOVERY_MIN_DTE = DEFAULT_EVALUATION_PROFILE.default_scan_parameters["min_dte"]
 DEFAULT_DISCOVERY_MAX_DTE = DEFAULT_EVALUATION_PROFILE.default_scan_parameters["max_dte"]
+APP_PASSWORD_ENV = "APP_PASSWORD"
 
 DISTRIBUTION_THRESHOLD_NOTES = {
     "Delta Distribution": (
@@ -645,6 +649,11 @@ def format_diagnostic_metric(label, value):
         "Average DTE",
         "Average Open Interest",
         "Average Volume",
+        "Tickers Characterized",
+        "Bullish Trend Count",
+        "Bearish Trend Count",
+        "Neutral/Mixed Count",
+        "TAM Error Count",
     }:
         return format_whole_number(value)
     if label in {
@@ -1287,6 +1296,18 @@ def archive_current_opportunity_scan(
     study_protocol=None,
 ):
     """Persist completed scans for future model validation and longitudinal analysis."""
+    technical_rows = []
+    if active_universe_symbols:
+        try:
+            technical_rows, _technical_errors = technical_analysis_rows_for_symbols(
+                TradierClient(),
+                active_universe_symbols,
+                scan_id=scan_id,
+                technical_timestamp=scan_timestamp,
+                end_date=datetime.now(EASTERN_TIME).date(),
+            )
+        except Exception:
+            technical_rows = []
     contract_rows = evaluated_contract_export_rows(
         evaluated_rows,
         scan_id,
@@ -1295,7 +1316,8 @@ def archive_current_opportunity_scan(
         active_universe_symbols,
     )
     rule_rows = rule_evaluation_export_rows(evaluated_rows, scan_id)
-    return archive_opportunity_scan(
+    repository = research_repository_from_env()
+    return repository.archive_opportunity_scan(
         scan_id=scan_id,
         scan_timestamp=scan_timestamp,
         universe_name=universe_name,
@@ -1306,8 +1328,8 @@ def archive_current_opportunity_scan(
         evaluated_contract_rows=evaluated_rows,
         contract_export_rows=contract_rows,
         rule_export_rows=rule_rows,
+        technical_rows=technical_rows,
         study_protocol=study_protocol,
-        database_path=DEFAULT_RESEARCH_DB_PATH,
     )
 
 
@@ -1322,15 +1344,46 @@ def render_dashboard_section(title, key, expanded=True):
     return st.checkbox(title, key=key)
 
 
+def _masked_database_location(location):
+    if "://" not in str(location):
+        return location
+    return str(location).split("://", 1)[0] + "://..."
+
+
+def repository_startup_check():
+    target = research_repository_target_from_env()
+    repository = research_repository_from_env()
+    status = repository.status(study_id=DEFAULT_STUDY_PROTOCOL.study_id)
+    return target.backend, status
+
+
+def render_startup_check():
+    st.header("Startup Check")
+    try:
+        backend, status = repository_startup_check()
+    except Exception as error:
+        configured_backend = os.getenv(RESEARCH_REPOSITORY_BACKEND_ENV, "").strip()
+        inferred_backend = "postgres" if os.getenv(DATABASE_URL_ENV) else "sqlite"
+        render_sidebar_metric("Repository Backend", configured_backend or inferred_backend)
+        render_sidebar_metric("Database Connectivity", "failed")
+        render_sidebar_metric("Latest Scan Timestamp", UNAVAILABLE)
+        st.error("Repository startup check failed: " + str(error))
+        return None
+
+    render_sidebar_metric("Repository Backend", backend)
+    render_sidebar_metric("Database Connectivity", "ok")
+    render_sidebar_metric("Latest Scan Timestamp", status.latest_scan_timestamp or UNAVAILABLE)
+    return status
+
+
 def render_research_dashboard(universe_path, security_count):
     """Render operational research context in the persistent left sidebar."""
     st.header("Research Dashboard")
     try:
-        status = research_repository_status(
-            DEFAULT_RESEARCH_DB_PATH,
-            study_id=DEFAULT_STUDY_PROTOCOL.study_id,
+        status = research_repository_from_env().status(
+            study_id=DEFAULT_STUDY_PROTOCOL.study_id
         )
-    except (OSError, sqlite3.Error) as error:
+    except Exception as error:
         st.error("Research Dashboard unavailable: " + str(error))
         return
 
@@ -1359,7 +1412,7 @@ def render_research_dashboard(universe_path, security_count):
         render_sidebar_metric("Security Count", security_count)
 
     if render_dashboard_section("Research Repository", "dashboard_repository_open"):
-        render_sidebar_metric("Database Path", status.database_path)
+        render_sidebar_metric("Database Location", _masked_database_location(status.database_path))
         render_sidebar_metric("Total Scans", status.total_scans)
         render_sidebar_metric(
             "Total Contracts Evaluated", status.total_contracts_evaluated
@@ -1368,6 +1421,10 @@ def render_research_dashboard(universe_path, security_count):
         render_sidebar_metric(
             "Total Security Characterizations",
             status.total_security_characterizations,
+        )
+        render_sidebar_metric(
+            "Total Technical Characterizations",
+            status.total_technical_characterizations,
         )
 
     if render_dashboard_section("Latest Observation", "dashboard_latest_observation_open"):
@@ -1401,6 +1458,12 @@ def render_research_dashboard(universe_path, security_count):
             "Security Characterizations",
             status.latest_rows_written.get("security_characterization", 0),
         )
+        technical_count = status.latest_rows_written.get("technical_characterization", 0)
+        render_sidebar_metric(
+            "Technical Analysis Model",
+            "captured" if technical_count else "not captured",
+        )
+        render_sidebar_metric("Technical Characterizations", technical_count)
 
     if render_dashboard_section("Today's Observations", "dashboard_observations_open"):
         st.caption("Manual scans are archived but excluded from scheduled study metrics.")
@@ -1842,7 +1905,7 @@ def render_opportunity_discovery_workflow(
                     discovery_symbols,
                     DEFAULT_STUDY_PROTOCOL.metadata(run_mode=RUN_MODE_MANUAL_UI),
                 )
-            except (OSError, ValueError, sqlite3.Error) as error:
+            except Exception as error:
                 st.session_state.opportunity_archive_counts = None
                 st.session_state.opportunity_archive_error = str(error)
             else:
@@ -2198,12 +2261,298 @@ def render_quality_engine_diagnostics_workflow():
     )
 
 
+TAM_DISPLAY_COLUMNS = [
+    "ticker",
+    "technical_timestamp",
+    "price",
+    "sma_20",
+    "sma_50",
+    "sma_200",
+    "rsi_14",
+    "macd_line",
+    "macd_signal",
+    "macd_histogram",
+    "trend_state",
+    "momentum_state",
+    "volatility_state",
+    "technical_score",
+    "technical_notes",
+]
+TAM_REQUIRED_INDICATOR_COLUMNS = [
+    "price",
+    "sma_20",
+    "sma_50",
+    "sma_200",
+    "rsi_14",
+    "macd_line",
+    "macd_signal",
+    "macd_histogram",
+    "trend_state",
+    "momentum_state",
+    "volatility_state",
+]
+
+
+def tam_state_count(rows, state_column, state_text):
+    return sum(
+        state_text in str(row.get(state_column) or "").strip().lower() for row in rows
+    )
+
+
+def tam_average_rsi(rows):
+    values = [
+        float(row["rsi_14"])
+        for row in rows
+        if row.get("rsi_14") not in (None, "")
+    ]
+    return sum(values) / len(values) if values else None
+
+
+def tam_error_count(rows):
+    return sum("error" in str(row.get("technical_notes") or "").lower() for row in rows)
+
+
+def tam_summary_metrics(rows, latest_timestamp):
+    bullish_count = tam_state_count(rows, "trend_state", "bullish")
+    bearish_count = tam_state_count(rows, "trend_state", "bearish")
+    return {
+        "Latest Technical Scan Timestamp": latest_timestamp or UNAVAILABLE,
+        "Tickers Characterized": len({row.get("ticker") for row in rows if row.get("ticker")}),
+        "Bullish Trend Count": bullish_count,
+        "Bearish Trend Count": bearish_count,
+        "Neutral/Mixed Count": max(len(rows) - bullish_count - bearish_count, 0),
+        "Average RSI": tam_average_rsi(rows),
+        "TAM Error Count": tam_error_count(rows),
+    }
+
+
+def tam_count_rows(rows, column_name):
+    counts = {}
+    for row in rows:
+        label = row.get(column_name) or "NULL"
+        counts[label] = counts.get(label, 0) + 1
+    return [
+        {"State": label, "Count": count}
+        for label, count in sorted(counts.items(), key=lambda item: str(item[0]))
+    ]
+
+
+def tam_rsi_distribution(rows):
+    buckets = {
+        "Below 30": 0,
+        "30-45": 0,
+        "45-55": 0,
+        "55-70": 0,
+        "Above 70": 0,
+        "NULL": 0,
+    }
+    for row in rows:
+        value = row.get("rsi_14")
+        if value in (None, ""):
+            buckets["NULL"] += 1
+            continue
+        try:
+            rsi = float(value)
+        except (TypeError, ValueError):
+            buckets["NULL"] += 1
+            continue
+        if rsi < 30:
+            buckets["Below 30"] += 1
+        elif rsi < 45:
+            buckets["30-45"] += 1
+        elif rsi <= 55:
+            buckets["45-55"] += 1
+        elif rsi <= 70:
+            buckets["55-70"] += 1
+        else:
+            buckets["Above 70"] += 1
+    return [{"Bucket": bucket, "Count": count} for bucket, count in buckets.items()]
+
+
+def tam_missing_indicator_rows(rows):
+    missing_rows = []
+    for row in rows:
+        missing = [
+            column
+            for column in TAM_REQUIRED_INDICATOR_COLUMNS
+            if row.get(column) in (None, "")
+        ]
+        if missing:
+            missing_rows.append(
+                {
+                    "scan_id": row.get("scan_id"),
+                    "ticker": row.get("ticker"),
+                    "technical_timestamp": row.get("technical_timestamp"),
+                    "missing_indicators": ", ".join(missing),
+                }
+            )
+    return missing_rows
+
+
+def render_tam_count_chart(rows, label_column="State"):
+    if rows:
+        st.bar_chart(pd.DataFrame(rows).set_index(label_column), y="Count")
+    else:
+        st.info("No rows are available for this view.")
+
+
+def render_technical_analysis_explorer_workflow():
+    st.subheader("Technical Analysis Explorer")
+    st.caption(
+        "Read-only TAM QA view. These observations do not filter, rank, score, or alter options."
+    )
+    try:
+        repository = research_repository_from_env()
+        filter_options = repository.technical_analysis_observations(
+            latest_scan_only=False
+        )
+    except Exception as error:
+        st.error("Technical Analysis Explorer unavailable: " + str(error))
+        return
+
+    scan_ids = list(filter_options["available_scan_ids"])
+    selected_scan = st.selectbox(
+        "Scan ID",
+        options=[""] + scan_ids,
+        format_func=lambda value: "All scans" if value == "" else value,
+        key="tam_scan_id",
+    )
+    latest_scan_only = st.toggle(
+        "Latest scan only",
+        value=True,
+        key="tam_latest_scan_only",
+        disabled=bool(selected_scan),
+    )
+
+    ticker_search = st.text_input("Ticker search", key="tam_ticker_search").strip().upper()
+    ticker_options = [
+        ticker
+        for ticker in filter_options["available_tickers"]
+        if not ticker_search or ticker.startswith(ticker_search)
+    ]
+    selected_tickers = st.multiselect(
+        "Tickers",
+        options=ticker_options,
+        key="tam_tickers",
+    )
+    trend_states = st.multiselect(
+        "Trend State",
+        options=list(filter_options["available_trend_states"]),
+        key="tam_trend_states",
+    )
+    momentum_states = st.multiselect(
+        "Momentum State",
+        options=list(filter_options["available_momentum_states"]),
+        key="tam_momentum_states",
+    )
+    volatility_states = st.multiselect(
+        "Volatility State",
+        options=list(filter_options["available_volatility_states"]),
+        key="tam_volatility_states",
+    )
+
+    try:
+        observations = repository.technical_analysis_observations(
+            tickers=selected_tickers,
+            trend_states=trend_states,
+            momentum_states=momentum_states,
+            volatility_states=volatility_states,
+            latest_scan_only=latest_scan_only,
+            scan_id=selected_scan or None,
+        )
+    except Exception as error:
+        st.error("Unable to load TAM observations: " + str(error))
+        return
+
+    rows = list(observations["rows"])
+    render_metric_grid(
+        tam_summary_metrics(rows, observations["latest_technical_timestamp"]),
+        columns_per_row=4,
+    )
+    if observations.get("selected_scan_id"):
+        st.caption("Selected technical scan_id: " + observations["selected_scan_id"])
+
+    if not rows:
+        st.info("No technical characterization rows match the selected filters.")
+        return
+
+    st.subheader("Latest TAM Observations")
+    st.dataframe(
+        pd.DataFrame(rows)
+        .reindex(columns=TAM_DISPLAY_COLUMNS)
+        .style.format(
+            {
+                "price": format_decimal,
+                "sma_20": format_decimal,
+                "sma_50": format_decimal,
+                "sma_200": format_decimal,
+                "rsi_14": format_decimal,
+                "macd_line": format_decimal,
+                "macd_signal": format_decimal,
+                "macd_histogram": format_decimal,
+                "technical_score": format_decimal,
+            }
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+
+    rsi_tab, trend_tab, momentum_tab, volatility_tab, missing_tab = st.tabs(
+        [
+            "RSI Distribution",
+            "Trend Counts",
+            "Momentum Counts",
+            "Volatility Counts",
+            "Missing Indicators",
+        ]
+    )
+    with rsi_tab:
+        render_tam_count_chart(tam_rsi_distribution(rows), label_column="Bucket")
+    with trend_tab:
+        render_tam_count_chart(tam_count_rows(rows, "trend_state"))
+    with momentum_tab:
+        render_tam_count_chart(tam_count_rows(rows, "momentum_state"))
+    with volatility_tab:
+        render_tam_count_chart(tam_count_rows(rows, "volatility_state"))
+    with missing_tab:
+        missing_rows = tam_missing_indicator_rows(rows)
+        if missing_rows:
+            st.dataframe(pd.DataFrame(missing_rows), hide_index=True, width="stretch")
+        else:
+            st.info("No missing required TAM indicators in the current result set.")
+
+
+def load_local_environment():
+    env_path = ROOT / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+
+
+def enforce_app_password():
+    expected_password = os.getenv(APP_PASSWORD_ENV, "")
+    if not expected_password:
+        return
+    if st.session_state.get("app_password_authenticated"):
+        return
+
+    st.title("Kip Options Scanner")
+    password = st.text_input("Password", type="password")
+    if st.button("Unlock"):
+        if compare_digest(password, expected_password):
+            st.session_state.app_password_authenticated = True
+            st.rerun()
+        st.error("Invalid password.")
+    st.stop()
+
+
 def main():
-    load_dotenv(ROOT / ".env")
+    load_local_environment()
     st.set_page_config(page_title="Kip Options Scanner", layout="wide")
+    enforce_app_password()
     st.title("Kip Options Scanner")
     st.caption("Phase 4B - Research tool only - No trading or order placement")
     with st.sidebar:
+        render_startup_check()
         path = st.text_input("Universe CSV", value=str(ROOT / "data" / "technology_growth_ai_v1.csv"))
         reload_universe = st.button("Reload Universe CSV")
         st.header("Tradier Connection")
@@ -2234,11 +2583,13 @@ def main():
     (
         opportunity_discovery_tab,
         option_chain_explorer_tab,
+        technical_analysis_explorer_tab,
         quality_engine_diagnostics_tab,
     ) = st.tabs(
         [
             "Opportunity Discovery",
             "Option Chain Explorer",
+            "Technical Analysis Explorer",
             "Quality Engine Diagnostics",
         ]
     )
@@ -2253,6 +2604,8 @@ def main():
         )
     with option_chain_explorer_tab:
         render_option_chain_explorer_workflow()
+    with technical_analysis_explorer_tab:
+        render_technical_analysis_explorer_workflow()
     with quality_engine_diagnostics_tab:
         render_quality_engine_diagnostics_workflow()
 

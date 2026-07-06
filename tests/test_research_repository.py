@@ -18,6 +18,7 @@ from src.research_repository import (
     latest_scan_row_counts,
     research_repository_target_from_env,
     research_repository_status,
+    technical_analysis_observations,
 )
 from src.study_protocol import RUN_MODE_MANUAL_UI, RUN_MODE_SCHEDULED
 
@@ -154,6 +155,7 @@ class ResearchRepositoryTest(unittest.TestCase):
                     "evaluated_contracts": 2,
                     "rule_evaluations": 8,
                     "security_characterization": 2,
+                    "technical_characterization": 0,
                 },
             )
             self.assertEqual(latest_scan_row_counts(database_path)["scan_id"], "scan-1")
@@ -172,6 +174,7 @@ class ResearchRepositoryTest(unittest.TestCase):
                         "evaluated_contracts",
                         "rule_evaluations",
                         "security_characterization",
+                        "technical_characterization",
                     )
                 }
                 self.assertEqual(linked_counts, counts)
@@ -328,6 +331,157 @@ class ResearchRepositoryTest(unittest.TestCase):
 
             self.assertEqual(run_modes, [(RUN_MODE_MANUAL_UI,)])
 
+    def test_technical_rows_persist_without_changing_contract_quality_results(self):
+        rows = option_chain_rows(
+            option_payload("SPY260717C00600000", "call", 0.58),
+            expiration="2026-07-17",
+            today=date(2026, 6, 30),
+            underlying_price=590,
+            ticker="SPY",
+        )
+        original_quality_score = rows[0]["Quality Score"]
+        scan_timestamp = current_et_timestamp()
+        contract_rows = evaluated_contract_export_rows(
+            rows,
+            "scan-with-tam",
+            scan_timestamp,
+            "Test Universe",
+            ["SPY"],
+        )
+        rule_rows = rule_evaluation_export_rows(rows, "scan-with-tam")
+        technical_rows = [
+            {
+                "scan_id": "scan-with-tam",
+                "ticker": "SPY",
+                "technical_timestamp": scan_timestamp,
+                "price": 590,
+                "sma_20": 580,
+                "sma_50": 570,
+                "sma_200": 540,
+                "price_vs_sma_20": 0.0172,
+                "price_vs_sma_50": 0.0351,
+                "price_vs_sma_200": 0.0926,
+                "sma_20_vs_sma_50": 0.0175,
+                "sma_50_vs_sma_200": 0.0556,
+                "rsi_14": 61.5,
+                "macd_line": 2.4,
+                "macd_signal": 1.9,
+                "macd_histogram": 0.5,
+                "realized_volatility_20d": 0.22,
+                "trend_state": "bullish_alignment",
+                "momentum_state": "positive",
+                "volatility_state": "low",
+                "technical_score": None,
+                "technical_notes": "test TAM row",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "opportunity_scans.sqlite"
+            counts = archive_opportunity_scan(
+                scan_id="scan-with-tam",
+                scan_timestamp=scan_timestamp,
+                universe_name="Test Universe",
+                option_type="Calls",
+                dte_min=10,
+                dte_max=45,
+                evaluation_profile=evaluation_profile_export_fields(),
+                evaluated_contract_rows=rows,
+                contract_export_rows=contract_rows,
+                rule_export_rows=rule_rows,
+                technical_rows=technical_rows,
+                database_path=database_path,
+            )
+
+            with closing(sqlite3.connect(database_path)) as connection:
+                persisted_quality_score = connection.execute(
+                    """
+                    SELECT quality_score
+                    FROM evaluated_contracts
+                    WHERE scan_id = 'scan-with-tam'
+                    """
+                ).fetchone()[0]
+                technical_count = connection.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM technical_characterization
+                    WHERE scan_id = 'scan-with-tam'
+                    """
+                ).fetchone()[0]
+
+        self.assertEqual(counts["technical_characterization"], 1)
+        self.assertEqual(technical_count, 1)
+        self.assertEqual(persisted_quality_score, original_quality_score)
+
+    def test_technical_analysis_observations_filter_latest_scan_read_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "opportunity_scans.sqlite"
+            initialize_research_repository(database_path)
+            with closing(sqlite3.connect(database_path)) as connection:
+                connection.executemany(
+                    """
+                    INSERT INTO technical_characterization (
+                        scan_id, ticker, technical_timestamp, price, sma_20,
+                        sma_50, sma_200, rsi_14, macd_line, macd_signal,
+                        macd_histogram, trend_state, momentum_state,
+                        volatility_state, technical_score, technical_notes
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        (
+                            "scan-old",
+                            "MSFT",
+                            "2026-07-06 09:30:00 AM EDT",
+                            500,
+                            495,
+                            490,
+                            450,
+                            52,
+                            1.1,
+                            1.0,
+                            0.1,
+                            "neutral_mixed",
+                            "flat",
+                            "normal",
+                            None,
+                            None,
+                        ),
+                        (
+                            "scan-latest",
+                            "AAPL",
+                            "2026-07-06 10:00:00 AM EDT",
+                            210,
+                            205,
+                            200,
+                            190,
+                            64,
+                            1.4,
+                            1.1,
+                            0.3,
+                            "bullish_alignment",
+                            "positive",
+                            "low",
+                            78,
+                            "qa row",
+                        ),
+                    ],
+                )
+                connection.commit()
+
+            latest = technical_analysis_observations(database_path=database_path)
+            filtered = technical_analysis_observations(
+                database_path=database_path,
+                tickers=["aapl"],
+                trend_states=["bullish_alignment"],
+                latest_scan_only=False,
+            )
+
+        self.assertEqual(latest["selected_scan_id"], "scan-latest")
+        self.assertEqual([row["ticker"] for row in latest["rows"]], ["AAPL"])
+        self.assertEqual(filtered["available_tickers"], ("AAPL", "MSFT"))
+        self.assertEqual(len(filtered["rows"]), 1)
+        self.assertEqual(filtered["rows"][0]["technical_score"], 78)
+
     def test_repository_target_defaults_to_sqlite(self):
         target = research_repository_target_from_env({})
 
@@ -425,6 +579,7 @@ class ResearchRepositoryTest(unittest.TestCase):
                 "evaluated_contracts": 1,
                 "rule_evaluations": 4,
                 "security_characterization": 1,
+                "technical_characterization": 0,
             },
         )
         all_statements = "\n".join(
@@ -436,13 +591,14 @@ class ResearchRepositoryTest(unittest.TestCase):
         self.assertIn("CREATE TABLE IF NOT EXISTS evaluated_contracts", all_statements)
         self.assertIn("CREATE TABLE IF NOT EXISTS rule_evaluations", all_statements)
         self.assertIn("CREATE TABLE IF NOT EXISTS security_characterization", all_statements)
+        self.assertIn("CREATE TABLE IF NOT EXISTS technical_characterization", all_statements)
         self.assertIn("ON CONFLICT (scan_id) DO UPDATE", all_statements)
         executemany_lengths = [
             len(rows)
             for connection in fake_psycopg.connections
             for _statement, rows in connection.executed_many
         ]
-        self.assertEqual(executemany_lengths, [1, 4, 1])
+        self.assertEqual(executemany_lengths, [1, 4, 1, 0])
 
 
 if __name__ == "__main__":

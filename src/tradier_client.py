@@ -12,6 +12,12 @@ class TradierClient:
   if not self.api_token: raise TradierConfigurationError("TRADIER_API_TOKEN is required.")
   self.base_url=self._BASE_URLS[self.environment]; self.session=session or requests.Session(); self.session.headers.update({"Authorization":"Bearer "+self.api_token,"Accept":"application/json"})
  def get_quote(self,symbol): return self._get("markets/quotes",{"symbols":symbol.upper()})
+ def get_price_history(self,symbol,start=None,end=None,interval="daily"):
+  """Retrieve daily underlying price history through Tradier market-data GET."""
+  params={"symbol":symbol.upper(),"interval":interval}
+  if start: params["start"]=start
+  if end: params["end"]=end
+  return self._get("markets/history",params)
  def get_option_expirations(self,symbol):
   """Retrieve listed option expirations through Tradier market-data GET."""
   return self._get("markets/options/expirations",{"symbol":symbol.upper()})
