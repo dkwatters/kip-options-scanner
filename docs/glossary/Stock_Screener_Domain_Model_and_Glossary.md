@@ -1,662 +1,356 @@
-# Stock Screener Domain Model and Glossary
+# Domain Model and Glossary
 
-## 1. Executive Summary
+## Purpose
 
-| Entity Name | One-Sentence Definition | Primary Question It Answers | Primary Module(s) |
-| --- | --- | --- | --- |
-| Evaluation Profile | A versioned analytical configuration that defines how a population should be evaluated. | Which models, settings, and research context are active? | `src/evaluation_profile.py` |
-| Reference Universe | The defined population of securities being evaluated. | Which securities are in scope? | `src/universe.py`, `data/*.csv` |
-| Security | A tradable underlying instrument such as an equity or ETF. | What underlying asset is being studied? | `src/universe.py`, `app.py` |
-| Option Contract | A listed derivative contract for a security. | What specific contract is being evaluated? | `app.py`, `src/contract_quality.py` |
-| Contract Quality Model (CQM) | The model that evaluates option contract quality using contract-level rules. | Is this contract structurally acceptable? | `src/contract_quality.py`, `src/contract_scoring.py` |
-| Technical Analysis Model (TAM) | The independent stock-level model that records underlying technical condition. | What was the security's technical condition at scan time? | `src/technical_analysis.py`, `src/research_repository.py` |
-| Technical Analysis Explorer | A read-only QA surface for persisted TAM observations. | What TAM observations and data-quality issues are visible? | `app.py`, `src/research_repository.py` |
-| Opportunity Discovery | The workflow that evaluates a universe and ranks candidate contracts. | What opportunities are visible in the current scan? | `app.py`, `src/opportunity_ranking.py` |
-| Quick Evaluation (QED) | A diagnostic view of one scan's quality-engine behavior. | What happened during this scan? | `src/quality_diagnostics.py`, `app.py` |
-| Opportunity Scan | One completed Opportunity Discovery run. | What was observed at one point in time? | `src/research_repository.py`, `research_scan.py` |
-| Study Protocol | A repeatable observational study definition with purpose, configuration, run mode, and schedule context. | Why and how is this scan being repeated? | `src/study_protocol.py` |
-| Observation | One archived scan instance that records what was observed under a research context. | What evidence was captured from this run? | `src/research_repository.py`, `research_scan.py` |
-| Scheduled Observation | An unattended Study Protocol run archived with a scheduled run mode and scheduled time label. | Which planned study slot did this observation satisfy? | `research_scan.py`, `src/research_repository.py` |
-| Exploratory Observation | A manual or ad hoc scan archived outside the scheduled Study Protocol metrics. | What did a researcher inspect outside the schedule? | `research_scan.py`, `src/research_repository.py` |
-| Run Mode | The archived execution category for an Opportunity Scan. | Was this observation scheduled, manual, or script-driven? | `research_scan.py`, `src/research_repository.py` |
-| Scheduled Time Label | The intended schedule slot stored with a scheduled observation. | Which planned observation time does this scan represent? | `research_scan.py`, `src/research_repository.py` |
-| Research Dashboard | The UI surface that displays archived research scans and protocol progress. | What research evidence and progress are visible now? | `app.py` |
-| Research Repository | The persistent archive for completed scans and linked research data. | Where is scan evidence stored? | `src/research_repository.py` |
-| SQLite Research Repository | The local SQLite implementation of the Research Repository. | Where is local scan evidence stored? | `src/research_repository.py` |
-| Protocol Progress | A dashboard summary of completed scheduled observations for a Study Protocol. | Which scheduled study observations have been recorded? | `app.py`, `src/research_repository.py` |
-| Research Notebook | The permanent research journal. | What observations, hypotheses, and conclusions have accumulated? | `docs/research/Research_Notebook.md` |
-| Security Characterization | A ticker-level summary of scan behavior. | How did each security behave in a scan? | `src/research_repository.py` |
-| Rule Characterization | A summary of rule outcomes and failures. | Which rules passed, failed, or constrained opportunities? | `src/rule_evaluation.py`, `src/quality_diagnostics.py` |
-| Near Miss Analysis | Analysis of contracts that narrowly fail quality requirements. | What almost passed, and why? | `src/contract_quality.py`, `src/quality_diagnostics.py` |
-| Historical Repository | The accumulated research evidence across scans. | What has been observed over time? | `data/research/opportunity_scans.sqlite` |
+This glossary defines the current language of the Kip Options quantitative research platform.
+
+The platform began as a stock/options screener, but the current architecture is a cloud-capable quantitative research system. The preferred vocabulary now centers on Market Universes, Research Universes, Research Universe Definitions and Snapshots, Opportunity Discovery, independent models, Study Protocols, and a persistent Research Repository.
 
 ---
 
-## 2. Business Entities
+## Executive Summary
+
+| Entity | Definition | Primary Question | Status |
+| --- | --- | --- | --- |
+| Market Universe | The broad population of securities that could theoretically be studied. | What could be studied? | Conceptual |
+| Research Universe | The central workflow object: a named, explicit study population selected from the Market Universe for a research purpose. | Which securities are in scope for this study? | Current |
+| Research Universe Definition | The reusable specification for a Research Universe, including purpose, selection method, criteria, source data, and refresh behavior. | How is this universe defined? | Current / Emerging |
+| Static Research Universe | A Research Universe with explicit membership supplied by a manual list, curated file, or predefined dataset. | Which fixed securities are in scope? | Current |
+| Dynamic Research Universe | A Research Universe produced or refreshed from criteria, source data, and a repeatable generation process. | Which generated securities are in scope now? | Planned |
+| Research Universe Generator | Population-construction functionality that creates or refreshes Research Universe Definitions and Snapshots from criteria and source data. | How was this study population selected? | Future |
+| Research Universe Snapshot | The point-in-time membership of a Research Universe used by a scan, protocol observation, or research run. | Which exact securities were observed? | Emerging |
+| Evaluation Profile | A versioned analytical configuration for model versions, defaults, and output preferences. | Which analytical configuration is active? | Current |
+| Study Protocol | A repeatable observational study definition with purpose, population, configuration, run mode, and schedule context. | Why and how is this observation repeated? | Current |
+| Opportunity Discovery | The scan workflow that observes a Research Universe and identifies visible passing or near-miss option candidates. | What opportunities are visible now? | Current |
+| Security | A tradable underlying instrument such as an equity or ETF. | What underlying asset is being studied? | Current |
+| Option Contract | A listed derivative contract for a Security. | What specific contract is being evaluated? | Current |
+| Security Research | The domain for characterizing and analyzing underlying securities. | What is known about the underlying security? | Current |
+| Security Analysis Model (SAM) | The independent security-level model that records technical condition at scan time. | What technical condition was observable for the underlying security? | v0.1 |
+| Security Analysis Explorer (SAE) | The main-workspace explorer for SAM summaries, distributions, RSI, momentum, volatility, and QA tables. | What does security analysis show? | Current |
+| Opportunity Research | The domain for discovering and evaluating option opportunities over a Research Universe. | What option opportunities are visible and how did the option model behave? | Current |
+| Option Analysis Model (OAM) | The option-level model that evaluates option quality using explicit rules and score components. | Is this option contract structurally acceptable? | Current |
+| Option Analysis Explorer (OAE) | The main-workspace explorer for score distributions, rule evaluations, pass/near-miss analysis, diagnostics, and option analytics. | How did option analysis behave? | Current |
+| Security Setup Score | An Experimental / Observational score summarizing SAM display states from 0 to 100. | How constructive does the current security setup appear for visual review? | Display-only |
+| Opportunity Scan | One completed Opportunity Discovery run archived as point-in-time evidence. | What was observed at one time? | Current |
+| Research Repository | The persistent archive for scans, evaluated contracts, rules, characterizations, and protocol metadata. | Where is empirical evidence stored? | Current |
+| Research Sidebar | The sidebar surface for metadata about Security Research and Opportunity Research. | What operational metadata is visible? | Current |
+| Research Notebook | The permanent research journal for observations, hypotheses, rationale, and conclusions. | What has been learned or questioned? | Current |
+
+---
+
+## Core Domain Entities
+
+### Market Universe
+
+Definition: The broad set of securities that could theoretically be observed by the platform.
+
+Purpose: Define the outer boundary of possible research populations before any specific study population is selected.
+
+Owns: Conceptual population scope.
+
+Does NOT Own: Study inclusion, contract evaluation, model thresholds, scan execution, or research conclusions.
+
+Relationships: Research Universes are selected from the Market Universe.
+
+Status: Conceptual.
+
+### Research Universe
+
+Definition: The central workflow object of the platform: a named, explicit study population selected from the Market Universe for a research purpose.
+
+Purpose: Make scan and study results interpretable by fixing the population being observed.
+
+Current implementation: CSV-backed universe files loaded through `src/universe.py`.
+
+Owns: Study population boundary and population metadata.
+
+Does NOT Own: Option scoring, option-chain retrieval, OAM thresholds, SAM indicators, or research conclusions.
+
+Relationships: Used by Study Protocols and Opportunity Discovery. Contains Securities.
+
+Status: Current preferred term. Supersedes Watchlist, Corpus, and Reference Universe.
+
+### Research Universe Definition
+
+Definition: The reusable specification for a Research Universe, including name, purpose, selection method, criteria, source data, ownership notes, and expected refresh behavior.
+
+Purpose: Preserve why a universe exists and how membership should be produced before any point-in-time observation is run.
+
+Owns: Universe selection criteria, manual membership source references, generator references, refresh rationale, and population intent.
+
+Does NOT Own: OAM scoring, Opportunity Discovery ranking, SAM characterization, Study Protocol results, or research conclusions.
+
+Relationships: Produces or identifies Research Universe Snapshots. Used by static manual universes and dynamic generated universes.
+
+Status: Current / Emerging. Manual and predefined universes are valid Research Universe Definitions. Generated universes are also valid definitions when their criteria and generator are documented.
+
+### Static Research Universe
+
+Definition: A Research Universe whose membership is explicitly supplied by a manual list, curated file, or predefined dataset.
+
+Purpose: Provide a stable, reviewable population for repeatable research without relying on automated generation.
+
+Owns: Explicit membership source and curation rationale.
+
+Does NOT Own: OAM scoring, SAM calculations, Opportunity Discovery behavior, or Study Protocol execution.
+
+Relationships: A static universe is one kind of Research Universe Definition and can produce a Research Universe Snapshot.
+
+Status: Current. Existing CSV-backed universe files are Static Research Universe Definitions.
+
+### Dynamic Research Universe
+
+Definition: A Research Universe produced or refreshed from selection criteria, source data, and a repeatable generation process.
+
+Purpose: Support generated study populations while keeping the generation criteria separate from downstream analysis.
+
+Owns: Generator criteria, source data references, refresh behavior, and generated membership rationale.
+
+Does NOT Own: Option-contract evaluation, SAM scoring, OAM thresholds, Opportunity Discovery ranking, or conclusions.
+
+Relationships: Produced by a Research Universe Generator and materialized as a Research Universe Snapshot before downstream workflows consume it.
+
+Status: Planned.
+
+### Research Universe Generator
+
+Definition: Population-construction functionality that creates or refreshes Research Universe Definitions and Research Universe Snapshots from manual lists, technical criteria, fundamental criteria, news, sentiment, or other source data.
+
+Purpose: Separate population construction from opportunity discovery, option analysis, security analysis, and research interpretation.
+
+Owns: Universe selection criteria, refresh rationale, and generated Research Universe membership.
+
+Does NOT Own: OAM scoring, Opportunity Discovery ranking, SAM characterization, Study Protocol results, or research conclusions.
+
+Relationships: Produces Research Universe Definitions or Snapshots from the Market Universe. "Security Discovery" is an older or broader label for this population-construction responsibility.
+
+Status: Future.
+
+### Research Universe Snapshot
+
+Definition: The point-in-time membership of a Research Universe used by a scan, Study Protocol observation, or research run.
+
+Purpose: Preserve reproducibility by recording exactly which securities were observed, regardless of how the universe was created.
+
+Owns: Observation-time membership, snapshot timestamp or identity, and relationship to the active Research Universe Definition.
+
+Does NOT Own: Selection criteria, model scoring, scan orchestration, repository interpretation, or conclusions.
+
+Relationships: Consumed by SAM, Opportunity Discovery, Study Protocols, and the Research Repository as the population boundary for evidence.
+
+Status: Emerging. Current CSV membership at scan time functions as the practical snapshot boundary; explicit snapshot persistence can evolve separately.
 
 ### Evaluation Profile
 
-Definition: A versioned analytical configuration that identifies the active models, universe context, scan defaults, ranking preferences, and output preferences.
+Definition: A versioned analytical configuration that identifies active model versions, scan defaults, ranking preferences, universe context, and output preferences.
 
-Purpose: Provide a stable research and operational context for repeated evaluations.
+Purpose: Provide a stable configuration for repeated observations.
 
-Questions Answered: Which analytical configuration is active? Which model versions are being used? Which defaults should scans use?
+Owns: Evaluation configuration, model references, defaults, and profile identity.
 
-Inputs: Model references, default scan parameters, universe name, ranking preferences, output preferences, metadata.
+Does NOT Own: Research Universe membership, market data, model internals, or conclusions.
 
-Outputs: Export metadata, scan context, profile identity.
+Relationships: Used by Opportunity Discovery and Study Protocols.
 
-Owns: Evaluation configuration, model references, profile version.
+Module(s): `src/evaluation_profile.py`.
 
-Does NOT Own: Contract scoring logic, security universe contents, market data, research conclusions.
+Status: Current.
 
-Relationships: Orchestrates Contract Quality Model and independent research layers such as the Technical Analysis Model. Associated with Study Protocols and Opportunity Scans.
+### Study Protocol
 
-Module(s): `src/evaluation_profile.py`
+Definition: A repeatable observational study definition with purpose, Research Universe, Evaluation Profile, option type, DTE range, run mode expectations, and schedule labels.
 
-Status: Stable
+Purpose: Make repeated observations comparable and separate scheduled evidence from exploratory scans.
 
-### Reference Universe
+Owns: Study purpose, configuration binding, expected schedule context, and run-mode expectations.
 
-Definition: A named, explicit population of securities selected for evaluation.
+Does NOT Own: Model logic, OAM thresholds, scan outcomes, or research conclusions.
 
-Purpose: Define the population being observed so research results are interpretable.
+Relationships: Produces Scheduled Observations when executed through cron or scheduled scripts. Associated with Opportunity Scans and Research Notebook entries.
 
-Questions Answered: Which securities are in scope? How large is the study population? What population was used for a scan?
+Module(s): `src/study_protocol.py`, `research_scan.py`.
 
-Inputs: CSV rows with symbol, name, sector, and enabled flag.
+Status: Current.
 
-Outputs: Enabled security symbols and display metadata.
+### Opportunity Discovery
 
-Owns: Population membership.
+Definition: The workflow that observes a Research Universe, retrieves option-chain data, evaluates contracts, and selects visible passing or near-miss candidates.
 
-Does NOT Own: Contract evaluation, ranking, model thresholds, market-data retrieval.
+Purpose: Generate point-in-time opportunity evidence for research review.
 
-Relationships: Used by Opportunity Discovery and Study Protocols. Contains Securities.
+Owns: Scan orchestration, contract collection flow, candidate selection, and ranking presentation.
 
-Module(s): `src/universe.py`, `data/technology_growth_ai_v1.csv`, `data/universe_default.csv`
+Does NOT Own: Research Universe construction, OAM rule definitions, SAM values, future outcomes, or research interpretation.
 
-Status: Stable
+Relationships: Uses Research Universes, Securities, Option Contracts, OAM, Evaluation Profiles, and the Research Repository.
+
+Module(s): `app.py`, `src/opportunity_ranking.py`, `research_scan.py`.
+
+Status: Current.
 
 ### Security
 
-Definition: A tradable underlying instrument, usually an equity or ETF, for which option contracts may be evaluated.
+Definition: A tradable underlying instrument, usually an equity or ETF, for which option contracts may be observed.
 
-Purpose: Serve as the underlying object of analysis and contract discovery.
-
-Questions Answered: What underlying instrument is being evaluated? What contracts are associated with it?
-
-Inputs: Symbol, name, sector, quote data, option expiration data.
-
-Outputs: Underlying price context, option-chain retrieval context, security-level research summaries.
+Purpose: Serve as the underlying object of analysis.
 
 Owns: Security identity and underlying market context.
 
-Does NOT Own: Option-contract rule outcomes, portfolio decisions, research conclusions.
+Does NOT Own: Option-contract rule outcomes, portfolio decisions, or research conclusions.
 
-Relationships: Belongs to a Reference Universe. Has many Option Contracts. Produces Security Characterization rows.
+Relationships: Belongs to a Research Universe. Has many Option Contracts. Can have Security Characterization and SAM observations.
 
-Module(s): `src/universe.py`, `app.py`
+Module(s): `src/universe.py`, `app.py`.
 
-Status: Stable
+Status: Current.
 
 ### Option Contract
 
 Definition: A listed option instrument with expiration, strike, type, pricing, liquidity, and Greek values.
 
-Purpose: Provide the concrete contract-level unit evaluated by the Contract Quality Model.
+Purpose: Provide the contract-level unit evaluated by OAM.
 
-Questions Answered: Is this contract liquid enough? Is its delta suitable? Is the spread acceptable? Is it a passing, near-miss, or rejected contract?
+Owns: Contract-level observable fields and OAM-derived evaluation output.
 
-Inputs: Option chain data, expiration date, underlying price, current date.
+Does NOT Own: Security-level attractiveness, technical setup, or outcome attribution.
 
-Outputs: Contract quality fields, classification, rule outcomes, quality score.
+Relationships: Belongs to a Security. Evaluated by OAM. Archived in Opportunity Scans.
 
-Owns: Contract-level observable fields and CQM-derived evaluation outputs.
+Module(s): `app.py`, `src/contract_quality.py`, `src/contract_scoring.py`.
 
-Does NOT Own: Security-level attractiveness, technical setup, outcome tracking.
+Status: Current.
 
-Relationships: Belongs to a Security. Evaluated by the Contract Quality Model. Archived in Opportunity Scans.
+### Option Analysis Model (OAM)
 
-Module(s): `app.py`, `src/contract_quality.py`, `src/contract_scoring.py`
+Definition: The contract-level model that evaluates option quality using delta, spread, open interest, volume, and quality-score logic.
 
-Status: Stable
+Purpose: Characterize whether a contract is structurally acceptable under explicit rules.
 
-### Contract Quality Model (CQM)
+Owns: Contract quality rules, thresholds, score components, rule outcomes, and rule margins.
 
-Definition: The current contract-level model that evaluates option contracts using delta, spread, open interest, volume, and quality-score logic.
+Does NOT Own: Security technical evaluation, Research Universe membership, Opportunity Discovery orchestration, SAM, outcome attribution, or trade recommendations.
 
-Purpose: Characterize whether a contract meets structural quality requirements.
+Relationships: Used by Opportunity Discovery, Option Analysis Explorer, Rule Characterization, Near Miss Analysis, and the Research Repository.
 
-Questions Answered: Does this contract pass quality rules? Which rules failed? How strong is the contract by current scoring?
+Module(s): `src/contract_quality.py`, `src/contract_scoring.py`.
 
-Inputs: Option contract fields, current date, expiration, underlying price.
+Status: Current.
 
-Outputs: Pass/fail fields, quality score, rule margins, rule score breakdown.
+### Security Analysis Model (SAM)
 
-Owns: Contract quality rules, thresholds, contract-level scoring.
-
-Does NOT Own: Security technical evaluation, universe membership, outcome attribution, opportunity concentration.
-
-Relationships: Used by Opportunity Discovery, QED, Rule Characterization, Near Miss Analysis, and the Research Repository.
-
-Module(s): `src/contract_quality.py`, `src/contract_scoring.py`
-
-Status: Stable
-
-### Technical Analysis Model (TAM)
-
-Definition: An independent security-level model for recording an underlying security's technical condition at scan time.
+Definition: The independent security-level model that records an underlying security's technical condition at scan time.
 
 Purpose: Preserve stock-level technical observations for later research without changing contract evaluation.
 
-Questions Answered: What was the current price? Where was price relative to 20/50/200-day SMAs? What did RSI, MACD, and realized volatility show?
+Owns: Technical observations and state classifications such as SMA relationships, RSI, MACD, realized volatility, trend state, momentum state, and volatility state.
 
-Inputs: Underlying price history and optional Opportunity Scan context.
+Does NOT Own: Contract liquidity, delta fit, spread, OAM scoring, Opportunity Discovery filtering, rankings, OAE conclusions, thresholds, or Evaluation Profile behavior.
 
-Outputs: `technical_characterization` rows containing price, 20/50/200-day SMAs, price/SMA relationships, RSI 14, MACD line/signal/histogram, 20-day realized volatility when available, trend state, momentum state, volatility state, optional technical score, and technical notes.
+Relationships: Persists `technical_characterization` rows linked to Opportunity Scans when generated during scans.
 
-Owns: Security-level technical observations and classifications.
+Module(s): `src/technical_analysis.py`, `src/research_repository.py`, `research_scan.py`.
 
-Does NOT Own: Contract liquidity, contract delta fit, contract spread, CQM rule scoring, Opportunity Discovery filtering, candidate ranking, QED conclusions, or Evaluation Profile behavior.
+Functional Specification: `docs/research/Technical_Analysis_Model_Specification.md`.
 
-Relationships: May be generated during Opportunity Discovery scans as persisted metadata linked by `scan_id`. It is logically independent from CQM, which evaluates option contracts.
+Status: v0.1.
 
-Module(s): `src/technical_analysis.py`, `src/research_repository.py`, `research_scan.py`
+### Security Analysis Explorer (SAE)
 
-Status: v0.1
+Definition: The analytical workspace for inspecting SAM summaries, distributions, RSI, momentum, volatility, setup scores, and QA tables.
 
-### Technical Analysis Explorer
+Purpose: Make security-level observations reviewable without changing downstream model behavior.
 
-Definition: A read-only application section for inspecting persisted Technical Analysis Model observations.
+Owns: Presentation, filtering, and inspection of SAM evidence.
 
-Purpose: Make TAM output observable and auditable for QA without introducing TAM values into option selection.
+Does NOT Own: SAM calculations, Research Universe membership, Opportunity Discovery behavior, OAM scoring, OAE diagnostics, thresholds, Evaluation Profile behavior, or Study Protocol execution.
 
-Questions Answered: Which latest technical observations were captured? How are trend, momentum, volatility, and RSI distributed? Which rows are missing required indicators?
+Relationships: Reads SAM evidence from the Research Repository.
 
-Inputs: Existing `technical_characterization` rows from the Research Repository.
+Status: Current. Historical user-facing name: Technical Analysis Explorer (TAE).
 
-Outputs: Filtered TAM observation tables, summary cards, RSI distribution, state counts, and missing-indicator rows.
+### Option Analysis Explorer (OAE)
 
-Owns: UI-only inspection of TAM evidence.
+Definition: The analytical workspace for inspecting OAM score distributions, rule evaluations, pass and near-miss analysis, diagnostics, and option analytics.
 
-Does NOT Own: Opportunity Discovery filters, CQM scoring, option rankings, thresholds, QED conclusions, Evaluation Profile behavior, or option contract mutation.
+Purpose: Explain option-analysis behavior and evidence after OAM evaluation.
 
-Relationships: Reads from the Technical Analysis Model's persisted repository table and supports Research Notebook QA observations.
+Owns: Presentation, filtering, diagnostics, and inspection of OAM evidence.
 
-Module(s): `app.py`, `src/research_repository.py`
+Does NOT Own: OAM thresholds, SAM calculations, Research Universe membership, Opportunity Discovery orchestration, ranking rules, Study Protocol execution, or repository schema.
 
-Status: v0.1
+Relationships: Reads OAM evidence from archived Opportunity Scans and related repository tables.
 
-### Opportunity Discovery
+Status: Current. Historical user-facing name: Quality Engine Diagnostics (QED).
 
-Definition: The workflow that evaluates a Reference Universe, filters contracts, applies the CQM, and ranks visible candidates.
+### Security Setup Score
 
-Purpose: Identify passing or near-miss contract candidates for research review.
+Definition: An Experimental / Observational display score from 0 to 100 that summarizes SAM-derived trend alignment, MACD momentum, RSI regime, and volatility state.
 
-Questions Answered: What opportunities are visible now? Which contract is the best passing or near-miss candidate per security?
+Purpose: Make security-level technical setup easier to scan in the Security Analysis Explorer.
 
-Inputs: Reference Universe, option type, DTE range, market data, Evaluation Profile.
+Owns: Visual summarization of existing SAM observations. The v0.1 rubric assigns 40 points to trend alignment, 25 points to MACD momentum, 20 points to RSI regime, and 15 points to volatility state. It is unavailable when the SAM row lacks enough indicator data to score.
 
-Outputs: Opportunity table, evaluated contracts, discovery errors, archived Opportunity Scan.
+Grade Bands: 80-100 Strong technical setup; 65-79 Constructive; 45-64 Neutral / mixed; 25-44 Weak; 0-24 Poor.
 
-Owns: Scan execution flow and candidate selection from already-evaluated contracts.
+Does NOT Own: Research Universe gates, Opportunity Discovery behavior, OAM scoring, OAE, rankings, filters, thresholds, Evaluation Profile behavior, or option scoring.
 
-Does NOT Own: CQM thresholds, universe membership, future outcome claims.
+Relationships: Derived from SAM rows at display time in the Explorer.
 
-Relationships: Uses Reference Universe, Securities, Option Contracts, CQM, and Research Repository.
+Functional Specification: `docs/research/Technical_Analysis_Model_Specification.md`.
 
-Module(s): `app.py`, `src/opportunity_ranking.py`, `research_scan.py`
-
-Status: Stable
-
-### Quick Evaluation (QED)
-
-Definition: A diagnostic view that summarizes the behavior of the quality engine during a single scan.
-
-Purpose: Provide immediate interpretability for scan outcomes.
-
-Questions Answered: How many contracts passed, nearly passed, or failed? Which rules constrained results? What distributions describe the scan?
-
-Inputs: Evaluated contract rows and opportunity rows.
-
-Outputs: Diagnostic summaries, distributions, rule failure summaries, population profiles.
-
-Owns: Single-scan diagnostic summaries.
-
-Does NOT Own: Longitudinal conclusions, outcome attribution, model changes.
-
-Relationships: Consumes Opportunity Scan results and supports Research Notebook observations.
-
-Module(s): `src/quality_diagnostics.py`, `app.py`
-
-Status: Stable
+Status: Experimental / Observational; descriptive and unvalidated.
 
 ---
 
-## 3. Research Entities
+## Research and Evidence Entities
 
 ### Opportunity Scan
 
-Definition: One completed Opportunity Discovery run with scan metadata, evaluated contracts, rule evaluations, security characterization, run mode, and optional Study Protocol context.
+Definition: One completed Opportunity Discovery run with scan metadata, evaluated contracts, rule evaluations, characterizations, run mode, and optional Study Protocol context.
 
-Purpose: Preserve a point-in-time observation for future research.
+Purpose: Preserve a point-in-time observation for later research.
 
-Questions Answered: What was evaluated? When was it evaluated? What were the scan results?
+Owns: Scan identity, timestamp, execution context, and linked evidence.
 
-Inputs: Scan timestamp, universe, Evaluation Profile, Study Protocol metadata, evaluated rows.
+Does NOT Own: Model thresholds, future outcomes, or conclusions.
 
-Outputs: Repository rows linked by `scan_id`.
+Relationships: Produced by Opportunity Discovery and archived by the Research Repository.
 
-Owns: Scan identity and point-in-time evidence.
+Module(s): `src/research_repository.py`, `research_scan.py`.
 
-Does NOT Own: Model thresholds, future outcomes, research conclusions.
-
-Relationships: Produced by Opportunity Discovery. Archived by a Research Repository. Associated with Study Protocols when run under a defined protocol. May be a Scheduled Observation or Exploratory Observation depending on run mode.
-
-Module(s): `src/research_repository.py`, `research_scan.py`
-
-Status: Stable
-
-### Security Characterization
-
-Definition: A ticker-level summary of contract evaluation outcomes within a scan.
-
-Purpose: Identify how each security behaved during an Opportunity Scan.
-
-Questions Answered: How many contracts were evaluated for this security? How many passed, nearly passed, or failed? Which failure pattern dominated?
-
-Inputs: Evaluated contract rows grouped by ticker.
-
-Outputs: Per-security counts, rates, best score, average score, dominant failures.
-
-Owns: Scan-level security summaries.
-
-Does NOT Own: Technical setup, future security performance, portfolio decisions.
-
-Relationships: Derived from Opportunity Scans and stored in the Research Repository.
-
-Module(s): `src/research_repository.py`
-
-Status: Emerging
-
-### Rule Characterization
-
-Definition: A research summary of how individual rules behaved across evaluated contracts.
-
-Purpose: Understand which CQM rules drive pass, near-miss, and rejection outcomes.
-
-Questions Answered: Which rules fail most often? Which rules constrain otherwise promising contracts? Are rule outcomes stable?
-
-Inputs: Rule evaluations and evaluated contract rows.
-
-Outputs: Rule failure distributions, rule contribution summaries, threshold-distance summaries.
-
-Owns: Rule behavior descriptions.
-
-Does NOT Own: Rule threshold changes or optimization decisions.
-
-Relationships: Uses CQM outputs and Research Repository rule_evaluations.
-
-Module(s): `src/rule_evaluation.py`, `src/quality_diagnostics.py`
-
-Status: Emerging
-
-### Near Miss Analysis
-
-Definition: Analysis of contracts that fail a limited number of quality rules and are close to passing.
-
-Purpose: Characterize almost-acceptable contracts without changing the model.
-
-Questions Answered: Which rule prevented a contract from passing? How far from passing was it? Which near-miss patterns recur?
-
-Inputs: Evaluated contracts, failed rules, threshold distances.
-
-Outputs: Near-miss counts, failure labels, margin summaries.
-
-Owns: Near-miss classification and interpretation.
-
-Does NOT Own: Contract promotion, threshold changes, outcome claims.
-
-Relationships: Uses CQM rule outputs and supports Hypotheses.
-
-Module(s): `src/contract_quality.py`, `src/quality_diagnostics.py`, `app.py`
-
-Status: Stable
-
-### Excellent Contract Characterization
-
-Definition: Planned characterization of contracts that strongly satisfy quality criteria.
-
-Purpose: Define empirical traits of high-quality contracts.
-
-Questions Answered: What do excellent contracts have in common? Are excellent contracts concentrated in certain securities or times?
-
-Inputs: Passing contracts, quality scores, rule margins, scan metadata.
-
-Outputs: Planned high-quality contract profiles.
-
-Owns: Research description of excellent contracts.
-
-Does NOT Own: Trading recommendations or outcome claims.
-
-Relationships: Builds on CQM outputs and Historical Repository data.
-
-Module(s): Planned
-
-Status: Emerging
-
-### Opportunity Concentration
-
-Definition: The degree to which passing or high-quality opportunities cluster within a small subset of securities.
-
-Purpose: Characterize whether opportunity availability is broad or concentrated.
-
-Questions Answered: Are opportunities spread across the universe or concentrated? Which securities dominate opportunity production?
-
-Inputs: Security Characterization rows and Opportunity Scan summaries.
-
-Outputs: Concentration observations and planned metrics.
-
-Owns: Distributional research about opportunity sources.
-
-Does NOT Own: Universe selection changes or model threshold changes.
-
-Relationships: May produce OCI and ODI metrics.
-
-Module(s): Planned; partially supported by `src/research_repository.py`
-
-Status: Emerging
-
-### Opportunity Concentration Index (OCI)
-
-Definition: A planned metric describing how concentrated opportunities are among securities.
-
-Purpose: Quantify opportunity clustering.
-
-Questions Answered: How concentrated are passing or excellent contracts?
-
-Inputs: Security-level opportunity counts and scan totals.
-
-Outputs: Planned concentration index value.
-
-Owns: Concentration metric definition.
-
-Does NOT Own: Ranking, scoring, or trading decisions.
-
-Relationships: Derived from Opportunity Concentration.
-
-Module(s): Planned
-
-Status: Emerging
-
-### Opportunity Diversity Index (ODI)
-
-Definition: A planned metric describing how broadly opportunities are distributed across the universe.
-
-Purpose: Quantify diversity of opportunity sources.
-
-Questions Answered: How diverse is the opportunity set?
-
-Inputs: Security-level opportunity distribution.
-
-Outputs: Planned diversity index value.
-
-Owns: Diversity metric definition.
-
-Does NOT Own: Universe construction or model thresholds.
-
-Relationships: Complements OCI.
-
-Module(s): Planned
-
-Status: Emerging
+Status: Current.
 
 ### Scheduled Observation
 
 Definition: An unattended Opportunity Scan run for a planned Study Protocol schedule slot and archived with `run_mode = scheduled`.
 
-Purpose: Preserve evidence that a scheduled study observation occurred without manual intervention.
+Purpose: Preserve evidence that a planned observation occurred.
 
-Questions Answered: Which planned observation time was recorded? Did the scheduled run produce archived evidence? Should it count toward protocol progress?
+Owns: Scheduled observation identity, scheduled time label, and relationship to protocol progress.
 
-Inputs: Study Protocol, scheduled task trigger, scheduled time label, Evaluation Profile, Reference Universe, scan parameters.
+Does NOT Own: Scheduler infrastructure, model scoring, or research conclusions.
 
-Outputs: Archived Opportunity Scan with scheduled run mode and scheduled time label.
+Relationships: Counts toward Study Protocol progress when the run mode and schedule label match protocol expectations.
 
-Owns: Scheduled observation identity and its relationship to a planned study slot.
+Module(s): `research_scan.py`, `src/research_repository.py`.
 
-Does NOT Own: Scheduler implementation, model scoring logic, research conclusions.
-
-Relationships: Satisfies one scheduled slot in Protocol Progress. Stored in the Research Repository.
-
-Module(s): `research_scan.py`, `src/research_repository.py`
-
-Status: Stable
+Status: Current.
 
 ### Exploratory Observation
 
-Definition: A manual, test, or ad hoc Opportunity Scan that is useful as evidence but is not counted as a scheduled Study Protocol observation.
+Definition: A manual, test, or ad hoc Opportunity Scan archived outside scheduled Study Protocol metrics.
 
-Purpose: Support research inspection without contaminating scheduled study metrics.
-
-Questions Answered: What did a researcher inspect outside the formal schedule? Which evidence should remain separate from protocol progress?
-
-Inputs: Manual scan command, researcher-selected context, optional Study Protocol metadata.
-
-Outputs: Archived Opportunity Scan with a non-scheduled run mode.
+Purpose: Support research inspection without contaminating scheduled progress.
 
 Owns: Exploratory scan context.
 
-Does NOT Own: Scheduled protocol completion, production automation, model changes.
+Does NOT Own: Scheduled protocol completion or production automation.
 
-Relationships: Stored in the Research Repository. May inform notebook observations but remains excluded from scheduled protocol metrics.
+Relationships: Stored in the Research Repository and may inform notebook observations.
 
-Module(s): `research_scan.py`, `src/research_repository.py`
+Module(s): `research_scan.py`, `src/research_repository.py`.
 
-Status: Stable
-
-### Historical Repository
-
-Definition: The accumulated body of persisted scan evidence.
-
-Purpose: Enable longitudinal research from repeated observations.
-
-Questions Answered: What has been observed over time? What scan evidence exists for a research question?
-
-Inputs: Archived Opportunity Scans and linked rows.
-
-Outputs: Historical datasets for research analysis.
-
-Owns: Persistent empirical evidence.
-
-Does NOT Own: Interpretations, hypotheses, or conclusions.
-
-Relationships: Implemented by the SQLite Research Repository.
-
-Module(s): `data/research/opportunity_scans.sqlite`, `src/research_repository.py`
-
-Status: Stable
-
-### Research Notebook
-
-Definition: The permanent research journal for observations, hypotheses, experiments, conclusions, and questions.
-
-Purpose: Preserve research reasoning over time.
-
-Questions Answered: What has been observed? What is believed, uncertain, or planned for research?
-
-Inputs: Scan evidence, diagnostic review, researcher interpretation.
-
-Outputs: Observation log, hypothesis log, major findings.
-
-Owns: Research narrative and accumulated interpretation.
-
-Does NOT Own: Raw scan evidence or application behavior.
-
-Relationships: References Study Protocols, Observations, Hypotheses, and Experiments.
-
-Module(s): `docs/research/Research_Notebook.md`
-
-Status: Stable
-
-### Study Protocol
-
-Definition: A repeatable observational study definition with purpose, configuration, run mode expectations, and schedule context.
-
-Purpose: Make repeated observations comparable and separate planned study evidence from exploratory scans.
-
-Questions Answered: Why is this scan being run? Which configuration should it use? How should it be repeated? Which scheduled observations are expected?
-
-Inputs: Evaluation Profile, Reference Universe, option type, DTE range, purpose, suggested schedule, scheduled time labels.
-
-Outputs: Study metadata persisted with Opportunity Scans and surfaced in Protocol Progress.
-
-Owns: Repeatable study configuration, purpose, and schedule definition.
-
-Does NOT Own: Model logic, scoring thresholds, scan outcomes.
-
-Relationships: Associated with Opportunity Scans, Scheduled Observations, Research Dashboard protocol progress, and Research Notebook entries.
-
-Module(s): `src/study_protocol.py`, `research_scan.py`
-
-Status: Stable
-
-### Research Session
-
-Definition: A focused period of research activity, review, or experimentation.
-
-Purpose: Group related observations and decisions.
-
-Questions Answered: What work was performed in this research period? Which scans or documents were reviewed?
-
-Inputs: Research goals, scan IDs, notebook entries, analysis outputs.
-
-Outputs: Session notes and possible observations or hypotheses.
-
-Owns: Research activity context.
-
-Does NOT Own: Persistent scan storage or model behavior.
-
-Relationships: May produce Observations, Interpretations, Hypotheses, or Experiments.
-
-Module(s): Documentation concept
-
-Status: Emerging
-
-### Observation
-
-Definition: A recorded empirical statement or archived scan instance supported by evidence.
-
-Purpose: Capture what has been seen without over-claiming causality. In repository context, an Observation is one archived scan; in notebook context, it is an evidence-backed statement.
-
-Questions Answered: What did the evidence show?
-
-Inputs: Scan evidence, diagnostics, repository summaries, Study Protocol context.
-
-Outputs: Observation log entries.
-
-Owns: Evidence-backed statements.
-
-Does NOT Own: Speculation, model changes, conclusions beyond evidence.
-
-Relationships: Can support or conflict with Hypotheses. Scheduled Observations contribute to Protocol Progress.
-
-Module(s): `docs/research/Research_Notebook.md`
-
-Status: Stable
-
-### Interpretation
-
-Definition: A reasoned explanation of what observations may mean.
-
-Purpose: Bridge observations and hypotheses while preserving uncertainty.
-
-Questions Answered: What might this observation imply?
-
-Inputs: Observations, domain knowledge, historical context.
-
-Outputs: Research notes and candidate hypotheses.
-
-Owns: Explicitly qualified reasoning.
-
-Does NOT Own: Empirical facts or validated conclusions.
-
-Relationships: May lead to Hypotheses.
-
-Module(s): Documentation concept
-
-Status: Emerging
-
-### Hypothesis
-
-Definition: A testable research claim derived from observations and interpretations.
-
-Purpose: Direct future research toward evidence-producing experiments.
-
-Questions Answered: What claim should be tested?
-
-Inputs: Observations, interpretations, conflicting evidence.
-
-Outputs: Hypothesis log entries and planned experiments.
-
-Owns: Testable claims and current status.
-
-Does NOT Own: Model changes before testing.
-
-Relationships: Tested by Experiments and updated by evidence.
-
-Module(s): `docs/research/Research_Notebook.md`
-
-Status: Stable
-
-### Experiment
-
-Definition: A planned or completed research procedure designed to test a hypothesis.
-
-Purpose: Produce evidence that supports, weakens, or refines a hypothesis.
-
-Questions Answered: What was tested? How was it tested? What evidence resulted?
-
-Inputs: Hypothesis, Study Protocol, scan data, analysis method.
-
-Outputs: Results, observations, conclusions, follow-up questions.
-
-Owns: Research procedure and result context.
-
-Does NOT Own: Production behavior or model changes unless separately approved.
-
-Relationships: Uses Study Protocols and Historical Repository data.
-
-Module(s): Documentation concept
-
-Status: Emerging
-
----
-
-## 4. System Entities
-
-### SQLite Research Repository
-
-Definition: The local SQLite database that implements the Research Repository by storing archived Opportunity Scans and linked research rows.
-
-Purpose: Persist empirical evidence outside the UI runtime.
-
-Questions Answered: Where are completed scans stored? Which rows belong to a scan?
-
-Inputs: Scan metadata, evaluated contract export rows, rule evaluation rows, security characterization rows.
-
-Outputs: Queryable historical scan data.
-
-Owns: Database schema and persistence mechanics.
-
-Does NOT Own: Research conclusions, charts, or model behavior.
-
-Relationships: Implements the Research Repository and contributes to the Historical Repository.
-
-Module(s): `src/research_repository.py`, `data/research/opportunity_scans.sqlite`
-
-Status: Stable
+Status: Current.
 
 ### Research Repository
 
@@ -664,355 +358,246 @@ Definition: The persistent archive interface and storage responsibility for comp
 
 Purpose: Preserve empirical evidence independent of the UI and execution environment.
 
-Questions Answered: Where is scan evidence stored? How can research tools retrieve archived observations?
+Owns: Persistence contract for scan evidence, evaluated contracts, rule evaluations, characterizations, and protocol metadata.
 
-Inputs: Scan metadata, evaluated contract rows, rule evaluation rows, security characterization rows, Study Protocol metadata.
+Does NOT Own: Research interpretation, dashboard layout, scheduler behavior, or model decisions.
 
-Outputs: Queryable archived observations, protocol progress inputs, historical datasets.
+Relationships: Implemented locally by SQLite and in cloud deployment by Postgres.
 
-Owns: Persistence contract for research evidence.
+Module(s): `src/research_repository.py`.
 
-Does NOT Own: Research interpretation, dashboard layout, cloud scheduler behavior.
+Status: Current.
 
-Relationships: Implemented locally by the SQLite Research Repository and expected to support future cloud storage through repository abstraction.
+### SQLite Research Repository
 
-Module(s): `src/research_repository.py`
+Definition: The local SQLite implementation of the Research Repository.
 
-Status: Stable
+Purpose: Support local development and local research evidence storage.
 
-### Research Dashboard
+Relationships: Stores data at `data/research/opportunity_scans.sqlite` by default.
 
-Definition: The UI surface that displays archived research scans, Study Protocol context, and protocol progress.
+Status: Current local backend.
 
-Purpose: Let researchers review accumulated evidence and confirm scheduled observation status.
+### Postgres Research Repository
 
-Questions Answered: Which observations have been archived? Which Study Protocol slots have been recorded? Are manual scans excluded from scheduled metrics?
+Definition: The cloud Postgres implementation of the Research Repository.
 
-Inputs: Research Repository summaries, Opportunity Scan metadata, Study Protocol definitions.
+Purpose: Support Render-hosted dashboard and cron-based scheduled observations.
 
-Outputs: Research-facing summaries, protocol progress display, scan review context.
+Relationships: Selected by `RESEARCH_REPOSITORY_BACKEND=postgres` and `DATABASE_URL`.
 
-Owns: Presentation of research evidence and progress.
+Status: Current cloud backend.
 
-Does NOT Own: Scan execution, scheduler reliability, repository persistence.
+### Research Sidebar
 
-Relationships: Reads from the Research Repository and displays Protocol Progress for Study Protocols.
+Definition: The sidebar UI surface that displays metadata for Security Research and Opportunity Research.
 
-Module(s): `app.py`
+Purpose: Let researchers inspect accumulated evidence and operational status.
 
-Status: Stable
+Owns: Presentation and inspection of operational metadata. The current organization separates Opportunity Research from Security Research.
 
-### Protocol Progress
+Does NOT Own: Scan execution, scheduled cron reliability, model behavior, or research conclusions.
 
-Definition: A summary of scheduled Study Protocol observations that have been archived for expected schedule slots.
+Module(s): `app.py`.
 
-Purpose: Verify that unattended study execution is producing the intended evidence.
+Status: Current.
 
-Questions Answered: Which scheduled observations have been recorded? Which expected labels remain missing? Are only scheduled runs counted?
+### Research Notebook
 
-Inputs: Study Protocol schedule definition, archived scan run mode, scheduled time label.
+Definition: The permanent research journal for observations, hypotheses, experiments, rationale, conclusions, and open questions.
 
-Outputs: Progress indicators in the Research Dashboard.
+Purpose: Preserve research reasoning separately from raw evidence and executable behavior.
 
-Owns: Scheduled observation completion status.
+Owns: Research narrative and interpretation.
 
-Does NOT Own: Manual scan counts, scheduler registration, research conclusions.
+Does NOT Own: Raw scan storage, model thresholds, or application behavior.
 
-Relationships: Built from Scheduled Observations stored in the Research Repository and displayed by the Research Dashboard.
+Module(s): `docs/research/Research_Notebook.md`.
 
-Module(s): `app.py`, `src/research_repository.py`
+Status: Current.
 
-Status: Stable
+---
 
-### Run Mode
+## Characterization Concepts
 
-Definition: The archived execution category for an Opportunity Scan, such as scheduled or manual script-driven execution.
+### Security Characterization
 
-Purpose: Separate scheduled study evidence from exploratory or diagnostic runs.
+Definition: A ticker-level summary of scan behavior for a Security.
 
-Questions Answered: Should this observation count toward scheduled protocol metrics? How was the scan initiated?
+Purpose: Describe how each security behaved during an Opportunity Scan.
 
-Inputs: Research scan command-line arguments or application execution context.
+Status: Emerging.
 
-Outputs: `run_mode` metadata persisted with the Opportunity Scan.
+### Rule Characterization
 
-Owns: Execution-category labeling.
+Definition: A research summary of how OAM rules behaved across evaluated contracts.
 
-Does NOT Own: Scheduler triggers, scan results, research conclusions.
+Purpose: Identify rules that drive pass, near-miss, and rejection outcomes.
 
-Relationships: Used by Protocol Progress to count Scheduled Observations and exclude Exploratory Observations.
+Status: Emerging.
 
-Module(s): `research_scan.py`, `src/research_repository.py`
+### Near Miss Analysis
 
-Status: Stable
+Definition: Analysis of contracts that fail a limited number of quality rules and are close to passing.
 
-### Scheduled Time Label
+Purpose: Understand almost-acceptable contracts without promoting them or changing model rules.
 
-Definition: A persisted label identifying the intended scheduled observation slot, such as `10:00 ET`.
+Status: Current.
 
-Purpose: Connect an archived scheduled run to a planned Study Protocol time.
+### Excellent Contract Characterization
 
-Questions Answered: Which schedule slot does this observation satisfy? Are expected intraday labels present?
+Definition: Planned characterization of contracts that strongly satisfy OAM criteria.
 
-Inputs: Scheduled task command arguments.
+Purpose: Describe empirical traits of high-quality contracts.
 
-Outputs: `scheduled_time_label` metadata persisted with the Opportunity Scan.
+Status: Planned.
 
-Owns: Human-readable schedule-slot identity.
+### Opportunity Concentration
 
-Does NOT Own: Local timezone conversion, task trigger registration, scan timing accuracy.
+Definition: The degree to which passing or high-quality opportunities cluster within a subset of securities.
 
-Relationships: Used with Run Mode by Protocol Progress and the Research Dashboard.
+Purpose: Characterize whether opportunity availability is broad or concentrated.
 
-Module(s): `research_scan.py`, `src/research_repository.py`
+Status: Emerging.
 
-Status: Stable
+### Opportunity Concentration Index (OCI)
 
-### Export Bundle
+Definition: A planned metric describing how concentrated opportunities are among securities.
 
-Definition: A set of structured exports that preserve scan data and diagnostics.
+Status: Planned.
 
-Purpose: Allow offline validation and research review.
+### Opportunity Diversity Index (ODI)
 
-Questions Answered: What data can be exported from a scan? Can rule outcomes be replayed or audited?
+Definition: A planned metric describing how broadly opportunities are distributed across a Research Universe.
 
-Inputs: Evaluated rows, rule evaluations, QED summaries.
+Status: Planned.
 
-Outputs: CSV and JSON artifacts.
+### Security Passport
 
-Owns: Export shape and field naming.
+Definition: A planned longitudinal profile summarizing a security's observed behavior across scans.
 
-Does NOT Own: Persistence, scoring rules, or research conclusions.
+Status: Planned.
 
-Relationships: Feeds external analysis and repository archival paths.
-
-Module(s): `app.py`
-
-Status: Stable
-
-### Instrumentation
-
-Definition: Structured capture of internal model and scan outputs for research use.
-
-Purpose: Make model behavior observable and auditable.
-
-Questions Answered: What did the model evaluate? Which rules fired? What context surrounded the scan?
-
-Inputs: CQM outputs, scan metadata, profile metadata.
-
-Outputs: Export rows, repository records, diagnostics.
-
-Owns: Measurement and capture points.
-
-Does NOT Own: Model decisions or research interpretation.
-
-Relationships: Supports QED, Research Repository, and Study Protocols.
-
-Module(s): `app.py`, `src/research_repository.py`, `src/quality_diagnostics.py`
-
-Status: Stable
-
-### Scan Metadata
-
-Definition: Context fields attached to an Opportunity Scan.
-
-Purpose: Make persisted scans interpretable and comparable.
-
-Questions Answered: When did this scan run? Which profile, universe, DTE range, option type, and study protocol were used?
-
-Inputs: Runtime scan context, Evaluation Profile metadata, Study Protocol metadata.
-
-Outputs: Metadata columns in `opportunity_scans` and export rows.
-
-Owns: Scan context identity fields.
-
-Does NOT Own: Evaluated contract data or rule results.
-
-Relationships: Links Opportunity Scans to profiles and protocols.
-
-Module(s): `src/research_repository.py`, `src/evaluation_profile.py`, `src/study_protocol.py`
-
-Status: Stable
-
-### Security Passport (planned)
-
-Definition: A planned persistent profile summarizing a security's observed behavior across scans.
-
-Purpose: Characterize recurring security behavior over time.
-
-Questions Answered: What is this security usually like under the active Evaluation Profile?
-
-Inputs: Historical Security Characterization rows, scan metadata, rule summaries.
-
-Outputs: Planned security-level research profile.
-
-Owns: Longitudinal security behavior summary.
-
-Does NOT Own: Trade recommendations or security selection rules.
-
-Relationships: Builds on Historical Repository and Security Characterization.
-
-Module(s): Planned
-
-Status: Emerging
-
-### Outcome Tracking (planned)
+### Outcome Tracking
 
 Definition: Planned capture of forward results after a scan.
 
-Purpose: Support outcome research and attribution.
+Purpose: Support outcome research and attribution without implying prediction or trading action.
 
-Questions Answered: What happened after this opportunity was observed?
-
-Inputs: Scan candidates, future market data, contract or underlying security prices.
-
-Outputs: Outcome records and attribution inputs.
-
-Owns: Forward-looking evidence capture.
-
-Does NOT Own: Predictions, live trading, or order execution.
-
-Relationships: Enables Outcome Attribution and model performance characterization.
-
-Module(s): Planned
-
-Status: Emerging
-
-### Architecture Decision Record (ADR)
-
-Definition: A formal record of a significant architectural decision.
-
-Purpose: Preserve why major design choices were made.
-
-Questions Answered: What was decided? Why? What alternatives were considered?
-
-Inputs: Decision context, options, consequences.
-
-Outputs: ADR document.
-
-Owns: Architectural rationale.
-
-Does NOT Own: Research observations or implementation details unrelated to the decision.
-
-Relationships: Complements the glossary, roadmap, and research notebook.
-
-Module(s): Planned documentation
-
-Status: Emerging
+Status: Planned.
 
 ---
 
-## 5. Entity Relationships
+## System and Deployment Terms
 
-Platform
+### GitHub Repository
 
--> Evaluation Profiles
+Definition: Source-control home for application code, runners, documentation, and deployment source.
 
--> Reference Universes
+Status: Current.
 
--> Securities
+### Render Web Service
 
--> Option Contracts
+Definition: The cloud service hosting the Streamlit research application.
 
--> Opportunity Discovery
+Status: Current cloud deployment target.
 
--> Contract Quality Model
+### Render Cron Jobs
 
--> Technical Analysis Model
+Definition: Cloud scheduled jobs that execute research scans without the Streamlit UI.
 
--> Technical Analysis Explorer
+Status: Current cloud scheduling target.
 
--> Quick Evaluation
+### Render Postgres
 
--> Opportunity Scans
+Definition: Managed Postgres database used as the cloud Research Repository.
 
--> Scan Metadata
+Status: Current cloud storage target.
 
--> SQLite Research Repository
+### Browser
 
--> Historical Repository
+Definition: User access surface for the Streamlit research application.
 
--> Security Characterization
-
--> Rule Characterization
-
--> Near Miss Analysis
-
--> Opportunity Concentration
-
--> Research Notebook
-
--> Observations
-
--> Interpretations
-
--> Hypotheses
-
--> Experiments
-
--> Future Outcome Tracking
-
-Evaluation Profiles orchestrate analytical models. Reference Universes define the population being evaluated. Opportunity Discovery executes the scan. The Contract Quality Model evaluates contracts. The Technical Analysis Model records independent stock-level technical observations. QED explains one scan. The SQLite Research Repository stores evidence. The Research Notebook records what is observed, interpreted, hypothesized, and tested.
+Status: Current.
 
 ---
 
-## 6. Terminology Evolution
+## Superseded and Historical Terminology
 
-| Previous Name | Current Name | Reason for the Change |
+| Superseded Term | Current Term | Historical Context |
 | --- | --- | --- |
-| Watchlist | Reference Universe | "Watchlist" implied an informal list, while "Reference Universe" defines a stable research population. |
-| Scoring Algorithm | Contract Quality Model | The logic is a model of contract quality, not merely a numeric scoring routine. |
-| Scanner | Opportunity Discovery | The workflow discovers and ranks observed opportunities rather than performing generic scanning. |
-| Quality Score | Contract Quality Model score | Clarifies that the score belongs to contract-level quality evaluation. |
-| Dashboard Diagnostics | Quick Evaluation (QED) | Names the single-scan diagnostic layer as a research artifact. |
-| Scan Results | Opportunity Scan | Treats one completed run as a persistent research entity. |
-| Research Database | SQLite Research Repository | Clarifies both implementation and architectural role. |
-| Ticker Summary | Security Characterization | Clarifies that ticker-level summaries are research characterizations of securities. |
+| Stock Screener | Quantitative Research Platform | The project no longer exists only to screen current stocks/options; it now accumulates research evidence through protocols and repositories. |
+| Watchlist | Research Universe | "Watchlist" implied an informal manually watched list. Research Universe defines a study population with research intent. |
+| Corpus | Research Universe | Corpus was too generic and did not express a selected research population. |
+| Reference Universe | Research Universe / Research Universe Definition | Reference Universe was an intermediate term for stable populations. Research Universe and Research Universe Definition better connect population selection to Study Protocols and evidence interpretation. |
+| Security Discovery | Research Universe Generator | Security Discovery may remain a broad conceptual label, but Research Universe Generator is the preferred term for population-construction mechanics. |
+| Scanner | Opportunity Discovery | Scanner was too generic. Opportunity Discovery names the workflow that observes a population and surfaces current contract candidates. |
+| Scoring Algorithm | Option Analysis Model | The logic is an explicit model of option analysis, not merely a numeric routine. |
+| Quality Score | OAM Score | Clarifies that the score belongs to option-level analysis. |
+| Contract Quality Model (CQM) | Option Analysis Model (OAM) | CQM was the historical name for the current option-level analysis model. |
+| Technical Analysis Model (TAM) | Security Analysis Model (SAM) | TAM was the historical name for the current security-level analysis model. |
+| Technical Analysis Explorer (TAE) | Security Analysis Explorer (SAE) | TAE was the historical name for the security analysis explorer. |
+| Quality Engine Diagnostics (QED) | Option Analysis Explorer (OAE) | QED was the historical name for the option analysis diagnostic explorer. |
+| Research Database | Research Repository | Repository describes the persistence boundary and supports multiple backends. |
+| SQLite Research Repository | Local Research Repository Backend | SQLite remains the local backend, while Postgres is the cloud backend. |
+| Dashboard Diagnostics | Option Analysis Explorer (OAE) | OAE names the option analysis diagnostic explorer. |
+| Scan Results | Opportunity Scan | A completed scan is persisted evidence, not just transient UI output. |
+| Ticker Summary | Security Characterization | The research entity describes security-level behavior, not just a display summary. |
+
+Superseded terms may still appear in code names, file names, historical notes, or UI text. Documentation should prefer the current terms unless describing historical evolution.
 
 ---
 
-## 7. Guiding Principles
+## Relationship Summary
 
-- Characterize before optimizing.
-- Separate Security evaluation from Contract evaluation.
-- Evaluation Profiles orchestrate analytical models.
-- Reference Universes define populations.
-- Research requires persistent evidence.
-- Observations precede hypotheses.
-- Hypotheses precede model changes.
-- A scan is evidence, not a conclusion.
-- Model changes require accumulated evidence and explicit rationale.
-- Diagnostics should explain model behavior without silently changing it.
-- Research artifacts should preserve uncertainty where evidence is incomplete.
+```mermaid
+flowchart TD
+    MU[Market Universe] --> RUD[Research Universe Definition]
+    ML[Manual / Predefined Universes] --> RUD
+    RUG[Research Universe Generator] --> RUD
+    RUD --> RUS[Research Universe Snapshot]
+    RUS --> RU[Research Universe]
+    RU --> SP[Study Protocol]
+    EP[Evaluation Profile] --> SP
+    SP --> OD[Opportunity Discovery]
+    OD --> SEC[Security]
+    SEC --> OC[Option Contract]
+    OC --> OAM[Option Analysis Model]
+    SEC --> SAM[Security Analysis Model]
+    OAM --> OS[Opportunity Scan]
+    SAM --> OS
+    OS --> RR[Research Repository]
+    RR --> RD[Research Sidebar]
+    RR --> RN[Research Notebook]
+```
 
 ---
 
-## 8. Future Entities
+## Research Workflow
 
-### Outcome Attribution
+Market Universe -> Research Universe Definition -> Research Universe Snapshot -> Security Analysis Model / Security Analysis Explorer -> Opportunity Discovery -> Option Analysis Model / Option Analysis Explorer -> Research Repository / Study Protocols
 
-Planned analysis that connects later outcomes to earlier observed opportunity, security, contract, and market-context features.
+The user selects a Research Universe for the research run. The universe may be static, such as a manual or predefined list, or dynamic, such as a generated universe built from documented criteria. Both are valid Research Universe Definitions.
 
-### Market Regime
+Before downstream analysis, the selected universe is treated as a Research Universe Snapshot so the exact population can be reproduced later. SAM characterizes the securities and SAE supports security-level exploration. Opportunity Discovery finds visible opportunities from that population. OAM evaluates option contracts and OAE supports option-level exploration. The Research Repository stores the evidence, and Study Protocols make repeated observations comparable.
 
-Planned classification of broader market conditions that may contextualize scan behavior.
+Downstream workflows should not care whether a Research Universe was created manually, predefined in a file, or generated. They should consume the Research Universe and its snapshot as the population boundary.
 
-### Forward Outcome Tracking
+---
 
-Planned capture of future price, contract, and underlying-security behavior after a scan.
+## Glossary Rules
 
-### Paper Portfolio Simulation
-
-Potential research-only simulation layer for studying how model-selected candidates would behave under explicit hypothetical rules.
-
-### Behavior Classification
-
-Planned grouping of securities or contracts by recurring observed behavior.
-
-### Market Context
-
-Planned capture of broad market, sector, volatility, and liquidity context at scan time.
-
-### Technical Indicator Repository
-
-The first implementation exists as `technical_characterization`, a research table populated by the Technical Analysis Model. Future work may expand this into a broader indicator repository with additional market, sector, and regime context.
+- Use Research Universe for the active study population.
+- Use Research Universe Definition for the reusable universe specification.
+- Use Research Universe Snapshot for point-in-time membership used by an observation.
+- Use Research Universe Generator for future population-construction mechanics.
+- Use Market Universe for the broader population from which research populations may be selected.
+- Use Opportunity Discovery for the scan workflow.
+- Use OAM / Option Analysis Model for option-level quality evaluation; CQM is historical.
+- Use SAM / Security Analysis Model for independent security-level technical characterization; TAM is historical.
+- Use SAE / Security Analysis Explorer for security-analysis exploration; TAE is historical.
+- Use OAE / Option Analysis Explorer for option-analysis exploration; QED is historical.
+- Use Research Repository for persisted evidence regardless of backend.
+- Use Study Protocol for repeatable scheduled or comparable research execution.
+- Treat observations as evidence, not conclusions.
+- Treat model changes as research outcomes requiring explicit rationale.

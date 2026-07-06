@@ -1,6 +1,6 @@
-# Kip Options Scanner
+# Kip Options Research Platform
 
-Phase 4B is a Streamlit research tool for inspecting Tradier option-chain market data and ranking the best current watchlist opportunity per ticker. It has no trading, brokerage account access, Robinhood integration, order placement, recommendations, historical tracking, technical indicators, affordability scoring, AI reasoning, or portfolio awareness. Its contract-quality score is an explainable evaluation of existing quality rules, not a recommendation.
+Kip Options is a Streamlit-based quantitative research platform for observing Research Universes, characterizing securities, evaluating option opportunities, and preserving research evidence over time. It has no trading, brokerage account access, Robinhood integration, order placement, recommendations, affordability scoring, AI reasoning, or portfolio awareness. Its option-analysis score is an explainable evaluation of existing Option Analysis Model rules, not a recommendation.
 
 ## Setup
 
@@ -35,16 +35,19 @@ Set these Render environment variables:
 | `APP_PASSWORD` | No | Optional shared password gate for demo protection. |
 
 On startup, the app sidebar shows a Startup Check with the resolved repository
-backend, database connectivity, and latest scan timestamp. If
+backend, database connectivity, and latest scan timestamp. The Research sidebar
+section initially shows only Security Research and Opportunity Research choices.
+Security Research and Opportunity Research sidebar views show metadata only;
+analytical explorers are organized in the main workspace. If
 `APP_PASSWORD` is unset, the app runs without a password prompt.
 
 ## Architecture
 
-- `app.py`: quote view, Opportunity Discovery, and Option Chain Explorer. Opportunity Discovery filters watchlist contracts by Calls/Puts and a configurable DTE range before selecting the highest-quality passing contract or highest-quality true near miss, then renders a selectable ranking table that reuses the Contract Detail Summary. The explorer retrieves expirations, then presents Opportunity Analysis, passing contracts, and true near misses for the selected Calls/Puts type. An Advanced Diagnostics expander contains test-specific near misses, threshold-analysis tables, and the raw chain response used for validation.
+- `app.py`: quote view, metadata-only Research sidebar, Security Analysis Explorer, Opportunity Discovery, Option Chain Explorer, and Option Analysis Explorer. Opportunity Discovery evaluates a Research Universe by Calls/Puts and configurable DTE range before selecting the highest-quality passing contract or highest-quality true near miss, then renders a selectable ranking table that reuses the Contract Detail Summary. The opportunity workspace retrieves expirations, presents Opportunity Analysis, passing contracts, true near misses, and diagnostic option analytics for the selected Calls/Puts type.
 - `src/contract_scoring.py`: reusable, configuration-driven quality-score helper. Its default Delta Fit, Spread, Open Interest, and Volume weights total 100 and can later be exposed as user-editable settings.
 - `src/tradier_client.py`: read-only market-data GET client.
-- `src/universe.py`: validated CSV universe and editable default watchlist.
-- `src/opportunity_ranking.py`: presentation-neutral watchlist opportunity selection and ranking.
+- `src/universe.py`: validated CSV-backed Research Universe loading.
+- `src/opportunity_ranking.py`: presentation-neutral Research Universe opportunity selection and ranking.
 - `src/indicators.py`, `src/scoring.py`, and `src/scanner.py`: future-facing typed data contracts.
 
 The CSV requires `symbol`; `name`, `sector`, and `enabled` are optional. `run_scan()` deliberately raises `ScannerNotImplementedError` in this phase.

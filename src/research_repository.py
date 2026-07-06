@@ -46,6 +46,14 @@ LEGACY_RUN_MODE_MAP = {
     "manual": RUN_MODE_MANUAL_UI,
     "app-triggered": RUN_MODE_MANUAL_UI,
 }
+STUDY_PROTOCOL_COLUMNS = (
+    "study_id",
+    "study_name",
+    "study_version",
+    "study_purpose",
+    "scheduled_time_label",
+    "run_mode",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +102,10 @@ class ResearchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def archive_technical_observations(self, **kwargs: Any) -> dict[str, int]:
+        raise NotImplementedError
+
+    @abstractmethod
     def status(self, study_id: str | None = None) -> ResearchRepositoryStatus:
         raise NotImplementedError
 
@@ -109,6 +121,10 @@ class ResearchRepository(ABC):
         trend_states: list[str] | None = None,
         momentum_states: list[str] | None = None,
         volatility_states: list[str] | None = None,
+        study_ids: list[str] | None = None,
+        run_modes: list[str] | None = None,
+        scheduled_time_labels: list[str] | None = None,
+        technical_timestamps: list[str] | None = None,
         latest_scan_only: bool = True,
         scan_id: str | None = None,
     ) -> dict[str, Any]:
@@ -125,6 +141,9 @@ class SQLiteResearchRepository(ResearchRepository):
     def archive_opportunity_scan(self, **kwargs: Any) -> dict[str, int]:
         return archive_opportunity_scan(database_path=self.database_path, **kwargs)
 
+    def archive_technical_observations(self, **kwargs: Any) -> dict[str, int]:
+        return archive_technical_observations(database_path=self.database_path, **kwargs)
+
     def status(self, study_id: str | None = None) -> ResearchRepositoryStatus:
         return research_repository_status(self.database_path, study_id=study_id)
 
@@ -138,6 +157,10 @@ class SQLiteResearchRepository(ResearchRepository):
         trend_states: list[str] | None = None,
         momentum_states: list[str] | None = None,
         volatility_states: list[str] | None = None,
+        study_ids: list[str] | None = None,
+        run_modes: list[str] | None = None,
+        scheduled_time_labels: list[str] | None = None,
+        technical_timestamps: list[str] | None = None,
         latest_scan_only: bool = True,
         scan_id: str | None = None,
     ) -> dict[str, Any]:
@@ -147,6 +170,10 @@ class SQLiteResearchRepository(ResearchRepository):
             trend_states=trend_states,
             momentum_states=momentum_states,
             volatility_states=volatility_states,
+            study_ids=study_ids,
+            run_modes=run_modes,
+            scheduled_time_labels=scheduled_time_labels,
+            technical_timestamps=technical_timestamps,
             latest_scan_only=latest_scan_only,
             scan_id=scan_id,
         )
@@ -221,6 +248,25 @@ class PostgresResearchRepository(ResearchRepository):
             connection.commit()
 
         return archive_payload["row_counts"]
+
+    def archive_technical_observations(self, **kwargs: Any) -> dict[str, int]:
+        self.initialize()
+        payload = _technical_observation_payload(**kwargs)
+        scan_id = payload["scan_id"]
+
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM technical_characterization WHERE scan_id = %s",
+                    (scan_id,),
+                )
+                cursor.executemany(
+                    POSTGRES_TECHNICAL_CHARACTERIZATION_INSERT,
+                    payload["technical_characterization_values"],
+                )
+            connection.commit()
+
+        return payload["row_counts"]
 
     def status(self, study_id: str | None = None) -> ResearchRepositoryStatus:
         self.initialize()
@@ -352,6 +398,10 @@ class PostgresResearchRepository(ResearchRepository):
         trend_states: list[str] | None = None,
         momentum_states: list[str] | None = None,
         volatility_states: list[str] | None = None,
+        study_ids: list[str] | None = None,
+        run_modes: list[str] | None = None,
+        scheduled_time_labels: list[str] | None = None,
+        technical_timestamps: list[str] | None = None,
         latest_scan_only: bool = True,
         scan_id: str | None = None,
     ) -> dict[str, Any]:
@@ -365,6 +415,10 @@ class PostgresResearchRepository(ResearchRepository):
                     trend_states=trend_states,
                     momentum_states=momentum_states,
                     volatility_states=volatility_states,
+                    study_ids=study_ids,
+                    run_modes=run_modes,
+                    scheduled_time_labels=scheduled_time_labels,
+                    technical_timestamps=technical_timestamps,
                     latest_scan_only=latest_scan_only,
                     scan_id=scan_id,
                 )
@@ -534,7 +588,13 @@ POSTGRES_SCHEMA_STATEMENTS = (
         momentum_state TEXT,
         volatility_state TEXT,
         technical_score DOUBLE PRECISION,
-        technical_notes TEXT
+        technical_notes TEXT,
+        study_id TEXT,
+        study_name TEXT,
+        study_version TEXT,
+        study_purpose TEXT,
+        scheduled_time_label TEXT,
+        run_mode TEXT
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_evaluated_contracts_scan ON evaluated_contracts (scan_id)",
@@ -554,12 +614,26 @@ POSTGRES_SCHEMA_STATEMENTS = (
     CREATE INDEX IF NOT EXISTS idx_technical_characterization_ticker
         ON technical_characterization (ticker)
     """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_technical_characterization_timestamp
+        ON technical_characterization (technical_timestamp)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_technical_characterization_study
+        ON technical_characterization (study_id, run_mode, scheduled_time_label)
+    """,
     "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS study_id TEXT",
     "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS study_name TEXT",
     "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS study_version TEXT",
     "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS study_purpose TEXT",
     "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS scheduled_time_label TEXT",
     "ALTER TABLE opportunity_scans ADD COLUMN IF NOT EXISTS run_mode TEXT",
+    "ALTER TABLE technical_characterization ADD COLUMN IF NOT EXISTS study_id TEXT",
+    "ALTER TABLE technical_characterization ADD COLUMN IF NOT EXISTS study_name TEXT",
+    "ALTER TABLE technical_characterization ADD COLUMN IF NOT EXISTS study_version TEXT",
+    "ALTER TABLE technical_characterization ADD COLUMN IF NOT EXISTS study_purpose TEXT",
+    "ALTER TABLE technical_characterization ADD COLUMN IF NOT EXISTS scheduled_time_label TEXT",
+    "ALTER TABLE technical_characterization ADD COLUMN IF NOT EXISTS run_mode TEXT",
 )
 
 POSTGRES_OPPORTUNITY_SCAN_UPSERT = """
@@ -639,9 +713,10 @@ POSTGRES_TECHNICAL_CHARACTERIZATION_INSERT = """
         sma_20_vs_sma_50, sma_50_vs_sma_200, rsi_14, macd_line,
         macd_signal, macd_histogram, realized_volatility_20d,
         trend_state, momentum_state, volatility_state, technical_score,
-        technical_notes
+        technical_notes, study_id, study_name, study_version, study_purpose,
+        scheduled_time_label, run_mode
     )
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
 
 
@@ -758,7 +833,13 @@ def initialize_research_repository(database_path: Path | str = DEFAULT_RESEARCH_
                 momentum_state TEXT,
                 volatility_state TEXT,
                 technical_score REAL,
-                technical_notes TEXT
+                technical_notes TEXT,
+                study_id TEXT,
+                study_name TEXT,
+                study_version TEXT,
+                study_purpose TEXT,
+                scheduled_time_label TEXT,
+                run_mode TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_evaluated_contracts_scan
@@ -771,27 +852,24 @@ def initialize_research_repository(database_path: Path | str = DEFAULT_RESEARCH_
                 ON technical_characterization (scan_id);
             CREATE INDEX IF NOT EXISTS idx_technical_characterization_ticker
                 ON technical_characterization (ticker);
+            CREATE INDEX IF NOT EXISTS idx_technical_characterization_timestamp
+                ON technical_characterization (technical_timestamp);
             """
         )
         _migrate_opportunity_scans_study_protocol_columns(connection)
+        _migrate_technical_characterization_study_protocol_columns(connection)
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_technical_characterization_study
+                ON technical_characterization (study_id, run_mode, scheduled_time_label)
+            """
+        )
         connection.commit()
     return path
 
 
 def _migrate_opportunity_scans_study_protocol_columns(connection: sqlite3.Connection) -> None:
-    existing_columns = {
-        row[1] for row in connection.execute("PRAGMA table_info(opportunity_scans)").fetchall()
-    }
-    for column_name in (
-        "study_id",
-        "study_name",
-        "study_version",
-        "study_purpose",
-        "scheduled_time_label",
-        "run_mode",
-    ):
-        if column_name not in existing_columns:
-            connection.execute(f"ALTER TABLE opportunity_scans ADD COLUMN {column_name} TEXT")
+    _migrate_text_columns(connection, "opportunity_scans", STUDY_PROTOCOL_COLUMNS)
     _migrate_run_mode_values(connection)
 
 
@@ -806,6 +884,25 @@ def _migrate_run_mode_values(connection: sqlite3.Connection) -> None:
         """,
         (RUN_MODE_MANUAL_UI,),
     )
+
+
+def _migrate_technical_characterization_study_protocol_columns(
+    connection: sqlite3.Connection,
+) -> None:
+    _migrate_text_columns(connection, "technical_characterization", STUDY_PROTOCOL_COLUMNS)
+
+
+def _migrate_text_columns(
+    connection: sqlite3.Connection,
+    table_name: str,
+    column_names: tuple[str, ...],
+) -> None:
+    existing_columns = {
+        row[1] for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    for column_name in column_names:
+        if column_name not in existing_columns:
+            connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} TEXT")
 
 
 def research_repository_status(
@@ -988,7 +1085,8 @@ def _archive_payload(
             _security_characterization_values(row) for row in security_rows
         ],
         "technical_characterization_values": [
-            _technical_characterization_values(row) for row in technical_rows or []
+            _technical_characterization_values(row, study_protocol)
+            for row in technical_rows or []
         ],
         "row_counts": {
             "opportunity_scans": 1,
@@ -1126,11 +1224,12 @@ def archive_opportunity_scan(
                 sma_20_vs_sma_50, sma_50_vs_sma_200, rsi_14, macd_line,
                 macd_signal, macd_histogram, realized_volatility_20d,
                 trend_state, momentum_state, volatility_state, technical_score,
-                technical_notes
+                technical_notes, study_id, study_name, study_version, study_purpose,
+                scheduled_time_label, run_mode
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            [_technical_characterization_values(row) for row in technical_rows],
+            [_technical_characterization_values(row, study_protocol) for row in technical_rows],
         )
         connection.commit()
 
@@ -1141,6 +1240,69 @@ def archive_opportunity_scan(
         "security_characterization": len(security_rows),
         "technical_characterization": len(technical_rows),
     }
+
+
+def _technical_observation_payload(
+    *,
+    scan_id: str,
+    technical_rows: list[dict[str, Any]],
+    study_protocol: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    study_protocol = dict(study_protocol or {})
+    study_protocol["run_mode"] = _normalized_run_mode(study_protocol.get("run_mode"))
+    technical_rows = list(technical_rows or [])
+    return {
+        "scan_id": scan_id,
+        "technical_characterization_values": [
+            _technical_characterization_values(row, study_protocol)
+            for row in technical_rows
+        ],
+        "row_counts": {
+            "opportunity_scans": 0,
+            "evaluated_contracts": 0,
+            "rule_evaluations": 0,
+            "security_characterization": 0,
+            "technical_characterization": len(technical_rows),
+        },
+    }
+
+
+def archive_technical_observations(
+    *,
+    scan_id: str,
+    technical_rows: list[dict[str, Any]],
+    study_protocol: dict[str, Any] | None = None,
+    database_path: Path | str = DEFAULT_RESEARCH_DB_PATH,
+) -> dict[str, int]:
+    """Persist TAM-only observations without archiving opportunity or contract rows."""
+    path = initialize_research_repository(database_path)
+    payload = _technical_observation_payload(
+        scan_id=scan_id,
+        technical_rows=technical_rows,
+        study_protocol=study_protocol,
+    )
+
+    with closing(sqlite3.connect(path)) as connection:
+        connection.execute("BEGIN")
+        connection.execute("DELETE FROM technical_characterization WHERE scan_id = ?", (scan_id,))
+        connection.executemany(
+            """
+            INSERT INTO technical_characterization (
+                scan_id, ticker, technical_timestamp, price, sma_20, sma_50, sma_200,
+                price_vs_sma_20, price_vs_sma_50, price_vs_sma_200,
+                sma_20_vs_sma_50, sma_50_vs_sma_200, rsi_14, macd_line,
+                macd_signal, macd_histogram, realized_volatility_20d,
+                trend_state, momentum_state, volatility_state, technical_score,
+                technical_notes, study_id, study_name, study_version, study_purpose,
+                scheduled_time_label, run_mode
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            payload["technical_characterization_values"],
+        )
+        connection.commit()
+
+    return payload["row_counts"]
 
 
 def latest_scan_row_counts(
@@ -1172,10 +1334,18 @@ TECHNICAL_ANALYSIS_EXPLORER_COLUMNS = (
     "scan_id",
     "ticker",
     "technical_timestamp",
+    "study_id",
+    "run_mode",
+    "scheduled_time_label",
     "price",
     "sma_20",
     "sma_50",
     "sma_200",
+    "price_vs_sma_20",
+    "price_vs_sma_50",
+    "price_vs_sma_200",
+    "sma_20_vs_sma_50",
+    "sma_50_vs_sma_200",
     "rsi_14",
     "macd_line",
     "macd_signal",
@@ -1195,6 +1365,10 @@ def technical_analysis_observations(
     trend_states: list[str] | None = None,
     momentum_states: list[str] | None = None,
     volatility_states: list[str] | None = None,
+    study_ids: list[str] | None = None,
+    run_modes: list[str] | None = None,
+    scheduled_time_labels: list[str] | None = None,
+    technical_timestamps: list[str] | None = None,
     latest_scan_only: bool = True,
     scan_id: str | None = None,
 ) -> dict[str, Any]:
@@ -1208,6 +1382,10 @@ def technical_analysis_observations(
             trend_states=trend_states,
             momentum_states=momentum_states,
             volatility_states=volatility_states,
+            study_ids=study_ids,
+            run_modes=run_modes,
+            scheduled_time_labels=scheduled_time_labels,
+            technical_timestamps=technical_timestamps,
             latest_scan_only=latest_scan_only,
             scan_id=scan_id,
         )
@@ -1221,6 +1399,10 @@ def _technical_analysis_observations_for_cursor(
     trend_states: list[str] | None,
     momentum_states: list[str] | None,
     volatility_states: list[str] | None,
+    study_ids: list[str] | None,
+    run_modes: list[str] | None,
+    scheduled_time_labels: list[str] | None,
+    technical_timestamps: list[str] | None,
     latest_scan_only: bool,
     scan_id: str | None,
 ) -> dict[str, Any]:
@@ -1240,6 +1422,9 @@ def _technical_analysis_observations_for_cursor(
     available_trend_states = _technical_distinct_values(cursor, "trend_state")
     available_momentum_states = _technical_distinct_values(cursor, "momentum_state")
     available_volatility_states = _technical_distinct_values(cursor, "volatility_state")
+    available_study_ids = _technical_distinct_values(cursor, "study_id")
+    available_run_modes = _technical_distinct_values(cursor, "run_mode")
+    available_scheduled_time_labels = _technical_distinct_values(cursor, "scheduled_time_label")
     latest_scan_id = _latest_technical_scan_id(cursor)
 
     effective_scan_id = scan_id or (latest_scan_id if latest_scan_only else None)
@@ -1270,6 +1455,34 @@ def _technical_analysis_observations_for_cursor(
         _normalized_filter_values(volatility_states, uppercase=False),
         placeholder,
     )
+    _add_in_filter(
+        where_clauses,
+        params,
+        "study_id",
+        _normalized_filter_values(study_ids, uppercase=False),
+        placeholder,
+    )
+    _add_in_filter(
+        where_clauses,
+        params,
+        "run_mode",
+        _normalized_filter_values(run_modes, uppercase=False),
+        placeholder,
+    )
+    _add_in_filter(
+        where_clauses,
+        params,
+        "scheduled_time_label",
+        _normalized_filter_values(scheduled_time_labels, uppercase=False),
+        placeholder,
+    )
+    _add_in_filter(
+        where_clauses,
+        params,
+        "technical_timestamp",
+        _normalized_filter_values(technical_timestamps, uppercase=False),
+        placeholder,
+    )
 
     where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
     rows = _execute_fetchall(
@@ -1296,6 +1509,9 @@ def _technical_analysis_observations_for_cursor(
         "available_trend_states": available_trend_states,
         "available_momentum_states": available_momentum_states,
         "available_volatility_states": available_volatility_states,
+        "available_study_ids": available_study_ids,
+        "available_run_modes": available_run_modes,
+        "available_scheduled_time_labels": available_scheduled_time_labels,
         "latest_scan_id": latest_scan_id,
         "selected_scan_id": effective_scan_id,
         "latest_technical_timestamp": latest_technical_timestamp,
@@ -1501,7 +1717,11 @@ def _security_characterization_values(row: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
-def _technical_characterization_values(row: dict[str, Any]) -> tuple[Any, ...]:
+def _technical_characterization_values(
+    row: dict[str, Any],
+    study_protocol: dict[str, Any] | None = None,
+) -> tuple[Any, ...]:
+    study_protocol = study_protocol or {}
     return (
         row.get("scan_id"),
         row.get("ticker"),
@@ -1525,6 +1745,14 @@ def _technical_characterization_values(row: dict[str, Any]) -> tuple[Any, ...]:
         _text_or_none(row.get("volatility_state")),
         _number_or_none(row.get("technical_score")),
         _text_or_none(row.get("technical_notes")),
+        _text_or_none(row.get("study_id", study_protocol.get("study_id"))),
+        _text_or_none(row.get("study_name", study_protocol.get("study_name"))),
+        _text_or_none(row.get("study_version", study_protocol.get("study_version"))),
+        _text_or_none(row.get("study_purpose", study_protocol.get("study_purpose"))),
+        _text_or_none(
+            row.get("scheduled_time_label", study_protocol.get("scheduled_time_label"))
+        ),
+        _text_or_none(row.get("run_mode", study_protocol.get("run_mode"))),
     )
 
 

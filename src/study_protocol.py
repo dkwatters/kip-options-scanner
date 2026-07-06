@@ -60,3 +60,18 @@ DEFAULT_STUDY_PROTOCOL = StudyProtocol(
     dte_max=28,
     suggested_schedule_times_et=("10:00", "12:00", "14:00"),
 )
+
+
+TAM_STUDY_PROTOCOL = StudyProtocol(
+    study_id="TAM-001",
+    study_name="Daily Technical Characterization",
+    study_version="v0.1",
+    study_purpose="Collect daily stock-level technical observations.",
+    evaluation_profile_name=DEFAULT_EVALUATION_PROFILE.name,
+    evaluation_profile_version=DEFAULT_EVALUATION_PROFILE.version,
+    universe_csv=Path("data/technology_growth_ai_v1.csv"),
+    option_type="N/A",
+    dte_min=0,
+    dte_max=0,
+    suggested_schedule_times_et=("16:30",),
+)

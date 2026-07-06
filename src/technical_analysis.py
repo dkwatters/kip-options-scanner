@@ -14,6 +14,7 @@ from typing import Any, Iterable
 
 TAM_MODEL_NAME = "Technical Analysis Model"
 TAM_MODEL_VERSION = "v0.1"
+SMA_NEAR_THRESHOLD = 0.01
 
 
 @dataclass(frozen=True, slots=True)
@@ -326,6 +327,148 @@ def classify_volatility(value: float | None) -> str:
     if value <= 0.50:
         return "moderate"
     return "high"
+
+
+def price_vs_sma_state(relative_value: float | None) -> str:
+    if relative_value is None:
+        return "unavailable"
+    if abs(relative_value) <= SMA_NEAR_THRESHOLD:
+        return "near"
+    return "above" if relative_value > 0 else "below"
+
+
+def sma_alignment_state(relative_value: float | None) -> str:
+    if relative_value is None:
+        return "unavailable"
+    return "bullish" if relative_value > 0 else "bearish"
+
+
+def macd_display_state(
+    macd_line: float | None,
+    macd_signal: float | None,
+    macd_histogram: float | None,
+) -> str:
+    if macd_line is None or macd_signal is None or macd_histogram is None:
+        return "unavailable"
+    if macd_line > macd_signal and macd_histogram > 0:
+        return "bullish"
+    if macd_line < macd_signal and macd_histogram < 0:
+        return "bearish"
+    return "neutral"
+
+
+def rsi_regime(rsi_14: float | None) -> str:
+    if rsi_14 is None:
+        return "unavailable"
+    if rsi_14 < 40:
+        return "oversold"
+    if rsi_14 <= 70:
+        return "neutral"
+    if rsi_14 <= 80:
+        return "elevated"
+    return "overbought"
+
+
+def derived_technical_display_fields(row: dict[str, Any]) -> dict[str, str]:
+    return {
+        "price_vs_sma_20_state": price_vs_sma_state(
+            _number_or_none(row.get("price_vs_sma_20"))
+        ),
+        "price_vs_sma_50_state": price_vs_sma_state(
+            _number_or_none(row.get("price_vs_sma_50"))
+        ),
+        "price_vs_sma_200_state": price_vs_sma_state(
+            _number_or_none(row.get("price_vs_sma_200"))
+        ),
+        "sma_20_50_state": sma_alignment_state(
+            _number_or_none(row.get("sma_20_vs_sma_50"))
+        ),
+        "sma_50_200_state": sma_alignment_state(
+            _number_or_none(row.get("sma_50_vs_sma_200"))
+        ),
+        "macd_state": macd_display_state(
+            _number_or_none(row.get("macd_line")),
+            _number_or_none(row.get("macd_signal")),
+            _number_or_none(row.get("macd_histogram")),
+        ),
+        "rsi_regime": rsi_regime(_number_or_none(row.get("rsi_14"))),
+    }
+
+
+def technical_setup_score(row: dict[str, Any]) -> float | None:
+    """Return an experimental descriptive TAM setup score from 0 to 100."""
+    fields = derived_technical_display_fields(row)
+    has_trend_data = any(
+        fields[key] != "unavailable"
+        for key in (
+            "price_vs_sma_20_state",
+            "price_vs_sma_50_state",
+            "price_vs_sma_200_state",
+            "sma_20_50_state",
+            "sma_50_200_state",
+        )
+    )
+    has_macd_data = any(
+        _number_or_none(row.get(key)) is not None
+        for key in ("macd_line", "macd_signal", "macd_histogram")
+    )
+    has_rsi_data = _number_or_none(row.get("rsi_14")) is not None
+    volatility_state = str(row.get("volatility_state") or "").strip().lower()
+    has_volatility_data = volatility_state not in {"", "unavailable", "insufficient_history"}
+    if not any((has_trend_data, has_macd_data, has_rsi_data, has_volatility_data)):
+        return None
+
+    score = 0.0
+
+    trend_checks = (
+        fields["price_vs_sma_20_state"] == "above",
+        fields["price_vs_sma_50_state"] == "above",
+        fields["price_vs_sma_200_state"] == "above",
+        fields["sma_20_50_state"] == "bullish",
+        fields["sma_50_200_state"] == "bullish",
+    )
+    score += sum(8.0 for passed in trend_checks if passed)
+
+    macd_line = _number_or_none(row.get("macd_line"))
+    macd_signal = _number_or_none(row.get("macd_signal"))
+    macd_histogram = _number_or_none(row.get("macd_histogram"))
+    if macd_line is not None and macd_signal is not None and macd_line > macd_signal:
+        score += 12.5
+    if macd_histogram is not None and macd_histogram > 0:
+        score += 12.5
+
+    rsi = _number_or_none(row.get("rsi_14"))
+    if rsi is not None:
+        if 50 <= rsi <= 70:
+            score += 20.0
+        elif 40 <= rsi < 50 or 70 < rsi <= 80:
+            score += 10.0
+        else:
+            score += 5.0
+
+    if volatility_state in {"moderate", "normal", "neutral"}:
+        score += 15.0
+    elif volatility_state == "low":
+        score += 10.0
+    elif volatility_state == "high":
+        score += 5.0
+
+    return round(max(0.0, min(score, 100.0)), 1)
+
+
+def technical_setup_grade(score: float | None) -> str:
+    """Return the descriptive grade for an experimental TAM setup score."""
+    if score is None:
+        return "Unavailable"
+    if score >= 80:
+        return "Strong technical setup"
+    if score >= 65:
+        return "Constructive"
+    if score >= 45:
+        return "Neutral / mixed"
+    if score >= 25:
+        return "Weak"
+    return "Poor"
 
 
 def _relation_note(label: str, value: float | None) -> str | None:

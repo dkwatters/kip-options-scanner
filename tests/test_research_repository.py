@@ -14,6 +14,7 @@ from src.research_repository import (
     REPOSITORY_BACKEND_POSTGRES,
     REPOSITORY_BACKEND_SQLITE,
     archive_opportunity_scan,
+    archive_technical_observations,
     initialize_research_repository,
     latest_scan_row_counts,
     research_repository_target_from_env,
@@ -331,6 +332,103 @@ class ResearchRepositoryTest(unittest.TestCase):
 
             self.assertEqual(run_modes, [(RUN_MODE_MANUAL_UI,)])
 
+    def test_startup_migrates_older_sqlite_schema_missing_study_protocol_columns(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "opportunity_scans.sqlite"
+            with closing(sqlite3.connect(database_path)) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE opportunity_scans (
+                        scan_id TEXT PRIMARY KEY,
+                        scan_timestamp TEXT,
+                        universe_name TEXT,
+                        evaluation_profile_name TEXT,
+                        evaluation_profile_version TEXT,
+                        contract_quality_model_name TEXT,
+                        contract_quality_model_version TEXT,
+                        option_type TEXT,
+                        dte_min INTEGER,
+                        dte_max INTEGER,
+                        contracts_evaluated INTEGER,
+                        passing_count INTEGER,
+                        true_near_miss_count INTEGER,
+                        rejected_count INTEGER,
+                        average_quality_score REAL,
+                        median_quality_score REAL,
+                        highest_quality_score REAL,
+                        lowest_quality_score REAL
+                    );
+                    CREATE TABLE technical_characterization (
+                        scan_id TEXT,
+                        ticker TEXT,
+                        technical_timestamp TEXT,
+                        price REAL,
+                        sma_20 REAL,
+                        sma_50 REAL,
+                        sma_200 REAL,
+                        price_vs_sma_20 REAL,
+                        price_vs_sma_50 REAL,
+                        price_vs_sma_200 REAL,
+                        sma_20_vs_sma_50 REAL,
+                        sma_50_vs_sma_200 REAL,
+                        rsi_14 REAL,
+                        macd_line REAL,
+                        macd_signal REAL,
+                        macd_histogram REAL,
+                        realized_volatility_20d REAL,
+                        trend_state TEXT,
+                        momentum_state TEXT,
+                        volatility_state TEXT,
+                        technical_score REAL,
+                        technical_notes TEXT
+                    );
+                    INSERT INTO opportunity_scans (
+                        scan_id, scan_timestamp, universe_name
+                    )
+                    VALUES ('legacy-scan', '2026-07-01 10:00:00 AM EDT',
+                            'Legacy Universe');
+                    """
+                )
+                connection.commit()
+
+            first_status = research_repository_status(database_path, study_id="SP-001")
+            second_status = research_repository_status(database_path, study_id="SP-001")
+
+            self.assertEqual(first_status.total_scans, 1)
+            self.assertEqual(first_status.latest_scan_id, "legacy-scan")
+            self.assertEqual(first_status.latest_study_id, None)
+            self.assertEqual(first_status.latest_run_mode, RUN_MODE_MANUAL_UI)
+            self.assertEqual(second_status.total_scans, 1)
+
+            with closing(sqlite3.connect(database_path)) as connection:
+                opportunity_columns = {
+                    row[1] for row in connection.execute("PRAGMA table_info(opportunity_scans)")
+                }
+                technical_columns = {
+                    row[1]
+                    for row in connection.execute("PRAGMA table_info(technical_characterization)")
+                }
+                study_index = connection.execute(
+                    """
+                    SELECT name
+                    FROM sqlite_master
+                    WHERE type = 'index'
+                      AND name = 'idx_technical_characterization_study'
+                    """
+                ).fetchone()
+
+            expected_columns = {
+                "study_id",
+                "study_name",
+                "study_version",
+                "study_purpose",
+                "scheduled_time_label",
+                "run_mode",
+            }
+            self.assertTrue(expected_columns.issubset(opportunity_columns))
+            self.assertTrue(expected_columns.issubset(technical_columns))
+            self.assertEqual(study_index, ("idx_technical_characterization_study",))
+
     def test_technical_rows_persist_without_changing_contract_quality_results(self):
         rows = option_chain_rows(
             option_payload("SPY260717C00600000", "call", 0.58),
@@ -481,6 +579,72 @@ class ResearchRepositoryTest(unittest.TestCase):
         self.assertEqual(filtered["available_tickers"], ("AAPL", "MSFT"))
         self.assertEqual(len(filtered["rows"]), 1)
         self.assertEqual(filtered["rows"][0]["technical_score"], 78)
+
+    def test_archive_technical_observations_persists_tam_only_metadata(self):
+        technical_rows = [
+            {
+                "scan_id": "tam-scan-1",
+                "ticker": "SPY",
+                "technical_timestamp": "2026-07-06 04:30:00 PM EDT",
+                "price": 590,
+                "sma_20": 580,
+                "sma_50": 570,
+                "sma_200": 540,
+                "trend_state": "bullish_alignment",
+                "momentum_state": "positive",
+                "volatility_state": "low",
+                "technical_score": None,
+                "technical_notes": "test TAM-only row",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "opportunity_scans.sqlite"
+            counts = archive_technical_observations(
+                scan_id="tam-scan-1",
+                technical_rows=technical_rows,
+                study_protocol={
+                    "study_id": "TAM-001",
+                    "study_name": "Daily Technical Characterization",
+                    "study_version": "v0.1",
+                    "study_purpose": "Collect daily stock-level technical observations.",
+                    "scheduled_time_label": "16:30 ET",
+                    "run_mode": RUN_MODE_SCHEDULED,
+                },
+                database_path=database_path,
+            )
+            observations = technical_analysis_observations(
+                database_path=database_path,
+                tickers=["SPY"],
+                study_ids=["TAM-001"],
+                run_modes=[RUN_MODE_SCHEDULED],
+                scheduled_time_labels=["16:30 ET"],
+                technical_timestamps=["2026-07-06 04:30:00 PM EDT"],
+                latest_scan_only=False,
+            )
+            with closing(sqlite3.connect(database_path)) as connection:
+                opportunity_count = connection.execute(
+                    "SELECT COUNT(*) FROM opportunity_scans"
+                ).fetchone()[0]
+                contract_count = connection.execute(
+                    "SELECT COUNT(*) FROM evaluated_contracts"
+                ).fetchone()[0]
+
+        self.assertEqual(
+            counts,
+            {
+                "opportunity_scans": 0,
+                "evaluated_contracts": 0,
+                "rule_evaluations": 0,
+                "security_characterization": 0,
+                "technical_characterization": 1,
+            },
+        )
+        self.assertEqual(opportunity_count, 0)
+        self.assertEqual(contract_count, 0)
+        self.assertEqual(len(observations["rows"]), 1)
+        self.assertEqual(observations["rows"][0]["study_id"], "TAM-001")
+        self.assertEqual(observations["rows"][0]["run_mode"], RUN_MODE_SCHEDULED)
+        self.assertEqual(observations["rows"][0]["scheduled_time_label"], "16:30 ET")
 
     def test_repository_target_defaults_to_sqlite(self):
         target = research_repository_target_from_env({})

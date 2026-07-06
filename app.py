@@ -77,8 +77,13 @@ from src.research_repository import (
     research_repository_from_env,
     research_repository_target_from_env,
 )
-from src.study_protocol import DEFAULT_STUDY_PROTOCOL, RUN_MODE_MANUAL_UI
-from src.technical_analysis import technical_analysis_rows_for_symbols
+from src.study_protocol import DEFAULT_STUDY_PROTOCOL, RUN_MODE_MANUAL_UI, TAM_STUDY_PROTOCOL
+from src.technical_analysis import (
+    derived_technical_display_fields,
+    technical_analysis_rows_for_symbols,
+    technical_setup_grade,
+    technical_setup_score,
+)
 from src.tradier_client import TradierAPIError, TradierClient, TradierConfigurationError
 from src.universe import UniverseError, load_universe
 
@@ -653,6 +658,7 @@ def format_diagnostic_metric(label, value):
         "Bullish Trend Count",
         "Bearish Trend Count",
         "Neutral/Mixed Count",
+        "SAM Error Count",
         "TAM Error Count",
     }:
         return format_whole_number(value)
@@ -1277,7 +1283,7 @@ def render_quality_export_section(
         mime="text/csv",
     )
     summary_column.download_button(
-        "QED Summary JSON",
+        "OAE Summary JSON",
         json.dumps(summary, indent=2).encode("utf-8"),
         file_name=f"{safe_scan_id}_qed_summary.json",
         mime="application/json",
@@ -1376,125 +1382,79 @@ def render_startup_check():
     return status
 
 
-def render_research_dashboard(universe_path, security_count):
-    """Render operational research context in the persistent left sidebar."""
-    st.header("Research Dashboard")
+def render_sidebar_distribution(label, rows, column_name):
+    st.caption(label)
+    distribution = tam_count_rows(rows, column_name)
+    if distribution:
+        st.dataframe(pd.DataFrame(distribution), hide_index=True, width="stretch")
+    else:
+        st.write(UNAVAILABLE)
+
+
+def render_opportunity_research_sidebar(status, universe_path, security_count):
+    """Render opportunity research metadata in the persistent left sidebar."""
+    st.markdown("#### Opportunity Research")
+    rows_written = sum(status.latest_rows_written.values())
+    scheduled_slots = len(DEFAULT_STUDY_PROTOCOL.suggested_schedule_times_et)
+    completed_slots = len(status.today_completed_schedule_times)
+
+    render_sidebar_metric("Research Universe CSV", str(Path(universe_path).expanduser()))
+    render_sidebar_metric("Research Universe Securities", security_count)
+    render_sidebar_metric("Latest Opportunity Observation", status.latest_scan_timestamp or UNAVAILABLE)
+    render_sidebar_metric("Latest Study Protocol Execution", status.latest_scan_timestamp or UNAVAILABLE)
+    render_sidebar_metric(
+        "Scheduled Observation Progress",
+        f"{completed_slots}/{scheduled_slots}",
+    )
+    render_sidebar_metric("Repository Status", "available")
+    render_sidebar_metric("Database Location", _masked_database_location(status.database_path))
+    render_sidebar_metric("Run Mode", status.latest_run_mode or UNAVAILABLE)
+    render_sidebar_metric(
+        "Manual vs Scheduled",
+        status.latest_run_mode or UNAVAILABLE,
+    )
+    render_sidebar_metric("Scan Identifier", status.latest_scan_id or UNAVAILABLE)
+    render_sidebar_metric("Rows Written", rows_written)
+    render_sidebar_metric("Opportunity Observations", status.total_scans)
+    render_sidebar_metric("Contracts Evaluated", status.total_contracts_evaluated)
+    render_sidebar_metric("Rule Evaluations", status.total_rule_evaluations)
+
+
+def render_security_research_sidebar(repository, status):
+    """Render security-level research context in the persistent left sidebar."""
+    st.markdown("#### Security Research")
     try:
-        status = research_repository_from_env().status(
-            study_id=DEFAULT_STUDY_PROTOCOL.study_id
-        )
+        observations = repository.technical_analysis_observations(latest_scan_only=True)
+        rows = [tam_display_row(row) for row in observations["rows"]]
     except Exception as error:
-        st.error("Research Dashboard unavailable: " + str(error))
+        st.error("Security Research unavailable: " + str(error))
         return
 
-    if render_dashboard_section("Study Protocol", "dashboard_study_protocol_open"):
-        st.write(DEFAULT_STUDY_PROTOCOL.study_id)
-        st.write(DEFAULT_STUDY_PROTOCOL.study_name)
-        st.write(DEFAULT_STUDY_PROTOCOL.study_version)
-        st.caption("Status")
-        st.write("Active")
-        st.caption("Purpose")
-        st.write(DEFAULT_STUDY_PROTOCOL.study_purpose)
-        st.caption("Scheduling Mode")
-        st.write("Scheduling mode: external scheduler required")
-        st.caption("Run Mode")
-        st.write(status.latest_run_mode or UNAVAILABLE)
-        st.caption("Schedule Metadata")
-        for schedule_time in DEFAULT_STUDY_PROTOCOL.suggested_schedule_times_et:
-            st.write(f"{schedule_time} ET")
+    render_sidebar_metric(
+        "Latest Security Observation",
+        observations["latest_technical_timestamp"] or UNAVAILABLE,
+    )
+    render_sidebar_metric("Latest Scan Timestamp", status.latest_scan_timestamp or UNAVAILABLE)
+    render_sidebar_metric(
+        "Securities Characterized",
+        len({row.get("ticker") for row in rows if row.get("ticker")}),
+    )
+    render_sidebar_metric("Repository Status", "available")
+    render_sidebar_metric(
+        "Security Study Protocol Status",
+        "Active" if observations["latest_technical_timestamp"] else "No observations",
+    )
+    render_sidebar_metric("Latest Study Identifier", TAM_STUDY_PROTOCOL.study_id)
+    render_sidebar_metric("Run Mode", status.latest_run_mode or UNAVAILABLE)
+    render_sidebar_metric("Version", TAM_STUDY_PROTOCOL.study_version)
+    render_sidebar_metric("Error Count", tam_error_count(rows))
+    render_sidebar_metric(
+        "Total Technical Characterizations",
+        status.total_technical_characterizations,
+    )
 
-    if render_dashboard_section("Evaluation Profile", "dashboard_evaluation_profile_open"):
-        render_sidebar_metric("Name", DEFAULT_STUDY_PROTOCOL.evaluation_profile_name)
-        render_sidebar_metric("Version", DEFAULT_STUDY_PROTOCOL.evaluation_profile_version)
 
-    if render_dashboard_section("Reference Universe", "dashboard_reference_universe_open"):
-        render_sidebar_metric("Universe CSV", str(Path(universe_path).expanduser()))
-        render_sidebar_metric("Security Count", security_count)
-
-    if render_dashboard_section("Research Repository", "dashboard_repository_open"):
-        render_sidebar_metric("Database Location", _masked_database_location(status.database_path))
-        render_sidebar_metric("Total Scans", status.total_scans)
-        render_sidebar_metric(
-            "Total Contracts Evaluated", status.total_contracts_evaluated
-        )
-        render_sidebar_metric("Total Rule Evaluations", status.total_rule_evaluations)
-        render_sidebar_metric(
-            "Total Security Characterizations",
-            status.total_security_characterizations,
-        )
-        render_sidebar_metric(
-            "Total Technical Characterizations",
-            status.total_technical_characterizations,
-        )
-
-    if render_dashboard_section("Latest Observation", "dashboard_latest_observation_open"):
-        rows_written = sum(status.latest_rows_written.values())
-        render_sidebar_metric("Latest Scan ID", status.latest_scan_id or UNAVAILABLE)
-        render_sidebar_metric(
-            "Schedule Metadata",
-            schedule_time_display(status.latest_scheduled_time_label)
-            if status.latest_scheduled_time_label
-            else UNAVAILABLE,
-        )
-        render_sidebar_metric(
-            "Actual Time", actual_time_label(status.latest_scan_timestamp)
-        )
-        render_sidebar_metric("Timestamp", status.latest_scan_timestamp or UNAVAILABLE)
-        render_sidebar_metric("Run Mode", status.latest_run_mode or UNAVAILABLE)
-        render_sidebar_metric("Rows Written", rows_written)
-        render_sidebar_metric(
-            "Opportunity Scan",
-            status.latest_rows_written.get("opportunity_scans", 0),
-        )
-        render_sidebar_metric(
-            "Evaluated Contracts",
-            status.latest_rows_written.get("evaluated_contracts", 0),
-        )
-        render_sidebar_metric(
-            "Rule Evaluations",
-            status.latest_rows_written.get("rule_evaluations", 0),
-        )
-        render_sidebar_metric(
-            "Security Characterizations",
-            status.latest_rows_written.get("security_characterization", 0),
-        )
-        technical_count = status.latest_rows_written.get("technical_characterization", 0)
-        render_sidebar_metric(
-            "Technical Analysis Model",
-            "captured" if technical_count else "not captured",
-        )
-        render_sidebar_metric("Technical Characterizations", technical_count)
-
-    if render_dashboard_section("Today's Observations", "dashboard_observations_open"):
-        st.caption("Manual scans are archived but excluded from scheduled study metrics.")
-        if status.today_observations:
-            st.dataframe(
-                pd.DataFrame(status.today_observations).rename(
-                    columns={
-                        "scan_id": "scan_id",
-                        "scan_timestamp": "actual scan timestamp",
-                        "study_id": "study_id",
-                        "scheduled_time_label": "scheduled_time_label",
-                        "run_mode": "run_mode",
-                    }
-                ),
-                hide_index=True,
-                width="stretch",
-            )
-        else:
-            st.write("No observations archived today.")
-
-    if render_dashboard_section("Study Protocol Progress", "dashboard_progress_open"):
-        st.caption("Only scheduled observations for the active study satisfy these slots.")
-        completed = set(status.today_completed_schedule_times)
-        for schedule_time in DEFAULT_STUDY_PROTOCOL.suggested_schedule_times_et:
-            status_label = (
-                "scheduled observation recorded"
-                if schedule_time in completed
-                else "not recorded"
-            )
-            st.write(f"{schedule_time} ET: {status_label}")
-
+def render_future_research_sidebar(status):
     for title, key in (
         ("Security Passports", "dashboard_security_passports_open"),
         ("Outcome Tracking", "dashboard_outcome_tracking_open"),
@@ -1520,6 +1480,23 @@ def render_research_dashboard(universe_path, security_count):
             )
         else:
             st.write("No scans archived yet.")
+
+
+def render_research_sidebar_metadata(selected_section, universe_path, security_count):
+    """Render operational research context in the persistent left sidebar."""
+    if not selected_section:
+        return
+    try:
+        repository = research_repository_from_env()
+        status = repository.status(study_id=DEFAULT_STUDY_PROTOCOL.study_id)
+    except Exception as error:
+        st.error("Research unavailable: " + str(error))
+        return
+
+    if selected_section == "Security Research":
+        render_security_research_sidebar(repository, status)
+    elif selected_section == "Opportunity Research":
+        render_opportunity_research_sidebar(status, universe_path, security_count)
 
 
 def actual_time_label(scan_timestamp):
@@ -2032,7 +2009,7 @@ def render_option_chain_explorer_workflow():
 
             st.subheader("Opportunity Analysis")
             st.caption(
-                "Ticker-level summary of current contract-quality outcomes and closest rule-margin shortfalls."
+                "Ticker-level summary of current option-analysis outcomes and closest rule-margin shortfalls."
             )
             opportunities = opportunity_analysis(filtered_chain_rows)
             for column, label in zip(
@@ -2220,8 +2197,8 @@ def render_option_chain_explorer_workflow():
 
 
 def render_quality_engine_diagnostics_workflow():
-    st.subheader("Quality Engine Diagnostics")
-    st.caption("How did the Quality Engine behave during the most recent scan?")
+    st.subheader("Option Analysis Explorer")
+    st.caption("How did the Option Analysis Model behave during the most recent scan?")
 
     opportunity_scan_id = st.session_state.get("opportunity_scan_id")
     opportunity_watchlist = st.session_state.get("opportunity_watchlist", [])
@@ -2268,13 +2245,27 @@ TAM_DISPLAY_COLUMNS = [
     "sma_20",
     "sma_50",
     "sma_200",
+    "price_vs_sma_20",
+    "price_vs_sma_20_state",
+    "price_vs_sma_50",
+    "price_vs_sma_50_state",
+    "price_vs_sma_200",
+    "price_vs_sma_200_state",
+    "sma_20_vs_sma_50",
+    "sma_20_50_state",
+    "sma_50_vs_sma_200",
+    "sma_50_200_state",
     "rsi_14",
+    "rsi_regime",
     "macd_line",
     "macd_signal",
     "macd_histogram",
+    "macd_state",
     "trend_state",
     "momentum_state",
     "volatility_state",
+    "technical_setup_score_experimental",
+    "technical_setup_grade_experimental",
     "technical_score",
     "technical_notes",
 ]
@@ -2291,6 +2282,18 @@ TAM_REQUIRED_INDICATOR_COLUMNS = [
     "momentum_state",
     "volatility_state",
 ]
+TAM_BADGE_LABELS = {
+    "above": "[Above]",
+    "below": "[Below]",
+    "near": "[Near]",
+    "bullish": "[Bullish]",
+    "bearish": "[Bearish]",
+    "neutral": "[Neutral]",
+    "oversold": "[Oversold]",
+    "elevated": "[Elevated]",
+    "overbought": "[Overbought]",
+    "unavailable": "[Unavailable]",
+}
 
 
 def tam_state_count(rows, state_column, state_text):
@@ -2308,6 +2311,15 @@ def tam_average_rsi(rows):
     return sum(values) / len(values) if values else None
 
 
+def tam_average_setup_score(rows):
+    values = [
+        float(row["technical_setup_score_experimental"])
+        for row in rows
+        if row.get("technical_setup_score_experimental") not in (None, "")
+    ]
+    return sum(values) / len(values) if values else None
+
+
 def tam_error_count(rows):
     return sum("error" in str(row.get("technical_notes") or "").lower() for row in rows)
 
@@ -2315,15 +2327,58 @@ def tam_error_count(rows):
 def tam_summary_metrics(rows, latest_timestamp):
     bullish_count = tam_state_count(rows, "trend_state", "bullish")
     bearish_count = tam_state_count(rows, "trend_state", "bearish")
+    setup_scores = [
+        float(row["technical_setup_score_experimental"])
+        for row in rows
+        if row.get("technical_setup_score_experimental") not in (None, "")
+    ]
     return {
-        "Latest Technical Scan Timestamp": latest_timestamp or UNAVAILABLE,
+        "Latest Security Scan Timestamp": latest_timestamp or UNAVAILABLE,
         "Tickers Characterized": len({row.get("ticker") for row in rows if row.get("ticker")}),
+        "Average SAM Score (Experimental)": tam_average_setup_score(rows),
+        "Highest SAM Score": max(setup_scores) if setup_scores else None,
+        "Lowest SAM Score": min(setup_scores) if setup_scores else None,
+        "Strong Count": sum(
+            row.get("technical_setup_grade_experimental") == "Strong technical setup"
+            for row in rows
+        ),
+        "Constructive Count": sum(
+            row.get("technical_setup_grade_experimental") == "Constructive"
+            for row in rows
+        ),
+        "Weak/Poor Count": sum(
+            row.get("technical_setup_grade_experimental") in {"Weak", "Poor"}
+            for row in rows
+        ),
+        "Bullish MACD Count": sum(row.get("macd_state_raw") == "bullish" for row in rows),
+        "Price Above 200 SMA Count": sum(
+            row.get("price_vs_sma_200_state_raw") == "above" for row in rows
+        ),
         "Bullish Trend Count": bullish_count,
         "Bearish Trend Count": bearish_count,
         "Neutral/Mixed Count": max(len(rows) - bullish_count - bearish_count, 0),
         "Average RSI": tam_average_rsi(rows),
-        "TAM Error Count": tam_error_count(rows),
+        "SAM Error Count": tam_error_count(rows),
     }
+
+
+def tam_badge(value):
+    key = str(value or "unavailable").strip().lower()
+    return TAM_BADGE_LABELS.get(key, f"[{key.replace('_', ' ').title()}]")
+
+
+def tam_display_row(row):
+    enriched = dict(row)
+    derived_fields = derived_technical_display_fields(enriched)
+    for key, value in derived_fields.items():
+        enriched[f"{key}_raw"] = value
+        enriched[key] = tam_badge(value)
+    enriched["macd_state_raw"] = derived_fields["macd_state"]
+    enriched["price_vs_sma_200_state_raw"] = derived_fields["price_vs_sma_200_state"]
+    setup_score = technical_setup_score(enriched)
+    enriched["technical_setup_score_experimental"] = setup_score
+    enriched["technical_setup_grade_experimental"] = technical_setup_grade(setup_score)
+    return enriched
 
 
 def tam_count_rows(rows, column_name):
@@ -2397,9 +2452,9 @@ def render_tam_count_chart(rows, label_column="State"):
 
 
 def render_technical_analysis_explorer_workflow():
-    st.subheader("Technical Analysis Explorer")
+    st.subheader("Security Analysis Explorer")
     st.caption(
-        "Read-only TAM QA view. These observations do not filter, rank, score, or alter options."
+        "Read-only SAM QA view. These observations do not filter, rank, score, or alter options."
     )
     try:
         repository = research_repository_from_env()
@@ -2407,7 +2462,7 @@ def render_technical_analysis_explorer_workflow():
             latest_scan_only=False
         )
     except Exception as error:
-        st.error("Technical Analysis Explorer unavailable: " + str(error))
+        st.error("Security Analysis Explorer unavailable: " + str(error))
         return
 
     scan_ids = list(filter_options["available_scan_ids"])
@@ -2461,10 +2516,10 @@ def render_technical_analysis_explorer_workflow():
             scan_id=selected_scan or None,
         )
     except Exception as error:
-        st.error("Unable to load TAM observations: " + str(error))
+        st.error("Unable to load SAM observations: " + str(error))
         return
 
-    rows = list(observations["rows"])
+    rows = [tam_display_row(row) for row in observations["rows"]]
     render_metric_grid(
         tam_summary_metrics(rows, observations["latest_technical_timestamp"]),
         columns_per_row=4,
@@ -2476,20 +2531,38 @@ def render_technical_analysis_explorer_workflow():
         st.info("No technical characterization rows match the selected filters.")
         return
 
-    st.subheader("Latest TAM Observations")
+    st.subheader("Latest SAM Observations")
+    st.caption(
+        "Security Setup Score is Experimental / Observational. It summarizes SAM "
+        "observations only and does not define Research Universe gates or influence "
+        "Opportunity Discovery, OAM scoring, OAE, rankings, filters, thresholds, or "
+        "Evaluation Profile logic."
+    )
     st.dataframe(
         pd.DataFrame(rows)
         .reindex(columns=TAM_DISPLAY_COLUMNS)
+        .rename(
+            columns={
+                "technical_setup_score_experimental": "SAM Setup Score (Experimental)",
+                "technical_setup_grade_experimental": "SAM Setup Grade (Experimental)",
+            }
+        )
         .style.format(
             {
                 "price": format_decimal,
                 "sma_20": format_decimal,
                 "sma_50": format_decimal,
                 "sma_200": format_decimal,
+                "price_vs_sma_20": format_percent,
+                "price_vs_sma_50": format_percent,
+                "price_vs_sma_200": format_percent,
+                "sma_20_vs_sma_50": format_percent,
+                "sma_50_vs_sma_200": format_percent,
                 "rsi_14": format_decimal,
                 "macd_line": format_decimal,
                 "macd_signal": format_decimal,
                 "macd_histogram": format_decimal,
+                "SAM Setup Score (Experimental)": format_decimal,
                 "technical_score": format_decimal,
             }
         ),
@@ -2519,7 +2592,7 @@ def render_technical_analysis_explorer_workflow():
         if missing_rows:
             st.dataframe(pd.DataFrame(missing_rows), hide_index=True, width="stretch")
         else:
-            st.info("No missing required TAM indicators in the current result set.")
+            st.info("No missing required SAM indicators in the current result set.")
 
 
 def load_local_environment():
@@ -2551,66 +2624,87 @@ def main():
     enforce_app_password()
     st.title("Kip Options Scanner")
     st.caption("Phase 4B - Research tool only - No trading or order placement")
+    default_universe_path = str(ROOT / "data" / "technology_growth_ai_v1.csv")
+    if "research_universe_path" not in st.session_state:
+        st.session_state.research_universe_path = default_universe_path
+    reload_universe = False
     with st.sidebar:
         render_startup_check()
-        path = st.text_input("Universe CSV", value=str(ROOT / "data" / "technology_growth_ai_v1.csv"))
-        reload_universe = st.button("Reload Universe CSV")
         st.header("Tradier Connection")
         ticker = st.text_input("Ticker symbol", value="SPY", max_chars=10).strip().upper()
         get_quote = st.button("Get Quote")
         show_diagnostic_data = st.checkbox("Show Diagnostic Data")
-        universe_error = None
-        try:
-            universe = load_universe(path)
-        except UniverseError as error:
-            universe_error = error
-            st.error("Unable to load universe: " + str(error))
-            universe = []
-        universe_symbols = [item.symbol for item in universe]
-        st.caption(f"Loaded universe symbols: {len(universe_symbols)}")
-        with st.expander("Universe", expanded=False):
-            if universe:
-                st.dataframe(
-                    [item.to_display_dict() for item in universe],
-                    hide_index=True,
-                    width="stretch",
-                )
-            else:
-                st.warning("No enabled symbols are available.")
+        st.header("Research")
+        selected_research_section = st.selectbox(
+            "Research",
+            ["Security Research", "Opportunity Research"],
+            index=None,
+            placeholder="Select a research area",
+            label_visibility="collapsed",
+        )
+        if selected_research_section == "Opportunity Research":
+            st.text_input(
+                "Research Universe CSV",
+                key="research_universe_path",
+            )
+            reload_universe = st.button("Reload Research Universe CSV")
+
+    path = st.session_state.research_universe_path
+    universe_error = None
+    try:
+        universe = load_universe(path)
+    except UniverseError as error:
+        universe_error = error
+        with st.sidebar:
+            if selected_research_section == "Opportunity Research":
+                st.error("Unable to load Research Universe: " + str(error))
+        universe = []
+    universe_symbols = [item.symbol for item in universe]
+    with st.sidebar:
+        render_research_sidebar_metadata(
+            selected_research_section,
+            path,
+            len(universe_symbols),
+        )
 
     render_tradier_quote(ticker, get_quote, show_diagnostic_data)
 
     (
-        opportunity_discovery_tab,
-        option_chain_explorer_tab,
-        technical_analysis_explorer_tab,
-        quality_engine_diagnostics_tab,
+        security_research_tab,
+        opportunity_research_tab,
     ) = st.tabs(
         [
-            "Opportunity Discovery",
-            "Option Chain Explorer",
-            "Technical Analysis Explorer",
-            "Quality Engine Diagnostics",
+            "Security Research",
+            "Opportunity Research",
         ]
     )
 
-    with opportunity_discovery_tab:
-        render_opportunity_discovery_workflow(
-            Path(path).stem,
-            path,
-            universe_symbols,
-            universe_error,
-            reload_universe,
-        )
-    with option_chain_explorer_tab:
-        render_option_chain_explorer_workflow()
-    with technical_analysis_explorer_tab:
+    with security_research_tab:
         render_technical_analysis_explorer_workflow()
-    with quality_engine_diagnostics_tab:
-        render_quality_engine_diagnostics_workflow()
-
-    with st.sidebar:
-        render_research_dashboard(path, len(universe_symbols))
+    with opportunity_research_tab:
+        (
+            opportunity_discovery_tab,
+            option_chain_explorer_tab,
+            option_analysis_explorer_tab,
+        ) = st.tabs(
+            [
+                "Opportunity Discovery",
+                "Option Chain Explorer",
+                "Option Analysis Explorer",
+            ]
+        )
+        with opportunity_discovery_tab:
+            render_opportunity_discovery_workflow(
+                Path(path).stem,
+                path,
+                universe_symbols,
+                universe_error,
+                reload_universe,
+            )
+        with option_chain_explorer_tab:
+            render_option_chain_explorer_workflow()
+        with option_analysis_explorer_tab:
+            render_quality_engine_diagnostics_workflow()
 
 
 if __name__ == "__main__":
