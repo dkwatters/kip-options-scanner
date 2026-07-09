@@ -12,12 +12,25 @@ The platform began as a stock/options screener, but the current architecture is 
 
 | Entity | Definition | Primary Question | Status |
 | --- | --- | --- | --- |
+| Research Question Taxonomy (RQT) | The product taxonomy that classifies a user's natural-language research question by intent domain, lens, scope, confidence, and clarification need. | What kind of research is the user asking for? | Designed / Planned |
+| Research Intent Profile | The structured output of RQT classification and the handoff object into RCE. | How should the user's question be represented before conversation artifacts are proposed? | Designed / Planned |
+| Research Conversation Engine (RCE) | The guided workflow that translates a user's research question into structured, user-reviewed research artifacts. | How does user intent become a research artifact? | Designed / Planned |
+| Research Guidance | Persistent contextual support attached to a Research Session after the brief Research Conversation has clarified intent. | What should the user understand about the current research state? | Product concept |
+| Research Session | The durable product record of a user's research process, including original question, mission, universe, findings, refinements, decisions, and saved notes. | What research should the platform remember? | Product concept |
+| Research Refinement | A structured modification to existing research rather than a continuation of a generic AI chat. | What changed in this research and why? | Product concept |
+| Research Mission | The user's top-level investment question, thesis, or exploratory intent. | What are we researching? | Product concept |
+| Research Strategy | The user-understandable plan for investigating a Research Mission. | How will this mission be researched? | Product concept |
+| AI-Assisted Research Universe Definition | A proposed Research Universe Definition produced from a Research Mission and requiring user review before use. | What universe is being proposed? | Designed / Planned |
+| Candidate Security | A security proposed by RCE for possible inclusion in a Research Universe. | Why might this security be in scope? | Designed / Planned |
+| Inclusion Rationale | The explanation for why a Candidate Security may belong in the proposed universe. | Why is this candidate included? | Designed / Planned |
+| User-Approved Research Universe | A Research Universe Definition after the user has reviewed, edited, named, and saved it. | What universe did the user approve? | Designed / Planned |
 | Market Universe | The broad population of securities that could theoretically be studied. | What could be studied? | Conceptual |
 | Research Universe | The central workflow object: a named, explicit study population selected from the Market Universe for a research purpose. | Which securities are in scope for this study? | Current |
 | Research Universe Definition | The reusable specification for a Research Universe, including purpose, selection method, criteria, source data, and refresh behavior. | How is this universe defined? | Current / Emerging |
 | Static Research Universe | A Research Universe with explicit membership supplied by a manual list, curated file, or predefined dataset. | Which fixed securities are in scope? | Current |
 | Dynamic Research Universe | A Research Universe produced or refreshed from criteria, source data, and a repeatable generation process. | Which generated securities are in scope now? | Planned |
 | Research Universe Generator | Population-construction functionality that creates or refreshes Research Universe Definitions and Snapshots from criteria and source data. | How was this study population selected? | Future |
+| Research Universe Gate | A single inclusion or exclusion rule used by a Research Universe Generator. | Why is this security included or excluded? | Planned |
 | Research Universe Snapshot | The point-in-time membership of a Research Universe used by a scan, protocol observation, or research run. | Which exact securities were observed? | Emerging |
 | Evaluation Profile | A versioned analytical configuration for model versions, defaults, and output preferences. | Which analytical configuration is active? | Current |
 | Study Protocol | A repeatable observational study definition with purpose, population, configuration, run mode, and schedule context. | Why and how is this observation repeated? | Current |
@@ -40,6 +53,174 @@ The platform began as a stock/options screener, but the current architecture is 
 
 ## Core Domain Entities
 
+### Research Question Taxonomy (RQT)
+
+Definition: The product taxonomy that classifies a user's natural-language research question by research intent domain, research lenses, mentioned entities, scope, sophistication estimate, confidence, and clarification need.
+
+Purpose: Identify what kind of research the user is asking for before the platform proposes a Research Mission, Research Strategy, or Research Universe Definition.
+
+Owns: Intent-domain classification, research-lens classification, interpretation confidence, and the structured Research Intent Profile.
+
+Does NOT Own: Security scoring, option evaluation, trade recommendations, Opportunity Discovery behavior, SAM calculations, OAM scoring, Study Protocol behavior, repository schema, cloud jobs, or research conclusions.
+
+Relationships: Produces a Research Intent Profile consumed by the Research Conversation Engine.
+
+Status: Designed / Planned. Defined in `docs/product/Research_Question_Taxonomy_and_Conversation_Design.md`.
+
+### Research Intent Profile
+
+Definition: The structured output of RQT classification.
+
+Purpose: Preserve the interpreted user intent in a form that RCE can use to drive clarification, mission creation, strategy creation, universe proposal, and downstream path selection.
+
+Owns: Original question, primary domain, primary intent, secondary intents, research lenses, mentioned companies, themes, industries, time horizon, asset focus, estimated user sophistication, confidence, and clarification need.
+
+Does NOT Own: Candidate-security final approval, model output, scan execution, option analysis, security analysis, or investment conclusions.
+
+Relationships: Created by RQT and consumed by RCE before Research Mission and Research Strategy artifacts are proposed.
+
+Status: Designed / Planned. Defined in `docs/product/Research_Question_Taxonomy_and_Conversation_Design.md`.
+
+### Research Conversation Engine (RCE)
+
+Definition: The guided workflow that translates a user's plain-language research question into structured research artifacts the user can review before downstream analysis begins.
+
+Purpose: Help the user move from intent to a reviewable Research Universe Definition without bypassing user approval or model boundaries. RCE exists only to understand intent, clarify when necessary, define a Research Mission, and propose a Research Universe.
+
+Owns: Structured mission interpretation, candidate universe proposal, Candidate Securities, Inclusion Rationale, review/edit/name/save workflow, and handoff to snapshot creation.
+
+Does NOT Own: Security scoring, option evaluation, trade recommendations, analytical model behavior, general chatbot behavior, arbitrary question answering, OAM scoring, SAM calculations, Opportunity Discovery behavior, Evaluation Profile behavior, Study Protocol execution, repository schema, cloud jobs, or research conclusions.
+
+Relationships: Starts from a Research Mission and may produce an AI-Assisted Research Universe Definition that becomes a User-Approved Research Universe after user review.
+
+Status: Designed / Planned.
+
+### Research Guidance
+
+Definition: Persistent contextual support attached to an active Research Session after the initial Research Conversation has clarified intent and proposed reviewable artifacts.
+
+Purpose: Help the user understand the current mission, universe, analysis state, findings, missing evidence, saved notes, decisions, and possible refinements without turning the product into an open-ended chatbot.
+
+Owns: Contextual explanation and orientation around the current Research Session.
+
+Does NOT Own: Security scoring, option evaluation, investment recommendations, analytical conclusions, SAM calculations, OAM scoring, Opportunity Discovery behavior, Study Protocol execution, repository evidence, or arbitrary question answering.
+
+Relationships: Follows Research Conversation and remains attached to a Research Session while the user reviews evidence and makes refinements.
+
+Status: Product concept.
+
+### Research Session
+
+Definition: The durable product record of a user's research process.
+
+Purpose: Preserve what the platform should remember about research rather than preserving conversation as the primary artifact.
+
+Owns: Original Question, Research Mission, Research Universe, Findings, Refinements, Decisions, and Saved Notes.
+
+Does NOT Own: Raw evidence storage, model thresholds, scan execution, trade recommendations, or analytical model behavior.
+
+Relationships: Begins with a question and Research Conversation, uses Research Guidance during review, references Research Universe Snapshots and Research Repository evidence, and records Research Refinements over time.
+
+Status: Product concept.
+
+### Research Refinement
+
+Definition: A structured modification to existing research rather than a continuation of an AI chat.
+
+Purpose: Make changes to the mission, universe, lenses, findings, decisions, or notes explicit and attributable to the Research Session.
+
+Owns: The description of what changed, why it changed, and which research state it modifies.
+
+Does NOT Own: Model scoring, recommendation generation, raw evidence mutation, or historical evidence rewriting.
+
+Relationships: Belongs to a Research Session and may produce a revised Research Mission, updated Research Universe Definition, new Research Universe Snapshot, additional Findings, or revised Saved Notes.
+
+Status: Product concept.
+
+### Research Mission
+
+Definition: The user's top-level investment question, thesis, or exploratory intent.
+
+Purpose: Anchor the product experience around what the user is trying to accomplish before exposing data, screens, models, or configuration.
+
+Owns: User intent, research objective, and the plain-language reason for starting a workflow.
+
+Does NOT Own: Universe membership, model behavior, scoring rules, scan execution, repository storage, or research conclusions.
+
+Relationships: A Research Mission may lead to one or more Research Strategies and Research Universes.
+
+Status: Product concept. Defined in `docs/product/Product_Vision_and_Experience_Architecture.md`.
+
+### Research Strategy
+
+Definition: The user-understandable plan for investigating a Research Mission.
+
+Purpose: Translate intent into a structured research workflow without forcing the user directly into a scanner, chart, or preselected universe.
+
+Owns: The conceptual investigation approach, including how a Research Universe may be selected, what analysis may be used, what observations may be collected, and what comparisons may be made.
+
+Does NOT Own: Low-level implementation, scoring parameters, database schema, cloud execution, or model internals.
+
+Relationships: A Research Strategy may use a Research Universe, Security Research, Opportunity Research, Study Protocols, and historical observations.
+
+Status: Product concept. Defined in `docs/product/Product_Vision_and_Experience_Architecture.md`.
+
+### AI-Assisted Research Universe Definition
+
+Definition: A proposed Research Universe Definition generated by RCE from a Research Mission and presented for user review.
+
+Purpose: Convert plain-language intent into a structured candidate universe proposal before any SAM, OD, OAM, SAE, or OAE workflow runs.
+
+Owns: Proposed universe name, purpose, structured interpretation, Candidate Securities, Inclusion Rationale, suggested boundaries, exclusions, and review notes.
+
+Does NOT Own: Final approval, snapshot membership after user edits, security scores, option scores, trade recommendations, Study Protocol results, or repository evidence.
+
+Relationships: Becomes a User-Approved Research Universe only after the user reviews, edits, names, and saves it.
+
+Status: Designed / Planned.
+
+### Candidate Security
+
+Definition: A security proposed by RCE for possible inclusion in an AI-Assisted Research Universe Definition.
+
+Purpose: Make proposed universe membership reviewable before it becomes part of a Research Universe Definition.
+
+Owns: Provisional candidate identity and associated Inclusion Rationale.
+
+Does NOT Own: Security quality, option quality, ranking, technical strength, suitability, or trade action.
+
+Relationships: Candidate Securities may become members of a User-Approved Research Universe after user review.
+
+Status: Designed / Planned.
+
+### Inclusion Rationale
+
+Definition: The explanation attached to a Candidate Security describing why it may belong in the proposed Research Universe.
+
+Purpose: Help the user review the proposed universe boundary and understand the research-scope logic.
+
+Owns: Scope explanation for proposed inclusion.
+
+Does NOT Own: Scores, rankings, forecasts, investment recommendations, or model conclusions.
+
+Relationships: Belongs to a Candidate Security in an AI-Assisted Research Universe Definition and may be preserved with the approved definition or snapshot metadata.
+
+Status: Designed / Planned.
+
+### User-Approved Research Universe
+
+Definition: A Research Universe Definition after the user has reviewed, edited, named, and saved it.
+
+Purpose: Establish that AI-assisted or manually created universe membership has explicit user approval before snapshot creation and downstream analysis.
+
+Owns: Approved name, purpose, membership boundary, and user-reviewed rationale.
+
+Does NOT Own: Model execution, option evaluation, SAM calculations, OAM scoring, Study Protocol conclusions, or trade decisions.
+
+Relationships: Produces a Research Universe Snapshot for SAM/SAE and OD/OAM/OAE workflows.
+
+Status: Designed / Planned.
+
 ### Market Universe
 
 Definition: The broad set of securities that could theoretically be observed by the platform.
@@ -51,6 +232,8 @@ Owns: Conceptual population scope.
 Does NOT Own: Study inclusion, contract evaluation, model thresholds, scan execution, or research conclusions.
 
 Relationships: Research Universes are selected from the Market Universe.
+
+Examples: All optionable equities, S&P 500, Nasdaq 100, or a manually curated market list.
 
 Status: Conceptual.
 
@@ -72,7 +255,7 @@ Status: Current preferred term. Supersedes Watchlist, Corpus, and Reference Univ
 
 ### Research Universe Definition
 
-Definition: The reusable specification for a Research Universe, including name, purpose, selection method, criteria, source data, ownership notes, and expected refresh behavior.
+Definition: The reusable specification or saved recipe for a Research Universe, including name, purpose, selection method, criteria, source data, ownership notes, and expected refresh behavior.
 
 Purpose: Preserve why a universe exists and how membership should be produced before any point-in-time observation is run.
 
@@ -80,7 +263,7 @@ Owns: Universe selection criteria, manual membership source references, generato
 
 Does NOT Own: OAM scoring, Opportunity Discovery ranking, SAM characterization, Study Protocol results, or research conclusions.
 
-Relationships: Produces or identifies Research Universe Snapshots. Used by static manual universes and dynamic generated universes.
+Relationships: Produces or identifies Research Universe Snapshots. Used by static manual universes and dynamic generated universes. Downstream workflows consume the resulting snapshot rather than reading the definition directly.
 
 Status: Current / Emerging. Manual and predefined universes are valid Research Universe Definitions. Generated universes are also valid definitions when their criteria and generator are documented.
 
@@ -118,25 +301,41 @@ Definition: Population-construction functionality that creates or refreshes Rese
 
 Purpose: Separate population construction from opportunity discovery, option analysis, security analysis, and research interpretation.
 
-Owns: Universe selection criteria, refresh rationale, and generated Research Universe membership.
+Owns: Universe selection criteria, gates, refresh rationale, and generated Research Universe membership.
 
-Does NOT Own: OAM scoring, Opportunity Discovery ranking, SAM characterization, Study Protocol results, or research conclusions.
+Does NOT Own: Option-contract evaluation, OAM scoring, Opportunity Discovery ranking, SAM calculations, Study Protocol results, or research conclusions.
 
-Relationships: Produces Research Universe Definitions or Snapshots from the Market Universe. "Security Discovery" is an older or broader label for this population-construction responsibility.
+Relationships: Produces Research Universe Definitions or Snapshots from the Market Universe or a bounded candidate list. It may use SAM-derived values as gate inputs when a definition declares them, but SAM does not become the generator. "Security Discovery" is an older or broader label for this population-construction responsibility.
 
 Status: Future.
 
+### Research Universe Gate
+
+Definition: A single inclusion or exclusion rule used by a Research Universe Generator.
+
+Purpose: Make generated universe membership explainable and reproducible by expressing each population-construction criterion independently.
+
+Owns: One field, operator, threshold or value set, inclusion/exclusion behavior, and rationale.
+
+Does NOT Own: Option-contract evaluation, OAM scoring, OD ranking, SAM calculations, Study Protocol execution, or research conclusions.
+
+Examples: RSI between 55 and 70, MACD state bullish, price above SMA50, average volume above threshold, or sector included/excluded.
+
+Relationships: Belongs to a Research Universe Definition and is applied by a Research Universe Generator before a Research Universe Snapshot is materialized.
+
+Status: Planned.
+
 ### Research Universe Snapshot
 
-Definition: The point-in-time membership of a Research Universe used by a scan, Study Protocol observation, or research run.
+Definition: The exact point-in-time membership of a Research Universe used by a scan, Study Protocol observation, or research run.
 
 Purpose: Preserve reproducibility by recording exactly which securities were observed, regardless of how the universe was created.
 
-Owns: Observation-time membership, snapshot timestamp or identity, and relationship to the active Research Universe Definition.
+Owns: Observation-time membership, snapshot timestamp or identity, relationship to the active Research Universe Definition, and enough metadata to make the population reproducible.
 
 Does NOT Own: Selection criteria, model scoring, scan orchestration, repository interpretation, or conclusions.
 
-Relationships: Consumed by SAM, Opportunity Discovery, Study Protocols, and the Research Repository as the population boundary for evidence.
+Relationships: Consumed by SAM, Opportunity Discovery, Study Protocols, and the Research Repository as the population boundary for evidence. Static and dynamic universes should appear identical to these downstream workflows after snapshot creation.
 
 Status: Emerging. Current CSV membership at scan time functions as the practical snapshot boundary; explicit snapshot persistence can evolve separately.
 
@@ -552,9 +751,19 @@ Superseded terms may still appear in code names, file names, historical notes, o
 
 ```mermaid
 flowchart TD
+    UQ[User Question] --> RQT[Research Question Taxonomy]
+    RQT --> RIP[Research Intent Profile]
+    RIP --> RCE[Research Conversation Engine]
+    RCE --> RM[Research Mission]
+    RM --> AURD[AI-Assisted Research Universe Definition]
+    AURD --> CS[Candidate Security + Inclusion Rationale]
+    CS --> UARU[User-Approved Research Universe]
     MU[Market Universe] --> RUD[Research Universe Definition]
     ML[Manual / Predefined Universes] --> RUD
     RUG[Research Universe Generator] --> RUD
+    UARU --> RUD
+    RUG --> RUGATE[Research Universe Gate]
+    RUGATE --> RUS[Research Universe Snapshot]
     RUD --> RUS[Research Universe Snapshot]
     RUS --> RU[Research Universe]
     RU --> SP[Study Protocol]
@@ -575,22 +784,47 @@ flowchart TD
 
 ## Research Workflow
 
+Question -> Research Conversation -> Research Guidance -> Research Mission -> Research Universe -> Security Analysis -> Opportunity Discovery -> Findings -> Research Refinement
+
+The implementation-oriented workflow is:
+
+User Question -> RQT Classification -> Research Intent Profile -> RCE Structured Interpretation -> Candidate Universe Proposal -> User Review/Edit/Name -> Research Universe Definition -> Research Universe Snapshot -> SAM/SAE -> OD/OAM/OAE -> Research Repository -> Findings -> Research Refinement
+
+After the user-approved universe exists, the technical workflow remains:
+
 Market Universe -> Research Universe Definition -> Research Universe Snapshot -> Security Analysis Model / Security Analysis Explorer -> Opportunity Discovery -> Option Analysis Model / Option Analysis Explorer -> Research Repository / Study Protocols
 
-The user selects a Research Universe for the research run. The universe may be static, such as a manual or predefined list, or dynamic, such as a generated universe built from documented criteria. Both are valid Research Universe Definitions.
+The user starts with a Research Mission, uses RCE to review an AI-assisted candidate universe proposal, or selects an existing Research Universe for the research run. The universe may be static, such as a manual or predefined list, AI-assisted through RCE, or dynamic, such as a generated universe built from documented criteria. All are valid Research Universe Definitions when reviewed and saved.
 
-Before downstream analysis, the selected universe is treated as a Research Universe Snapshot so the exact population can be reproduced later. SAM characterizes the securities and SAE supports security-level exploration. Opportunity Discovery finds visible opportunities from that population. OAM evaluates option contracts and OAE supports option-level exploration. The Research Repository stores the evidence, and Study Protocols make repeated observations comparable.
+Before downstream analysis, the selected universe is materialized as a Research Universe Snapshot so the exact population can be reproduced later. SAM characterizes the securities and SAE supports security-level exploration. Opportunity Discovery receives the snapshot and finds visible opportunities from that population. OAM evaluates option contracts and OAE supports option-level exploration. The Research Repository stores the evidence, and Study Protocols make repeated observations comparable.
 
 Downstream workflows should not care whether a Research Universe was created manually, predefined in a file, or generated. They should consume the Research Universe and its snapshot as the population boundary.
+
+RCE remains upstream of downstream research execution. It translates intent into structured artifacts and does not score securities, evaluate options, recommend trades, or alter SAM, SAE, OD, OAM, OAE, Evaluation Profiles, Study Protocols, cloud jobs, database schema, or Research Repository evidence semantics.
+
+Research Conversation should be brief. Research Guidance persists through the Research Session. The platform should remember the Original Question, Research Mission, Research Universe, Findings, Refinements, Decisions, and Saved Notes, not conversation turns as the primary product object.
 
 ---
 
 ## Glossary Rules
 
+- Use Research Conversation Engine or RCE for the user-reviewed workflow that turns a question into structured research artifacts.
+- Use Research Guidance for persistent contextual support during a Research Session after the brief Research Conversation ends.
+- Use Research Session for the durable product record of Original Question, Research Mission, Research Universe, Findings, Refinements, Decisions, and Saved Notes.
+- Use Research Refinement for structured changes to existing research, not open-ended AI chat continuation.
+- Use Research Question Taxonomy or RQT for the upstream classification layer that identifies research intent domains, lenses, confidence, and clarification need.
+- Use Research Intent Profile for the structured classification output passed from RQT to RCE.
+- Use Research Mission for the user's top-level question, thesis, or exploratory intent.
+- Use Research Strategy for the user-understandable plan that investigates a Research Mission.
+- Use AI-Assisted Research Universe Definition for an RCE-proposed universe before user approval.
+- Use Candidate Security for a proposed member of an AI-assisted universe.
+- Use Inclusion Rationale for the explanation of why a Candidate Security may belong in scope.
+- Use User-Approved Research Universe for a reviewed, edited, named, and saved Research Universe Definition.
 - Use Research Universe for the active study population.
 - Use Research Universe Definition for the reusable universe specification.
 - Use Research Universe Snapshot for point-in-time membership used by an observation.
 - Use Research Universe Generator for future population-construction mechanics.
+- Use Research Universe Gate for a single inclusion or exclusion rule in a generated universe.
 - Use Market Universe for the broader population from which research populations may be selected.
 - Use Opportunity Discovery for the scan workflow.
 - Use OAM / Option Analysis Model for option-level quality evaluation; CQM is historical.

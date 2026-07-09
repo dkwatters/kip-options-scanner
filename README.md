@@ -1,6 +1,10 @@
 # Kip Options Research Platform
 
-Kip Options is a Streamlit-based quantitative research platform for observing Research Universes, characterizing securities, evaluating option opportunities, and preserving research evidence over time. It has no trading, brokerage account access, Robinhood integration, order placement, recommendations, affordability scoring, AI reasoning, or portfolio awareness. Its option-analysis score is an explainable evaluation of existing Option Analysis Model rules, not a recommendation.
+Kip Options is a Streamlit-based, question-driven quantitative research platform. It begins with investor curiosity, translates plain-language research questions into Research Missions and Research Universes, characterizes securities, evaluates option opportunities, and preserves research evidence over time.
+
+Conversation starts the process. Evidence completes it. The platform remembers research rather than conversations through durable Research Sessions that can preserve the original question, mission, universe, findings, refinements, decisions, and saved notes.
+
+It has no trading, brokerage account access, Robinhood integration, order placement, recommendations, affordability scoring, autonomous investment advice, or portfolio awareness. Its option-analysis score is an explainable evaluation of existing Option Analysis Model rules, not a recommendation.
 
 ## Setup
 

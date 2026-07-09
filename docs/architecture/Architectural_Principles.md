@@ -12,6 +12,7 @@ They are intended to protect interpretability, research discipline, and operatio
 
 The platform keeps research responsibilities distinct:
 
+- Research Conversation translates user intent into structured, user-reviewed research artifacts.
 - Discovery builds or observes a population.
 - Security Research characterizes underlying securities through the Security Analysis Model.
 - Opportunity Research discovers option opportunities and evaluates them through the Option Analysis Model.
@@ -23,7 +24,33 @@ No layer should silently take over another layer's responsibility.
 
 ---
 
-## 2. Research Universes Are First-Class
+## 2. RCE Translates Intent, Not Outcomes
+
+The Research Conversation Engine (RCE) helps a user move from a plain-language question to a structured Research Universe Definition.
+
+RCE may:
+
+- Interpret the Research Mission.
+- Propose Candidate Securities.
+- Provide Inclusion Rationale.
+- Help the user edit, name, and save a User-Approved Research Universe.
+- Hand off to snapshot creation and downstream research.
+
+RCE must not:
+
+- Score securities.
+- Evaluate options.
+- Recommend trades.
+- Modify Opportunity Discovery.
+- Modify OAM, SAM, SAE, or OAE behavior.
+- Modify Evaluation Profiles or Study Protocols.
+- Write research conclusions into the Research Repository.
+
+RCE output is a reviewable artifact, not a model result or investment recommendation.
+
+---
+
+## 3. Research Universes Are First-Class
 
 A Research Universe is the population boundary for a study. Results are interpretable only when the observed population is explicit.
 
@@ -41,9 +68,19 @@ Population construction should remain separate from Opportunity Discovery and OA
 
 Research Universe Snapshots protect reproducibility. A scan, Study Protocol observation, or research run should be interpretable against the exact securities that were in scope at observation time.
 
+The Research Universe Design Specification v0.1 is documented in `docs/architecture/Research_Universe_Design_Specification.md`. It defines Market Universe, Research Universe Definition, Research Universe Snapshot, Research Universe Generator, and Research Universe Gate as first-class concepts.
+
+Architectural boundary rules:
+
+- Static and dynamic universes become identical to downstream workflows after snapshot creation.
+- Opportunity Discovery receives a Research Universe Snapshot as its population boundary.
+- SAM may provide security-level fields to a future generator, but SAM does not become the generator.
+- Research Universe Generators do not evaluate option contracts and do not modify OD, OAM, or SAM behavior.
+- Initial dynamic generation should use bounded candidate lists rather than expensive whole-market scans.
+
 ---
 
-## 3. Opportunity Discovery Is Observation, Not Recommendation
+## 4. Opportunity Discovery Is Observation, Not Recommendation
 
 Opportunity Discovery identifies visible passing and near-miss candidates under the active configuration. It does not recommend trades, predict outcomes, place orders, or imply suitability.
 
@@ -51,7 +88,7 @@ Its output is research evidence.
 
 ---
 
-## 4. OAM Owns Option Analysis Only
+## 5. OAM Owns Option Analysis Only
 
 The Option Analysis Model owns option-level quality rules, thresholds, margins, and scores.
 
@@ -67,7 +104,7 @@ Changes to OAM behavior require explicit research rationale and should not be in
 
 ---
 
-## 5. SAM Is Independent Security Research
+## 6. SAM Is Independent Security Research
 
 The Security Analysis Model records security-level technical condition at scan time.
 
@@ -75,7 +112,7 @@ SAM must not change OAM scoring, Opportunity Discovery filtering, rankings, OAE 
 
 ---
 
-## 6. The Research Repository Stores Evidence, Not Meaning
+## 7. The Research Repository Stores Evidence, Not Meaning
 
 The Research Repository persists observations and linked data. It should make evidence durable, queryable, and comparable across local and cloud execution.
 
@@ -83,7 +120,7 @@ Interpretation belongs in the Research Notebook, reports, or explicit analysis a
 
 ---
 
-## 7. Study Protocols Protect Comparability
+## 8. Study Protocols Protect Comparability
 
 Repeated observations should be tied to Study Protocols when they are intended to support longitudinal research.
 
@@ -91,7 +128,7 @@ Scheduled Observations and Exploratory Observations must remain distinguishable 
 
 ---
 
-## 8. Cloud Execution Preserves Domain Boundaries
+## 9. Cloud Execution Preserves Domain Boundaries
 
 Cloud infrastructure changes where the platform runs, not what the platform means.
 
@@ -99,7 +136,7 @@ Render Cron Jobs execute scheduled observations. Render Web Service presents the
 
 ---
 
-## 9. Prefer Explicit Versioning and Rationale
+## 10. Prefer Explicit Versioning and Rationale
 
 Evaluation Profiles, Study Protocols, model versions, and major terminology shifts should be named and recorded.
 
@@ -112,7 +149,7 @@ Research changes should explain:
 
 ---
 
-## 10. Characterize Before Optimizing
+## 11. Characterize Before Optimizing
 
 The platform should first describe observed behavior, then form hypotheses, then test those hypotheses, and only then consider model changes.
 
@@ -120,7 +157,7 @@ Premature optimization weakens research quality because it can erase the evidenc
 
 ---
 
-## 11. Documentation Is Part of the Architecture
+## 12. Documentation Is Part of the Architecture
 
 Architecture documents, glossary entries, diagrams, cloud notes, and research notebook entries are part of the system's control surface.
 

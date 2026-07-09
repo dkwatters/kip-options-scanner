@@ -1499,6 +1499,257 @@ def render_research_sidebar_metadata(selected_section, universe_path, security_c
         render_opportunity_research_sidebar(status, universe_path, security_count)
 
 
+def render_recent_research():
+    """Render recent archived observations without changing repository behavior."""
+    try:
+        status = research_repository_from_env().status(study_id=DEFAULT_STUDY_PROTOCOL.study_id)
+    except Exception as error:
+        st.info("Recent research is unavailable: " + str(error))
+        return
+
+    if not status.recent_observations:
+        st.info("No recent research observations are available yet.")
+        return
+
+    recent_rows = pd.DataFrame(status.recent_observations).rename(
+        columns={
+            "scan_id": "Scan Identifier",
+            "scan_timestamp": "Observation Timestamp",
+            "study_id": "Study Identifier",
+            "scheduled_time_label": "Scheduled Time",
+            "run_mode": "Run Mode",
+        }
+    )
+    st.table(recent_rows)
+
+
+def render_saved_research_universes(active_universe_path, active_universe_symbols):
+    """Render available CSV-backed Research Universes without changing persistence."""
+    universe_rows = []
+    for universe_path in sorted((ROOT / "data").glob("*.csv")):
+        try:
+            universe = load_universe(str(universe_path))
+            security_count = len(universe)
+        except UniverseError:
+            security_count = UNAVAILABLE
+        universe_rows.append(
+            {
+                "Research Universe": universe_path.stem,
+                "Source": str(universe_path.relative_to(ROOT)),
+                "Securities": security_count,
+                "Current": "Yes" if str(universe_path) == active_universe_path else "",
+            }
+        )
+
+    if not universe_rows and not active_universe_symbols:
+        st.info("No saved Research Universes are available yet.")
+        return
+
+    if universe_rows:
+        st.dataframe(pd.DataFrame(universe_rows), hide_index=True, width="stretch")
+
+    if active_universe_symbols:
+        st.caption(
+            "Current active Research Universe contains "
+            + str(len(active_universe_symbols))
+            + " securities."
+        )
+
+
+def set_selected_page(page):
+    """Move between existing Streamlit pages from landing-page action buttons."""
+    st.session_state.selected_page = page
+    st.rerun()
+
+
+def start_research_conversation():
+    """Capture the current question and reveal the planned-workflow preview."""
+    st.session_state.submitted_research_question = st.session_state.research_question.strip()
+    st.session_state.show_research_workspace_preview = True
+
+
+def select_research_path(path, starter_phrase):
+    """Use a starter path as coaching without leaving the workspace."""
+    st.session_state.research_question = starter_phrase
+    st.session_state.submitted_research_question = starter_phrase
+    st.session_state.selected_research_path = path
+    st.session_state.show_research_workspace_preview = True
+
+
+def render_research_workspace(active_universe_path, active_universe_symbols):
+    st.title("Research Workspace")
+
+    if "research_question" not in st.session_state:
+        st.session_state.research_question = ""
+    if "selected_research_path" not in st.session_state:
+        st.session_state.selected_research_path = None
+    if "submitted_research_question" not in st.session_state:
+        st.session_state.submitted_research_question = ""
+    if "show_research_workspace_preview" not in st.session_state:
+        st.session_state.show_research_workspace_preview = False
+
+    st.markdown("## Every investment begins with curiosity.")
+    st.markdown("### What can I help you understand today?")
+    st.text_area(
+        "Question",
+        key="research_question",
+        height=220,
+        label_visibility="collapsed",
+        placeholder=(
+            "Ask about a company, theme, opportunity, comparison, or concept.\n\n"
+            "Example: I would like to learn about companies that may benefit from AI infrastructure."
+        ),
+    )
+    st.caption(
+        "Ask in your own words. You do not need to know investing terminology - "
+        "the platform will help translate your question into a research path."
+    )
+    st.button(
+        "Start Conversation",
+        type="primary",
+        on_click=start_research_conversation,
+    )
+    st.info(
+        "Current state: this version captures the research question but does not yet "
+        "generate a universe automatically."
+    )
+
+    if st.session_state.show_research_workspace_preview:
+        with st.container(border=True):
+            st.markdown("### Here's how I understand the next step")
+            question = st.session_state.submitted_research_question.strip()
+            if question:
+                st.write("You want to start from:")
+                st.info(question)
+            st.write(
+                "This version has not yet connected the Research Conversation Engine, "
+                "but the next version will:"
+            )
+            preview_steps = [
+                "Interpret your question",
+                "Confirm or clarify what you mean",
+                "Suggest a research path",
+                "Propose a Research Mission",
+                "Suggest or create a Research Universe",
+                "Let you review, edit, and approve before analysis begins",
+            ]
+            for step in preview_steps:
+                st.write("- " + step)
+            st.caption("Conversation starts the process. Evidence completes it.")
+
+    st.markdown("### Need a little inspiration?")
+    st.caption("Choose a starting point if you are not sure what to ask.")
+    starter_cards = [
+        {
+            "title": "Explore an Investment Idea",
+            "description": "Help me discover companies around a theme.",
+            "examples": [
+                "Show me AI infrastructure companies.",
+                "I'd like to learn about robotics.",
+                "What companies benefit from lower interest rates?",
+            ],
+            "starter": "I'd like to understand companies that may benefit from __________.",
+        },
+        {
+            "title": "Research a Company",
+            "description": "Start with one company and build from there.",
+            "examples": [
+                "Is Caterpillar exposed to data center growth?",
+                "Should I research GE Vernova?",
+                "What makes Vertiv interesting?",
+            ],
+            "starter": (
+                "I'd like to understand whether __________ is worth researching "
+                "because __________."
+            ),
+        },
+        {
+            "title": "Find Investment Opportunities",
+            "description": "I already know what I'm looking at.",
+            "examples": [
+                "Find attractive call options for Micron.",
+                "Which names in my watchlist look strongest?",
+                "Show me earnings opportunities.",
+            ],
+            "starter": (
+                "I already know I'm interested in __________. "
+                "Help me find attractive opportunities."
+            ),
+        },
+        {
+            "title": "Compare & Learn",
+            "description": "Help me understand what I'm seeing.",
+            "examples": [
+                "Why wasn't Generac included?",
+                "Compare AI and robotics.",
+                "Explain why this stock ranked highly.",
+            ],
+            "starter": "I want to understand __________ and compare it with __________.",
+        },
+    ]
+    for start in range(0, len(starter_cards), 2):
+        for column, card in zip(st.columns(2), starter_cards[start : start + 2]):
+            with column:
+                with st.container(border=True):
+                    st.markdown("#### " + card["title"])
+                    st.caption(card["description"])
+                    st.write("Example questions:")
+                    for example in card["examples"]:
+                        st.caption("- " + example)
+                    st.button(
+                        "Use this path",
+                        key=f"research_start_{card['title']}",
+                        on_click=select_research_path,
+                        args=(card["title"], card["starter"]),
+                    )
+
+    if st.session_state.selected_research_path:
+        st.info(
+            "Selected starting point: "
+            + st.session_state.selected_research_path
+            + "."
+        )
+
+    st.markdown("### Continue Previous Research")
+    saved_tab, observations_tab = st.tabs(["Research Universes", "Recent Observations"])
+    with saved_tab:
+        render_saved_research_universes(active_universe_path, active_universe_symbols)
+    with observations_tab:
+        render_recent_research()
+
+    st.markdown("### Already know where you want to go?")
+    advanced_columns = st.columns(3)
+    advanced_targets = [
+        (
+            "Security Research",
+            "Open Security Research",
+            "Go to stock-level research.",
+        ),
+        (
+            "Opportunity Research",
+            "Open Opportunity Research",
+            "Go to opportunity research.",
+        ),
+        (
+            "Research Repository",
+            "View Research Repository",
+            "Review saved research history.",
+        ),
+    ]
+    for column, (page, button_label, description) in zip(advanced_columns, advanced_targets):
+        with column:
+            st.markdown("#### " + page)
+            st.caption(description)
+            if st.button(button_label, key=f"open_{page}"):
+                set_selected_page(page)
+
+
+def render_research_repository_page():
+    st.header("Research Repository")
+    st.caption("Archived research observations available through the current repository.")
+    render_recent_research()
+
+
 def actual_time_label(scan_timestamp):
     if not scan_timestamp:
         return UNAVAILABLE
@@ -2628,21 +2879,21 @@ def main():
     if "research_universe_path" not in st.session_state:
         st.session_state.research_universe_path = default_universe_path
     reload_universe = False
+    app_pages = [
+        "Research Workspace",
+        "Security Research",
+        "Opportunity Research",
+        "Research Repository",
+        "Startup Check",
+        "Tradier Connection",
+    ]
     with st.sidebar:
-        render_startup_check()
+        selected_page = st.radio("Navigation", app_pages, key="selected_page")
         st.header("Tradier Connection")
         ticker = st.text_input("Ticker symbol", value="SPY", max_chars=10).strip().upper()
         get_quote = st.button("Get Quote")
         show_diagnostic_data = st.checkbox("Show Diagnostic Data")
-        st.header("Research")
-        selected_research_section = st.selectbox(
-            "Research",
-            ["Security Research", "Opportunity Research"],
-            index=None,
-            placeholder="Select a research area",
-            label_visibility="collapsed",
-        )
-        if selected_research_section == "Opportunity Research":
+        if selected_page == "Opportunity Research":
             st.text_input(
                 "Research Universe CSV",
                 key="research_universe_path",
@@ -2656,32 +2907,22 @@ def main():
     except UniverseError as error:
         universe_error = error
         with st.sidebar:
-            if selected_research_section == "Opportunity Research":
+            if selected_page == "Opportunity Research":
                 st.error("Unable to load Research Universe: " + str(error))
         universe = []
     universe_symbols = [item.symbol for item in universe]
     with st.sidebar:
         render_research_sidebar_metadata(
-            selected_research_section,
+            selected_page if selected_page in ("Security Research", "Opportunity Research") else None,
             path,
             len(universe_symbols),
         )
 
-    render_tradier_quote(ticker, get_quote, show_diagnostic_data)
-
-    (
-        security_research_tab,
-        opportunity_research_tab,
-    ) = st.tabs(
-        [
-            "Security Research",
-            "Opportunity Research",
-        ]
-    )
-
-    with security_research_tab:
+    if selected_page == "Research Workspace":
+        render_research_workspace(path, universe_symbols)
+    elif selected_page == "Security Research":
         render_technical_analysis_explorer_workflow()
-    with opportunity_research_tab:
+    elif selected_page == "Opportunity Research":
         (
             opportunity_discovery_tab,
             option_chain_explorer_tab,
@@ -2705,6 +2946,12 @@ def main():
             render_option_chain_explorer_workflow()
         with option_analysis_explorer_tab:
             render_quality_engine_diagnostics_workflow()
+    elif selected_page == "Research Repository":
+        render_research_repository_page()
+    elif selected_page == "Startup Check":
+        render_startup_check()
+    elif selected_page == "Tradier Connection":
+        render_tradier_quote(ticker, get_quote, show_diagnostic_data)
 
 
 if __name__ == "__main__":

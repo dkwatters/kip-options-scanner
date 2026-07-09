@@ -216,6 +216,177 @@ Complete
 
 ---
 
+### Milestone M13 - Research Universe Design Specification v0.1 Added
+
+Date: 2026-07-06
+
+Definition:
+The platform added a documentation-only Research Universe Design Specification v0.1 before implementation.
+
+Evidence:
+
+- `docs/architecture/Research_Universe_Design_Specification.md` defines Market Universe, Research Universe Definition, Research Universe Snapshot, Research Universe Generator, and Research Universe Gate as first-class concepts.
+- Static and dynamic universes are specified to become identical to downstream workflows after snapshot creation.
+- Opportunity Discovery is specified to consume a Research Universe Snapshot rather than a mutable definition directly.
+- SAM may provide gate input fields to a future generator, but SAM remains independent security-level characterization and does not become the generator.
+- Research Universe Generators are specified as population-construction components only; they do not evaluate option contracts and do not modify OD, OAM, SAM, OAE, SAE, Evaluation Profile, Study Protocol, database, cloud job, or UI behavior.
+- The implementation plan is phased as RU-1 static definitions and snapshots, RU-2 management UI, RU-3 bounded dynamic generation using existing SAM fields, and RU-4 user-defined gates.
+- The sprint changed documentation only.
+
+Rationale:
+Dynamic universe generation creates reproducibility, cost, rate-limit, and responsibility-boundary risks if it is implemented before the architecture is explicit. The snapshot-first design lets CSV universes, manual watchlists, index universes, and future generated universes all become the same downstream input while preserving exact observed membership.
+
+Status:
+Complete
+
+---
+
+### Milestone M14 - Product Vision and Experience Architecture v1.0 Added
+
+Date: 2026-07-07
+
+Definition:
+The platform added a non-technical product vision and experience architecture document that sits above the technical architecture, domain glossary, model specifications, and PRDs.
+
+Evidence:
+
+- `docs/product/Product_Vision_and_Experience_Architecture.md` defines the platform as a configurable investment research platform that translates a user's question, thesis, or mission into a repeatable research workflow.
+- The document establishes Research Mission and Research Strategy as product-level concepts that precede Research Universe selection, Security Research, Opportunity Research, and historical observation.
+- The experience model defines four sophistication levels: Curious Beginner, Growing Investor, Experienced Investor / Trader, and Research Power User.
+- The research journey is described as User Question / Mission -> Research Strategy -> Research Universe -> Security Research -> Opportunity Research -> Historical Observation -> Confidence / Decision.
+- The document reinforces progressive disclosure: questions before data, research before recommendations, ideas before indicators, repeatable observations before opinions, and complexity revealed only when useful.
+- The sprint changed documentation only and did not change executable behavior, Opportunity Discovery, Security Analysis Model, Option Analysis Model, Study Protocols, repository behavior, cloud infrastructure, scoring, thresholds, or tests.
+
+Rationale:
+The technical architecture already defines platform components and responsibility boundaries, but the product needed a higher-level experience frame that starts with user intent. This milestone clarifies that future UX should begin with "What are you trying to accomplish today?" or "What are we researching?" rather than defaulting into a scanner, chart, or preselected universe.
+
+Status:
+Complete
+
+---
+
+### Milestone M15 - Research Conversation Engine Workflow Design v0.1 Added
+
+Date: 2026-07-07
+
+Definition:
+The platform added a documentation-only Research Conversation Engine workflow design for translating a user's research question into a user-reviewed Research Universe Definition.
+
+Evidence:
+
+- RCE is defined as the upstream workflow that translates a Research Mission into structured research artifacts.
+- The documented workflow is User Question -> RCE Structured Interpretation -> Candidate Universe Proposal -> User Review/Edit/Name -> Research Universe Definition -> Research Universe Snapshot -> SAM/SAE -> OD/OAM/OAE -> Research Repository.
+- AI-Assisted Research Universe Definition, Candidate Security, Inclusion Rationale, User-Approved Research Universe, and Research Universe Snapshot are defined as reviewable artifact concepts.
+- The UX proposal starts from a Research Workspace landing page with mission input, proposed universe preview, edit/name/save controls, and handoff to Security Research or Opportunity Research.
+- User stories were added for Curious Beginner, Growing Investor, Experienced Investor / Trader, and Research Power User.
+- The sprint changed documentation only and did not change executable behavior, scoring, OD, SAM, OAM, Evaluation Profiles, Study Protocols, cloud jobs, or database schema.
+
+Rationale:
+RCE is valuable only if it keeps the product conversational without weakening research boundaries. The user should be able to start with a plain-language question, but no AI-assisted universe should proceed into analysis until the user reviews and approves the Research Universe Definition.
+
+Status:
+Complete
+
+---
+
+### Milestone M16 - Research Question Taxonomy and Conversation Design v0.1 Added
+
+Date: 2026-07-08
+
+Definition:
+The platform added a documentation-only Research Question Taxonomy and Research Conversation Engine design specification for classifying natural-language research questions and translating them into reviewable research artifacts.
+
+Evidence:
+
+- `docs/product/Research_Question_Taxonomy_and_Conversation_Design.md` defines RQT as a taxonomy of research intent, not a list of canned questions.
+- The documented flow is Natural-language user question -> Research Question Taxonomy classification -> Research Intent Profile -> Research Conversation Engine -> Research Mission -> Research Strategy -> Research Universe Definition -> Research Universe Snapshot -> Security Research / Opportunity Research.
+- RQT domains include Discover, Evaluate, Opportunity Research, Compare, Learn, Validate, Monitor, and Build.
+- Research lenses include Technical, Fundamental, Options, Income, Risk, Valuation, Competitive Position, Event-Driven, Macro Exposure, and Theme / Narrative.
+- The specification defines Research Intent Profile fields, confidence handling, persona-aware conversation, representative scenarios, and future prompt template needs.
+- The sprint changed documentation only and did not change executable behavior, database schema, scoring, Opportunity Discovery, Security Analysis Model, Option Analysis Model, Study Protocols, cloud infrastructure, repository behavior, or UI behavior.
+
+Rationale:
+RCE needs an explicit intent-classification layer before it proposes missions, strategies, universes, or downstream paths. RQT makes broad, ambiguous, beginner, trader, and power-user questions interpretable without turning the platform into a recommendation engine or bypassing user review.
+
+Status:
+Complete
+
+---
+
+### Milestone M17 - Research Workspace RQT/RCE Landing Page v0.1 Added
+
+Date: 2026-07-08
+
+Definition:
+The Research Workspace landing page was refactored to reflect the Research Question Taxonomy and Research Conversation Engine direction without adding AI integration or analytical behavior.
+
+Evidence:
+
+- The landing page now asks "What are we researching?" and captures a plain-language research question.
+- Starting-point cards cover Explore an investment theme, Research a company, Build or refine a watchlist, Find option opportunities, Compare prior research, and Learn a concept.
+- Entering a question shows a Research Conversation Preview describing the eventual RCE steps: interpret the question, identify intent, suggest a path, propose a Research Mission, suggest or create a Research Universe, and require user review before analysis begins.
+- The page states that the current version captures the research question but does not yet generate a universe automatically.
+- Continue Previous Research surfaces CSV-backed Research Universes and recent observations when available.
+- Advanced Research provides shortcuts to Security Research, Opportunity Research, and the Research Repository.
+
+Rationale:
+The product experience should begin with user intent while preserving the current analytical boundaries. This landing page makes the future RQT/RCE workflow visible without pretending that classification, AI-assisted universe generation, or approval persistence has been implemented.
+
+Status:
+Complete
+
+---
+
+### Milestone M18 - Research Workspace Conversation-Forward UX v0.4
+
+Date: 2026-07-08
+
+Definition:
+The Research Workspace landing page was simplified so the experience begins with the user's curiosity and uses research-domain suggestion cards as coaching rails.
+
+Evidence:
+
+- The hero now centers on "Every investment begins with curiosity" and asks "What can I help you understand today?"
+- The question box is the primary action, with a single Start Conversation button.
+- Four coaching cards cover Explore an Investment Idea, Research a Company, Find Investment Opportunities, and Compare & Learn.
+- Card selection prefills the question box, stores the selected research path, and shows a placeholder preview without navigation, AI calls, universe generation, or analysis.
+- The preview explains that future RCE behavior will interpret, clarify, suggest a research path, propose a Research Mission, suggest or create a Research Universe, and require review before analysis begins.
+- Advanced users can still jump to Security Research, Opportunity Research, or the Research Repository.
+
+Rationale:
+Conversation is the front porch for research, not a chatbot wrapper. The landing page should capture the user's question first, then allow guidance and deterministic evidence workflows to follow. Conversation starts the process. Evidence completes it.
+
+Status:
+Complete
+
+---
+
+### Milestone M19 - Product Vision and Research Experience Alignment v1.0
+
+Date: 2026-07-08
+
+Definition:
+The product documentation was aligned around the evolution from a traditional stock/options screener into a question-driven research platform.
+
+Evidence:
+
+- Product philosophy now states that the platform begins with curiosity rather than tickers, conversation starts the process, evidence completes it, and the application remembers research rather than conversations.
+- The product journey is documented as Question -> Research Conversation -> Research Guidance -> Research Mission -> Research Universe -> Security Analysis -> Opportunity Discovery -> Findings -> Research Refinement.
+- Research Conversation Engine boundaries were tightened: RCE exists only to understand intent, clarify when necessary, define a Research Mission, and propose a Research Universe.
+- Research Guidance is documented as persistent contextual support, distinct from the brief Research Conversation.
+- Research Session is documented as a first-class product concept preserving Original Question, Research Mission, Research Universe, Findings, Refinements, Decisions, and Saved Notes.
+- Research Refinement is documented as structured modification of existing research rather than continuation of an AI chat.
+- Beginner-first natural-language entry is documented while preserving direct access for experienced users.
+- The sprint changed documentation only and did not change executable behavior, scoring, Opportunity Discovery, Security Analysis Model, Option Analysis Model, Study Protocols, cloud jobs, repository behavior, or tests.
+
+Rationale:
+The platform needs a durable product memory model that preserves research artifacts and evidence instead of treating conversation as the primary object. Conversation should help users get started, especially beginners, but analytical models and repository-backed evidence remain the source of research findings.
+
+Status:
+Complete
+
+---
+
 ## Observation Log
 
 ### Observation 001
@@ -345,6 +516,74 @@ Evidence: A manual CSV-backed universe and a future generated universe can both 
 Confidence: High
 
 Follow-up Questions: Should explicit Research Universe Snapshot persistence be added to the Research Repository, or is scan-time membership sufficient until dynamic generators are implemented?
+
+### Observation 009
+
+Observation ID: OBS-009
+
+Date: 2026-07-06
+
+Study Protocol: Platform Architecture
+
+Observation: Research Universe generation should begin from bounded candidate lists rather than the entire market.
+
+Evidence: Provider rate limits, latency, symbol coverage, optionable-status discovery, and data freshness risks become material when attempting broad market enumeration. Bounded lists such as existing curated CSV universes, S&P 500, Nasdaq 100, or manually curated optionable lists make generation testable without adding option-chain retrieval or changing OD/OAM behavior.
+
+Confidence: High
+
+Follow-up Questions: Which bounded candidate list should be the first RU-3 generator input, and what provider metadata should be stored with each generated snapshot?
+
+### Observation 010
+
+Observation ID: OBS-010
+
+Date: 2026-07-06
+
+Study Protocol: Platform Architecture
+
+Observation: SAM can support dynamic Research Universe generation without becoming responsible for universe membership.
+
+Evidence: SAM already records security-level technical fields that are plausible gate inputs, including RSI, MACD state, moving-average relationships, trend state, and realized volatility. A Research Universe Generator can read those fields under an explicit Research Universe Definition while SAM remains an observational model and OD/OAM behavior remains unchanged.
+
+Confidence: High
+
+Follow-up Questions: Which SAM fields are stable enough for initial gates, and should gate pass/fail evidence be persisted per snapshot member in RU-3 or deferred until RU-4?
+
+---
+
+### Observation 011
+
+Observation ID: OBS-011
+
+Date: 2026-07-07
+
+Study Protocol: Platform Architecture
+
+Observation: RCE should be treated as an intent-translation workflow rather than a scoring, discovery, or recommendation layer.
+
+Evidence: The RCE design requires user review/edit/name before saving a Research Universe Definition. Candidate Securities and Inclusion Rationale explain research scope only, while SAM, SAE, OD, OAM, OAE, Evaluation Profiles, Study Protocols, cloud jobs, and repository schema remain unchanged.
+
+Confidence: High
+
+Follow-up Questions: What is the minimal persistence model needed to preserve RCE interpretation, user edits, approval metadata, and inclusion rationale without coupling RCE to model outputs?
+
+---
+
+### Observation 012
+
+Observation ID: OBS-012
+
+Date: 2026-07-08
+
+Study Protocol: Platform Architecture
+
+Observation: RQT should classify research intent before RCE proposes missions, strategies, universes, or downstream analysis paths.
+
+Evidence: The RQT/RCE design separates intent domains, research lenses, Research Intent Profile fields, interpretation confidence, clarification handling, persona-aware conversation, and candidate universe proposal into distinct responsibilities. This keeps RCE upstream of SAM, OD, OAM, Study Protocols, repository behavior, and research conclusions.
+
+Confidence: High
+
+Follow-up Questions: Which fields in the Research Intent Profile should be persisted first when RCE implementation begins, and which should remain transient conversation context?
 
 ---
 
