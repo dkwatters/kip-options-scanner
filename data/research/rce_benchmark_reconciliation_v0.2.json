@@ -1,0 +1,417 @@
+{
+  "report_version": "v0.2",
+  "generated_from": "docs/research/benchmarks",
+  "inventory": [
+    {
+      "filename": "ai power supply chain.pdf",
+      "domain": "AI Power Supply Chain",
+      "page_count": 4,
+      "file_size": 14371,
+      "sha256": "669253bf7d250a09cbca2b20ae7a1700fd419f7b59b902228a808be015dbacef",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "ai-power-supply-chain.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "crispr ai oncology companies.pdf",
+      "domain": "CRISPR & AI Oncology",
+      "page_count": 3,
+      "file_size": 9748,
+      "sha256": "6dac319628c1f709faccdfba2d075310ae43e1061829c20e6c91ac63646e83de",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "crispr-ai-oncology.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "critical infra cybersecurity companies.pdf",
+      "domain": "Critical Infrastructure Cybersecurity",
+      "page_count": 3,
+      "file_size": 9910,
+      "sha256": "b619474cc42a310159822fe9ca72912a3b4bb80073b348ad442667780c34ef59",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "critical-infrastructure-cybersecurity.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "critical minerals companies.pdf",
+      "domain": "Critical Minerals",
+      "page_count": 3,
+      "file_size": 8511,
+      "sha256": "2386d39c5f52aa52d4eb100a939112207629427abe3a6a077aa58a14d104ed12",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "critical-minerals.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "crypto adjacent companies.pdf",
+      "domain": "Crypto-Adjacent Companies",
+      "page_count": 3,
+      "file_size": 11458,
+      "sha256": "e83e773ea32961d20a06ccba0422ec76d192706e44ad8297d4f3e4d9738be80f",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "crypto-adjacent-companies.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "datacenter networking companies.pdf",
+      "domain": "AI Data Center Networking & Cabling",
+      "page_count": 3,
+      "file_size": 9625,
+      "sha256": "30d36fcdf029bae9bbdf70c0138cb1c650a260c3ee814ee3e3e07099bc4304d2",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "ai-data-center-networking-cabling.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "defense drone companies.pdf",
+      "domain": "Defense Drones & Counter-Drone",
+      "page_count": 3,
+      "file_size": 9234,
+      "sha256": "de0ef6efbcc684d1c65eda424f14766136e5a156296b54e07938bae4a801d226",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "defense-drones-counter-drone.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "ev autonomous driving companies.pdf",
+      "domain": "EV & Autonomous Driving",
+      "page_count": 4,
+      "file_size": 14278,
+      "sha256": "452178d239db63d85dad318b2a1e41c4ddf709b23d799cdc074e03bed59c975f",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "ev-autonomous-driving.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "fintech companies.pdf",
+      "domain": "Fintech",
+      "page_count": 3,
+      "file_size": 9660,
+      "sha256": "6aae40a03f3d7c8f65e32830191c5071f466a0c94e4786057ffef0b9cdb33047",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "fintech.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "fusion energy companies.pdf",
+      "domain": "Fusion Energy",
+      "page_count": 2,
+      "file_size": 7889,
+      "sha256": "c5b9d75f3c3c6a94b74185f29320ff3e30e8a577c2c1eaabfaa32324861c49cb",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "fusion-energy.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "glp1 supply chain companies.pdf",
+      "domain": "GLP-1 / Obesity Drug Supply Chain",
+      "page_count": 3,
+      "file_size": 9260,
+      "sha256": "af64f6f3dcda3c77bb5ee88161cfe68c9c45d4b53abe663da2888c1d0b3115a5",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "glp1-obesity-drug-supply-chain.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "nuclear data center companies.pdf",
+      "domain": "Nuclear Power for AI Data Centers",
+      "page_count": 2,
+      "file_size": 4336,
+      "sha256": "8a4fc84d7e6c7943f8637fcf82be73f140e1e6af44ed4f348bb661d939abe2a8",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "nuclear-power-ai-data-centers.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "retail sector companies.pdf",
+      "domain": "Retail Sector",
+      "page_count": 4,
+      "file_size": 12479,
+      "sha256": "3b0821750c4d538d1a915a8b65d12b343e0403b7c61049c541b252278eaea4c1",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "retail-sector.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "robotics humanoid companies.pdf",
+      "domain": "Robotics & Humanoids",
+      "page_count": 3,
+      "file_size": 8083,
+      "sha256": "ce76d6536c346ff1956095a53f9959c7ae017d0e55bcead73b379443cb9ead4e",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "robotics-humanoids.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "semiconductor packaging companies.pdf",
+      "domain": "Semiconductor Packaging",
+      "page_count": 3,
+      "file_size": 10507,
+      "sha256": "3b52040e4574a926088b4bbeee9a6156fb7c5d15a67c6191b11fb67ebfcb64f4",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "semiconductor-packaging.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "space exploration companies.pdf",
+      "domain": "Space Exploration",
+      "page_count": 4,
+      "file_size": 13967,
+      "sha256": "f382f4038d4e7f468d5ef039bfcb94bd894cb27bf4cc73f6b944e4eb1ca37022",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "space-exploration.json",
+      "reconciliation_status": "reconciled"
+    },
+    {
+      "filename": "traditional banking companies.pdf",
+      "domain": "Traditional Banking",
+      "page_count": 3,
+      "file_size": 8950,
+      "sha256": "9d146f751510f92c3e26e412f25e5036e75809a132f89207c71bef7e8dbb4303",
+      "duplicate_status": "unique",
+      "canonical_source": true,
+      "fixture_filename": "traditional-banking.json",
+      "reconciliation_status": "reconciled"
+    }
+  ],
+  "duplicates": [],
+  "canonical_sources": {
+    "AI Power Supply Chain": "ai power supply chain.pdf",
+    "CRISPR & AI Oncology": "crispr ai oncology companies.pdf",
+    "Critical Infrastructure Cybersecurity": "critical infra cybersecurity companies.pdf",
+    "Critical Minerals": "critical minerals companies.pdf",
+    "Crypto-Adjacent Companies": "crypto adjacent companies.pdf",
+    "AI Data Center Networking & Cabling": "datacenter networking companies.pdf",
+    "Defense Drones & Counter-Drone": "defense drone companies.pdf",
+    "EV & Autonomous Driving": "ev autonomous driving companies.pdf",
+    "Fintech": "fintech companies.pdf",
+    "Fusion Energy": "fusion energy companies.pdf",
+    "GLP-1 / Obesity Drug Supply Chain": "glp1 supply chain companies.pdf",
+    "Nuclear Power for AI Data Centers": "nuclear data center companies.pdf",
+    "Retail Sector": "retail sector companies.pdf",
+    "Robotics & Humanoids": "robotics humanoid companies.pdf",
+    "Semiconductor Packaging": "semiconductor packaging companies.pdf",
+    "Space Exploration": "space exploration companies.pdf",
+    "Traditional Banking": "traditional banking companies.pdf"
+  },
+  "reconciled_existing_fixtures": 12,
+  "added_fixtures": 5,
+  "counts": {
+    "benchmarks": 17,
+    "categories": 77,
+    "securities_and_references": 107,
+    "sources": 17,
+    "expectations": {
+      "acceptable": 8,
+      "fund_reference": 6,
+      "international_reference": 11,
+      "must_exclude": 3,
+      "must_include": 33,
+      "private_reference": 15,
+      "should_include": 31
+    }
+  },
+  "unresolved_provenance": [
+    {
+      "benchmark_id": "ai-power-supply-chain",
+      "company_name": "Salesforce",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "crispr-ai-oncology",
+      "company_name": "Tempus AI",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "crispr-ai-oncology",
+      "company_name": "Insitro",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "critical-minerals",
+      "company_name": "Albemarle",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "critical-minerals",
+      "company_name": "VanEck Rare Earth and Strategic Metals ETF",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "crypto-adjacent-companies",
+      "company_name": "iShares Bitcoin Trust ETF",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "ev-autonomous-driving",
+      "company_name": "Fisker",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "nuclear-power-ai-data-centers",
+      "company_name": "TerraPower",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "nuclear-power-ai-data-centers",
+      "company_name": "VanEck Uranium and Nuclear ETF",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "retail-sector",
+      "company_name": "Aldi",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "robotics-humanoids",
+      "company_name": "Figure AI",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "robotics-humanoids",
+      "company_name": "Global X Robotics & Artificial Intelligence ETF",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "space-exploration",
+      "company_name": "Rocket Lab USA",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "space-exploration",
+      "company_name": "ARK Space Exploration & Innovation ETF",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    }
+  ],
+  "unresolved_classification_review": [
+    {
+      "benchmark_id": "ai-power-supply-chain",
+      "company_name": "Salesforce",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "crispr-ai-oncology",
+      "company_name": "Tempus AI",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "crispr-ai-oncology",
+      "company_name": "Insitro",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "critical-minerals",
+      "company_name": "Albemarle",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "critical-minerals",
+      "company_name": "VanEck Rare Earth and Strategic Metals ETF",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "crypto-adjacent-companies",
+      "company_name": "iShares Bitcoin Trust ETF",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "ev-autonomous-driving",
+      "company_name": "Fisker",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "fintech",
+      "company_name": "Fiserv",
+      "issue": "HUMAN REVIEW: verify current ticker because the source describes a 2025 ticker change."
+    },
+    {
+      "benchmark_id": "fintech",
+      "company_name": "Chime Financial",
+      "issue": "HUMAN REVIEW: source reports a recent listing; verify ticker and status."
+    },
+    {
+      "benchmark_id": "fintech",
+      "company_name": "Klarna Group",
+      "issue": "HUMAN REVIEW: source reports a recent listing; verify ticker and status."
+    },
+    {
+      "benchmark_id": "fusion-energy",
+      "company_name": "General Fusion Group",
+      "issue": "HUMAN REVIEW: source reports a same-day listing; verify current listing status before use."
+    },
+    {
+      "benchmark_id": "fusion-energy",
+      "company_name": "Trump Media & Technology Group",
+      "issue": "HUMAN REVIEW: merger completion and resulting exposure require verification."
+    },
+    {
+      "benchmark_id": "nuclear-power-ai-data-centers",
+      "company_name": "TerraPower",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "nuclear-power-ai-data-centers",
+      "company_name": "VanEck Uranium and Nuclear ETF",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "retail-sector",
+      "company_name": "Aldi",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "robotics-humanoids",
+      "company_name": "Figure AI",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "robotics-humanoids",
+      "company_name": "Global X Robotics & Artificial Intelligence ETF",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "space-exploration",
+      "company_name": "Rocket Lab USA",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "benchmark_id": "space-exploration",
+      "company_name": "ARK Space Exploration & Innovation ETF",
+      "issue": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    }
+  ],
+  "cross_domain_overlaps": {
+    "AXP": [
+      "traditional-banking",
+      "fintech"
+    ],
+    "COF": [
+      "traditional-banking",
+      "fintech (source overlap; not duplicated in minimal fixture)"
+    ],
+    "HOOD": [
+      "fintech",
+      "crypto-adjacent-companies"
+    ],
+    "PYPL": [
+      "fintech",
+      "crypto-adjacent-companies"
+    ]
+  }
+}

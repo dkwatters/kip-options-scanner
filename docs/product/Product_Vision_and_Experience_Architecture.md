@@ -38,7 +38,7 @@ The platform begins with curiosity rather than tickers.
 
 Conversation starts the process. Evidence completes it.
 
-The application remembers research rather than conversations. A conversation may clarify intent, but the durable product object is the Research Session: the original question, mission, universe, findings, refinements, decisions, and saved notes that can be revisited later.
+The application remembers research rather than conversations. A conversation may briefly clarify intent, but the durable product object is the Research Session: the original question, mission, proposed or approved universe, findings, refinements, decisions, and saved notes that can be revisited later. Message history is not the platform memory model.
 
 Product principles:
 
@@ -277,20 +277,35 @@ The Research Conversation Engine (RCE) is the guided product workflow that trans
 
 RCE is fed by the Research Question Taxonomy (RQT), which classifies the user's research intent before the conversation proposes a mission, strategy, or universe. RQT is a taxonomy of intent, not a list of canned questions.
 
-RCE helps the user clarify:
+RCE helps the user move quickly from a question to a reviewable candidate research artifact:
 
 - The user's intent.
 - What the Research Mission is.
+- The ephemeral Research Map used to decompose the investable ecosystem.
+- Which portions of that map are included or excluded.
 - Which securities are plausible candidates.
 - Why each candidate security may belong in scope.
 - What should be included, excluded, renamed, or saved.
 - Which downstream research path should run next.
+- What assumptions were made so the user can refine rather than wait through clarification.
 
 RCE is AI-assisted, but not autonomous. It proposes an AI-Assisted Research Universe Definition for user review. The user may edit the candidate list, inclusion rationale, name, purpose, and boundaries before saving a User-Approved Research Universe.
 
+The v1.0 RCE policy is Research Launch. For reasonably interpretable company, theme, industry, or market questions, RCE should return a concise interpretation, assumptions, proposed research mission, dynamic Research Map, included areas, excluded areas, Proposed Research Universe, candidate securities, and coverage assessment immediately. If interpretation confidence is at or above the configurable threshold, default `0.70`, RCE must not ask clarifying questions. It may ask one optional clarification only when confidence is below threshold, and the next response must terminate in a Proposed Research Universe.
+
+RCE constructs a fresh Research Map for each research session before it proposes companies. The map is an ephemeral reasoning artifact, not a manually curated taxonomy. It explains how the model decomposed the user's topic, why certain subdomains are in scope, and which adjacent areas were intentionally left out.
+
+The formal methodology for Proposed Research Universe construction is RUCS, documented in `docs/product/Research_Universe_Construction_Standard.md`. RUCS requires research usefulness over popularity, coverage before ranking, Research Map first and company list second, explicit included/excluded/adjacent areas, candidate selection standards, informational diversity, visible assumptions, and refinement readiness.
+
+The intended internal RCE reasoning workflow is User Question -> Interpretation -> Research Planning -> Universe Construction -> Universe Review -> User Presentation. The user should see a clean research launch, while the system preserves clear internal stages for intent classification, analyst-style planning, candidate construction, quality review, and presentation.
+
+RCE interpretation is model-agnostic. The platform should depend on a Research Conversation provider interface rather than a specific AI vendor, model family, or hosted API. Provider metadata should preserve the provider name, model name, prompt version, request timestamp, response timestamp, structured response, confidence, warnings, errors, and optional raw response so future implementations can compare interpretations across providers without changing downstream research behavior.
+
+The first live provider implementation is OpenAI-backed RCE interpretation. It is selected with `RCE_PROVIDER=openai`, uses `OPENAI_API_KEY`, and may set `RCE_OPENAI_MODEL`; otherwise the deterministic mock provider remains available for local setup and tests. OpenAI output is session-only in the Research Workspace for now. It does not save Research Universe Definitions, create Research Universe Snapshots, run SAM, OD, or OAM, or change scoring, Study Protocol, cloud job, database, or repository behavior.
+
 RCE boundaries:
 
-- RCE exists only to understand intent, clarify when necessary, define a Research Mission, and propose a Research Universe.
+- RCE exists only to understand intent, state assumptions, clarify only when confidence is too low, define a Research Mission, and propose a Research Universe.
 - RCE does not score securities.
 - RCE does not evaluate options.
 - RCE does not recommend trades.
@@ -302,9 +317,9 @@ RCE boundaries:
 
 The RCE workflow is:
 
-User question -> RCE structured interpretation -> candidate universe proposal -> user review/edit/name -> Research Universe Definition -> Research Universe Snapshot -> SAM/SAE -> OD/OAM/OAE -> Research Repository
+User question -> optional clarification when confidence is too low -> dynamic Research Map -> included/excluded scope -> Proposed Research Universe -> coverage assessment -> user review/edit/name -> Research Universe Definition -> Research Universe Snapshot -> SAM/SAE -> OD/OAM/OAE -> Research Repository
 
-RCE should make the platform feel conversational at the start while preserving the same disciplined research boundaries downstream.
+RCE should feel like a short research launch, not an extended AI conversation, while preserving the same disciplined research boundaries downstream.
 
 The detailed RQT/RCE conversation model, including intent domains, lenses, confidence handling, personas, representative scenarios, and future prompt template needs, is specified in `docs/product/Research_Question_Taxonomy_and_Conversation_Design.md`.
 
@@ -314,11 +329,11 @@ The detailed RQT/RCE conversation model, including intent domains, lenses, confi
 
 Research Conversation and Research Guidance are related but distinct.
 
-Research Conversation is brief. It exists at the beginning of a workflow to understand intent, ask only necessary clarifying questions, define a Research Mission, and propose a Research Universe or downstream research path. It should end as soon as the user's intent has become reviewable research structure.
+Research Conversation is intentionally short. It exists at the beginning of a workflow to understand intent, state assumptions, ask no more than one necessary clarifying question, define a Research Mission, and terminate with a Proposed Research Universe. It should produce a useful candidate artifact first whenever the question is reasonably interpretable. Future follow-up questions are Research Refinements that update the Research Mission and Proposed Research Universe; they do not reopen the original conversation.
 
 Research Guidance is persistent. It remains available throughout a Research Session to explain what the user is looking at, why a research step exists, what evidence has been collected, what is still missing, and what refinements are possible. Guidance is not a free-form chat transcript. It is contextual product support attached to the current mission, universe, evidence, findings, and saved notes.
 
-Conversation starts the process. Guidance keeps the research understandable. Evidence completes it.
+Conversation starts the process. Research artifacts persist. Guidance keeps the research understandable. Evidence completes it.
 
 ---
 
@@ -367,11 +382,14 @@ An AI-Assisted Research Universe Definition is a proposed Research Universe Defi
 It should include:
 
 - Mission interpretation.
+- Dynamic Research Map generated for the session.
+- Included and excluded areas from that map.
 - Candidate securities.
 - Inclusion rationale for each candidate.
 - Selection boundaries and exclusions.
 - Suggested name and purpose.
 - Source notes and confidence limitations.
+- Coverage assessment explaining which ecosystem areas are represented or intentionally omitted.
 
 It is not final until the user reviews, edits, names, and saves it. After approval, it becomes a User-Approved Research Universe and can be materialized as a Research Universe Snapshot.
 
@@ -523,16 +541,15 @@ Implemented conversation-forward landing-page direction:
 2. The natural-language question box is the dominant first action and captures a plain-language question, thesis, theme, company, opportunity request, comparison request, or learning topic.
 3. Four coaching cards provide optional starting rails: Explore an Investment Idea, Research a Company, Find Investment Opportunities, and Compare & Learn.
 4. Selecting a coaching card prefills the question box, stores the selected research path, and shows a placeholder conversation preview without navigating away or running analysis.
-5. When a question is entered, the page shows "Here's how I understand the next step" and explains the future interpretation, clarification, path suggestion, Research Mission proposal, Research Universe proposal, and user review before analysis begins.
+5. When a question is entered, the page shows interpretation, Proposed Research Mission, Research Map, Included Areas, Excluded Areas, Candidate Companies, Coverage Assessment, Assumptions, and Ways to Refine before analysis begins.
 6. Continue Previous Research shows available CSV-backed Research Universes and recent observations when available.
 7. Already know where you want to go? lets experienced users skip directly to Security Research, Opportunity Research, or the Research Repository.
 
 Current implementation boundary:
 
-- The landing page captures the research question but does not call AI.
+- The landing page captures the research question and can call the configured RCE provider for session-only interpretation.
 - RCE is not a chatbot wrapper. Conversation initiates research; evidence completes it.
-- It does not classify intent automatically.
-- It does not generate Candidate Securities or Research Universes.
+- It can classify intent and display Candidate Securities for review when the provider returns them.
 - It does not save a Research Universe Definition.
 - It does not change Security Research, Opportunity Research, repository behavior, scoring, or analytical model behavior.
 
@@ -540,14 +557,14 @@ Future full RCE flow:
 
 1. Research Workspace landing page asks: "What are we researching?"
 2. Mission input prompt accepts a plain-language question, thesis, theme, or watchlist intent.
-3. RCE structured interpretation summarizes the Research Mission, likely scope, exclusions, and suggested research path.
-4. Proposed universe preview lists Candidate Securities with Inclusion Rationale.
+3. RCE structured interpretation summarizes the question, likely scope, assumptions, and suggested research path.
+4. Proposed universe preview leads with the dynamic Research Map, then lists Included Areas, Excluded Areas, Candidate Securities with Inclusion Rationale, Coverage Assessment, Assumptions, and Ways to Refine, defaulting to the first 25 rows with an option to inspect more when available.
 5. User can edit membership, remove candidates, adjust rationale notes, choose or edit the universe name, and save.
 6. Saving creates a Research Universe Definition in an approved state.
 7. The platform materializes a Research Universe Snapshot when the user proceeds to analysis.
 8. The user chooses Security Research or Opportunity Research as the next step.
 
-The preview should clearly distinguish "candidate for research" from "recommended investment." Controls should emphasize review, edit, name, save, and proceed.
+The preview should clearly distinguish "candidate for research" from "recommended investment" and include the note: "This is a candidate research list, not an investment recommendation." Controls should emphasize review, edit, name, save, refine, and proceed.
 
 ---
 
@@ -600,6 +617,8 @@ Future experience directions include:
 - Research Universe selection and creation as a core workflow.
 - AI-assisted Research Mission interpretation.
 - AI-assisted Research Universe Definition proposal with user approval.
+- RUCS-guided Proposed Research Universe review.
+- Future experimental Research Utility Score for assessing the quality of a Proposed Research Universe as a research artifact, not the quality of its securities.
 - AI-assisted Research Strategy creation.
 - Historical strategy comparison.
 - Outcome validation.
@@ -633,5 +652,6 @@ This document is intentionally non-technical. Detailed architecture, domain term
 
 - `docs/architecture/Research_Roadmap.md`
 - `docs/architecture/Research_Universe_Design_Specification.md`
+- `docs/product/Research_Universe_Construction_Standard.md`
 - `docs/glossary/Stock_Screener_Domain_Model_and_Glossary.md`
 - `docs/research/Research_Notebook.md`

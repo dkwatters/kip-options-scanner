@@ -4,3 +4,7 @@ __pycache__/
 .vscode/
 .streamlit/
 data/research/opportunity_scans.sqlite
+data/research/rce_benchmarks.sqlite
+.venv/
+.pytest_cache/
+data/research/*.sqlite

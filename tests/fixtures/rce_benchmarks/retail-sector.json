@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "retail-sector",
+    "benchmark_name": "Retail Sector",
+    "research_question": "Which companies provide a balanced research map of the retail sector across formats and channels?",
+    "description": "QA reference for research-map coverage in retail sector.",
+    "domain": "Consumer",
+    "difficulty": "intermediate",
+    "benchmark_status": "source_reconciled_pending_human_review",
+    "version": "v0.2",
+    "source_document": "retail sector companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Reconciled to the canonical repository PDF. Security records absent from the source are retained with human-review flags."
+  },
+  "categories": [
+    {
+      "category_name": "Mass and warehouse retail",
+      "category_role": "Scaled general merchandise formats",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Specialty and digital retail",
+      "category_role": "Category specialists and digital channels",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Private retailers",
+      "category_role": "Context-only private operators",
+      "importance": 2,
+      "expected_status": "adjacent",
+      "notes": "Expected research-map coverage."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "WMT",
+      "company_name": "Walmart",
+      "exchange": "NYSE",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Mass and warehouse retail",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Reference entity for mass and warehouse retail.",
+      "evidence_summary": "Canonical source identifies Walmart in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "COST",
+      "company_name": "Costco Wholesale",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Mass and warehouse retail",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Reference entity for mass and warehouse retail.",
+      "evidence_summary": "Canonical source identifies Costco Wholesale in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "AMZN",
+      "company_name": "Amazon",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Specialty and digital retail",
+      "expectation": "should_include",
+      "importance": 3,
+      "role_summary": "Reference entity for specialty and digital retail.",
+      "evidence_summary": "Canonical source identifies Amazon in the stated thematic role on page 4.",
+      "notes": "Source page 4; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": null,
+      "company_name": "Aldi",
+      "reference_identifier": "private-company:aldi",
+      "exchange": null,
+      "listing_region": "International",
+      "public_status": "private",
+      "category_name": "Private retailers",
+      "expectation": "private_reference",
+      "importance": 3,
+      "role_summary": "Reference entity for private retailers.",
+      "evidence_summary": "Not located in the canonical PDF during v0.2 reconciliation; retained without inventing source support.",
+      "notes": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    }
+  ],
+  "benchmark_caveats": [
+    "This benchmark is a QA/reference artifact, not ground truth or an investable universe.",
+    "Company status, listing, and thematic relevance can change and require versioned review.",
+    "1 security record(s) require human review because they were not located in the canonical source."
+  ],
+  "sources": [
+    {
+      "source_document": "retail sector companies.pdf",
+      "source_page": "1-4",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations are recorded in evidence summaries.",
+      "source_hash": "3b0821750c4d538d1a915a8b65d12b343e0403b7c61049c541b252278eaea4c1"
+    }
+  ]
+}

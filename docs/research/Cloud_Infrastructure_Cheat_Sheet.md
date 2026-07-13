@@ -51,6 +51,14 @@ Common variables:
 | `APP_PASSWORD` | Optional password gate for demo protection. |
 | `RESEARCH_RUN_MODE` | Set to `scheduled` for cloud cron scans. |
 | `SCHEDULED_TIME_LABEL` | Scheduled observation label, such as `10:00 ET`. |
+| `RCE_PROVIDER` | Optional Research Conversation Engine provider selector, `mock` or `openai`. Defaults to `mock` when unset. |
+| `OPENAI_API_KEY` | Required only when `RCE_PROVIDER=openai`. |
+| `RCE_OPENAI_MODEL` | Optional OpenAI model override for RCE interpretation. |
+| `RCE_DEBUG_ARTIFACTS` | Optional Research Workspace diagnostics toggle. Set to `true` to show provider, timing, fallback, parser, and candidate-count metadata. |
+
+RCE variables affect Research Workspace interpretation only. They do not change
+scheduled scans, repository schema, scoring, SAM, OD, OAM, or Study Protocol
+behavior.
 
 ## DATABASE_URL
 

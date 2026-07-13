@@ -77,6 +77,11 @@ from src.research_repository import (
     research_repository_from_env,
     research_repository_target_from_env,
 )
+from src.research_conversation import (
+    ResearchConversationService,
+    create_research_conversation_provider,
+    research_conversation_confidence_threshold,
+)
 from src.study_protocol import DEFAULT_STUDY_PROTOCOL, RUN_MODE_MANUAL_UI, TAM_STUDY_PROTOCOL
 from src.technical_analysis import (
     derived_technical_display_fields,
@@ -93,6 +98,8 @@ UNAVAILABLE = "-"
 DEFAULT_DISCOVERY_MIN_DTE = DEFAULT_EVALUATION_PROFILE.default_scan_parameters["min_dte"]
 DEFAULT_DISCOVERY_MAX_DTE = DEFAULT_EVALUATION_PROFILE.default_scan_parameters["max_dte"]
 APP_PASSWORD_ENV = "APP_PASSWORD"
+RCE_PROVIDER_ENV = "RCE_PROVIDER"
+OPENAI_API_KEY_ENV = "OPENAI_API_KEY"
 
 DISTRIBUTION_THRESHOLD_NOTES = {
     "Delta Distribution": (
@@ -1562,10 +1569,300 @@ def set_selected_page(page):
     st.rerun()
 
 
+def response_field(structured_response, field_name, default=UNAVAILABLE):
+    value = structured_response.get(field_name)
+    if value is None or value == "":
+        return default
+    return value
+
+
+def render_list_items(items):
+    if not items:
+        st.caption(UNAVAILABLE)
+        return
+    for item in items:
+        st.write("- " + str(item))
+
+
+def render_research_map(research_map):
+    if not research_map:
+        st.caption(UNAVAILABLE)
+        return
+    for map_area in research_map:
+        if isinstance(map_area, dict):
+            area = map_area.get("area") or map_area.get("category") or UNAVAILABLE
+            subdomains = map_area.get("subdomains") or []
+            st.write("- " + str(area))
+            for subdomain in subdomains:
+                st.caption("  - " + str(subdomain))
+        else:
+            st.write("- " + str(map_area))
+
+
+def rce_candidate_rows(candidates):
+    candidate_rows = []
+    for candidate in candidates or []:
+        if not isinstance(candidate, dict):
+            continue
+        candidate_rows.append(
+            {
+                "Ticker": candidate.get("ticker") or UNAVAILABLE,
+                "Company": candidate.get("company_name") or UNAVAILABLE,
+                "Subdomain": candidate.get("subdomain") or candidate.get("category") or UNAVAILABLE,
+                "Rationale": candidate.get("inclusion_rationale") or UNAVAILABLE,
+                "Confidence": candidate.get("confidence"),
+                "Validation": candidate.get("entity_validation_status") or UNAVAILABLE,
+            }
+        )
+    return candidate_rows
+
+
+def rce_user_presentation(structured_response):
+    presentation = structured_response.get("user_presentation") or {}
+    proposed_universe = structured_response.get("proposed_research_universe") or {}
+    universe_review = structured_response.get("universe_review") or {}
+    return {
+        "understanding": (
+            presentation.get("understanding")
+            or structured_response.get("primary_intent")
+            or UNAVAILABLE
+        ),
+        "approach": (
+            presentation.get("approach")
+            or structured_response.get("suggested_research_mission_summary")
+            or UNAVAILABLE
+        ),
+        "areas_included": (
+            presentation.get("areas_included")
+            or structured_response.get("included_areas")
+            or structured_response.get("candidate_security_categories")
+            or []
+        ),
+        "areas_excluded": (
+            presentation.get("areas_excluded")
+            or structured_response.get("excluded_areas")
+            or []
+        ),
+        "companies_to_start_with": (
+            presentation.get("companies_to_start_with")
+            or proposed_universe.get("candidate_securities")
+            or structured_response.get("candidate_securities")
+            or []
+        ),
+        "universe_review": (
+            presentation.get("universe_review")
+            or universe_review.get("coverage_assessment")
+            or structured_response.get("coverage_assessment")
+            or []
+        ),
+        "assumptions": (
+            presentation.get("assumptions")
+            or structured_response.get("assumptions")
+            or []
+        ),
+        "ways_to_refine": (
+            presentation.get("ways_to_refine")
+            or structured_response.get("ways_to_refine")
+            or [
+                "Narrow or broaden the company list.",
+                "Change geography, asset focus, or time horizon.",
+                "Add exclusions, pure-play preference, or category weights.",
+            ]
+        ),
+    }
+
+
+def rce_debug_artifacts_enabled():
+    return os.getenv("RCE_DEBUG_ARTIFACTS", "").strip().lower() in {"1", "true", "yes"}
+
+
+def render_rce_diagnostics(response, displayed_candidate_count):
+    diagnostics = response.metadata.diagnostics()
+    diagnostics["displayed_candidate_count"] = displayed_candidate_count
+    entity_validation = (response.structured_response or {}).get("entity_validation") or {}
+    diagnostics["entity_validation_version"] = (
+        entity_validation.get("version") or UNAVAILABLE
+    )
+    diagnostics["entity_validation_valid_count"] = (
+        entity_validation.get("valid_candidate_count") or 0
+    )
+    diagnostics["entity_validation_invalid_count"] = (
+        entity_validation.get("invalid_candidate_count") or 0
+    )
+    diagnostics["entity_validation_duplicate_tickers"] = (
+        ", ".join(entity_validation.get("duplicate_tickers") or []) or UNAVAILABLE
+    )
+    marker = (response.structured_response or {}).get("provider_verification_marker")
+    diagnostics["provider_verification_marker"] = marker or UNAVAILABLE
+    diagnostics["provider_error_message"] = (
+        diagnostics.get("provider_error_message") or UNAVAILABLE
+    )
+    diagnostics["provider_error_type"] = (
+        diagnostics.get("provider_error_type") or UNAVAILABLE
+    )
+    diagnostics["provider_http_status"] = (
+        diagnostics.get("provider_http_status") or UNAVAILABLE
+    )
+    diagnostics["fallback_provider_name"] = (
+        diagnostics.get("fallback_provider_name") or UNAVAILABLE
+    )
+    st.markdown("#### RCE Diagnostics")
+    st.dataframe(
+        pd.DataFrame(
+            [
+                {"Field": field_name, "Value": field_value}
+                for field_name, field_value in diagnostics.items()
+            ]
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+
+
+def render_rce_response(response):
+    structured_response = response.structured_response or {}
+    presentation = rce_user_presentation(structured_response)
+    st.markdown("### Conversation Complete")
+    st.caption("Research Ready. This is a proposed research universe, not an investment recommendation.")
+
+    if response.metadata.fallback_used:
+        st.warning("OpenAI provider failed; using mock provider.")
+
+    if response.metadata.provider_name == "openai" and response.has_errors:
+        st.warning(
+            "OpenAI RCE is configured but unavailable. Set OPENAI_API_KEY to enable "
+            "live research interpretation."
+        )
+
+    if response.has_errors:
+        for error in response.errors:
+            st.error(error)
+
+    summary_columns = st.columns(2)
+    with summary_columns[0]:
+        st.markdown("#### Here's how I understand your question")
+        st.write(presentation["understanding"])
+        st.caption(
+            "Domain: "
+            + str(response_field(structured_response, "primary_domain"))
+            + " | Asset focus: "
+            + str(response_field(structured_response, "asset_focus"))
+        )
+    with summary_columns[1]:
+        st.markdown("#### How we'll approach it")
+        st.write(response_field(structured_response, "suggested_research_mission_title"))
+        st.caption(presentation["approach"])
+
+    st.markdown("#### Proposed Research Universe")
+    st.write(response_field(structured_response, "suggested_research_universe_name"))
+
+    if rce_debug_artifacts_enabled():
+        render_rce_diagnostics(
+            response,
+            len(rce_candidate_rows(presentation["companies_to_start_with"])),
+        )
+        st.markdown("#### Research Map")
+        render_research_map(structured_response.get("research_map", []))
+
+    st.markdown("#### Areas included")
+    render_list_items(presentation["areas_included"])
+
+    st.markdown("#### Areas excluded")
+    render_list_items(presentation["areas_excluded"])
+
+    st.markdown("#### Companies to start with")
+    candidate_rows = rce_candidate_rows(presentation["companies_to_start_with"])
+    if candidate_rows:
+        candidate_frame = pd.DataFrame(candidate_rows)
+        visible_candidate_rows = candidate_frame.head(25)
+        st.dataframe(
+            visible_candidate_rows,
+            hide_index=True,
+            width="stretch",
+            height=min(910, 38 + (len(visible_candidate_rows) + 1) * 35),
+        )
+        if len(candidate_frame) > 25:
+            with st.expander(f"Show all {len(candidate_frame)} companies"):
+                st.dataframe(candidate_frame, hide_index=True, width="stretch")
+    else:
+        st.caption("No candidate securities proposed yet.")
+
+    universe_review = presentation["universe_review"]
+    if universe_review:
+        st.markdown("#### Universe review")
+        render_list_items(universe_review)
+
+    assumptions = presentation["assumptions"]
+    if assumptions:
+        st.markdown("#### Assumptions")
+        render_list_items(assumptions)
+
+    st.markdown("#### Ways to refine this")
+    render_list_items(presentation["ways_to_refine"])
+
+    warnings_and_limitations = (
+        list(response.warnings)
+        + list(structured_response.get("warnings", []))
+        + list(structured_response.get("limitations", []))
+    )
+    if warnings_and_limitations:
+        st.markdown("#### Confidence and limitations")
+        render_list_items(dict.fromkeys(warnings_and_limitations))
+
+    st.caption(
+        "Provider: "
+        + response.metadata.provider_name
+        + " | Model: "
+        + response.metadata.model_name
+        + " | Prompt: "
+        + response.metadata.prompt_version
+    )
+
+    action_columns = st.columns(3)
+    with action_columns[0]:
+        st.button(
+            "Build Research Universe",
+            type="primary",
+            disabled=True,
+            help="Research Universe building is the next workflow step; this sprint preserves session-only output.",
+        )
+    with action_columns[1]:
+        st.button("Modify Question", on_click=modify_research_question)
+    with action_columns[2]:
+        st.button("Start Over", on_click=reset_research_launch)
+
+
 def start_research_conversation():
-    """Capture the current question and reveal the planned-workflow preview."""
-    st.session_state.submitted_research_question = st.session_state.research_question.strip()
+    """Capture the current question and run the configured RCE provider."""
+    question = st.session_state.research_question.strip()
+    st.session_state.submitted_research_question = question
+    provider = create_research_conversation_provider()
+    service = ResearchConversationService(
+        provider,
+        confidence_threshold=research_conversation_confidence_threshold(),
+    )
+    st.session_state.research_conversation_response = service.interpret(
+        question,
+        context={
+            "selected_research_path": st.session_state.get("selected_research_path")
+        },
+    )
     st.session_state.show_research_workspace_preview = True
+
+
+def modify_research_question():
+    """Return to the launch prompt while preserving the current question."""
+    st.session_state.research_conversation_response = None
+    st.session_state.show_research_workspace_preview = False
+
+
+def reset_research_launch():
+    """Clear the launch prompt and session-only proposal."""
+    st.session_state.research_question = ""
+    st.session_state.submitted_research_question = ""
+    st.session_state.selected_research_path = None
+    st.session_state.research_conversation_response = None
+    st.session_state.show_research_workspace_preview = False
 
 
 def select_research_path(path, starter_phrase):
@@ -1573,6 +1870,7 @@ def select_research_path(path, starter_phrase):
     st.session_state.research_question = starter_phrase
     st.session_state.submitted_research_question = starter_phrase
     st.session_state.selected_research_path = path
+    st.session_state.research_conversation_response = None
     st.session_state.show_research_workspace_preview = True
 
 
@@ -1587,9 +1885,11 @@ def render_research_workspace(active_universe_path, active_universe_symbols):
         st.session_state.submitted_research_question = ""
     if "show_research_workspace_preview" not in st.session_state:
         st.session_state.show_research_workspace_preview = False
+    if "research_conversation_response" not in st.session_state:
+        st.session_state.research_conversation_response = None
 
     st.markdown("## Every investment begins with curiosity.")
-    st.markdown("### What can I help you understand today?")
+    st.markdown("### What are we researching?")
     st.text_area(
         "Question",
         key="research_question",
@@ -1602,40 +1902,53 @@ def render_research_workspace(active_universe_path, active_universe_symbols):
     )
     st.caption(
         "Ask in your own words. You do not need to know investing terminology - "
-        "the platform will help translate your question into a research path."
+        "the platform will turn your question into a proposed research universe."
     )
     st.button(
-        "Start Conversation",
+        "Launch Research",
         type="primary",
         on_click=start_research_conversation,
     )
-    st.info(
-        "Current state: this version captures the research question but does not yet "
-        "generate a universe automatically."
-    )
+    if (
+        os.getenv(RCE_PROVIDER_ENV, "mock").strip().lower() == "openai"
+        and not os.getenv(OPENAI_API_KEY_ENV)
+    ):
+        st.warning(
+            "OpenAI RCE is selected, but OPENAI_API_KEY is not configured. Add the "
+            "key to enable live interpretation, or set RCE_PROVIDER=mock."
+        )
+    else:
+        st.info(
+            "RCE output is session-only for now. It does not save Research Universes, "
+            "create snapshots, or run SAM, OD, or OAM automatically."
+        )
 
     if st.session_state.show_research_workspace_preview:
         with st.container(border=True):
-            st.markdown("### Here's how I understand the next step")
-            question = st.session_state.submitted_research_question.strip()
-            if question:
-                st.write("You want to start from:")
-                st.info(question)
-            st.write(
-                "This version has not yet connected the Research Conversation Engine, "
-                "but the next version will:"
-            )
-            preview_steps = [
-                "Interpret your question",
-                "Confirm or clarify what you mean",
-                "Suggest a research path",
-                "Propose a Research Mission",
-                "Suggest or create a Research Universe",
-                "Let you review, edit, and approve before analysis begins",
-            ]
-            for step in preview_steps:
-                st.write("- " + step)
-            st.caption("Conversation starts the process. Evidence completes it.")
+            response = st.session_state.research_conversation_response
+            if response is not None:
+                render_rce_response(response)
+            else:
+                st.markdown("### Ready to Build Research Universe")
+                question = st.session_state.submitted_research_question.strip()
+                if question:
+                    st.write("You want to start from:")
+                    st.info(question)
+                st.write("Launch Research will translate the question into:")
+                preview_steps = [
+                    "Interpretation",
+                    "Proposed Research Mission",
+                    "Research Map",
+                    "Included Areas",
+                    "Excluded Areas",
+                    "Candidate Companies",
+                    "Coverage Assessment",
+                    "Assumptions",
+                    "Ways to Refine",
+                ]
+                for step in preview_steps:
+                    st.write("- " + step)
+                st.caption("Conversation starts the process. Evidence completes it.")
 
     st.markdown("### Need a little inspiration?")
     st.caption("Choose a starting point if you are not sure what to ask.")

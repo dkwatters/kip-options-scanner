@@ -1,0 +1,316 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "fintech",
+    "benchmark_name": "Fintech",
+    "research_question": "Which public companies and reference entities matter across payments, digital banking, BNPL, and wealth-platform fintech?",
+    "description": "QA reference separating payment rails, processing, wallets, neobanks, BNPL, platforms, and private infrastructure.",
+    "domain": "Financial technology",
+    "difficulty": "intermediate",
+    "benchmark_status": "source_reconciled",
+    "version": "v0.2",
+    "source_document": "fintech companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Canonical fixture derived from the repository PDF; explicit human-review flags preserve uncertain time-sensitive classifications."
+  },
+  "categories": [
+    {
+      "category_name": "Payment networks and card rails",
+      "category_role": "Global card-network infrastructure",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Payment processors",
+      "category_role": "Merchant acquiring and transaction processing",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Core financial infrastructure",
+      "category_role": "Banking technology and issuing APIs",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Digital wallets",
+      "category_role": "Consumer checkout and wallet ecosystems",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Neobanks",
+      "category_role": "Digital-first banking platforms",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "BNPL",
+      "category_role": "Point-of-sale installment credit",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Wealth and trading platforms",
+      "category_role": "Digital brokerage and investing",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Private IPO candidates",
+      "category_role": "Late-stage non-public fintechs",
+      "importance": 3,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Embedded finance",
+      "category_role": "B2B spend, payroll, and financial APIs",
+      "importance": 3,
+      "expected_status": "adjacent",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Crypto overlap",
+      "category_role": "Fintechs with material crypto activity",
+      "importance": 3,
+      "expected_status": "adjacent",
+      "notes": "Source-defined research-map category."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "V",
+      "company_name": "Visa",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Payment networks and card rails",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Dominant global card network",
+      "evidence_summary": "Canonical source identifies Visa in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "MA",
+      "company_name": "Mastercard",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Payment networks and card rails",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Major global card network",
+      "evidence_summary": "Canonical source identifies Mastercard in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "AXP",
+      "company_name": "American Express",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Payment networks and card rails",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Closed-loop network and issuing bank",
+      "evidence_summary": "Canonical source identifies American Express in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "FISV",
+      "company_name": "Fiserv",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Payment processors",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Core banking, processing, and merchant platform",
+      "evidence_summary": "Canonical source identifies Fiserv in this role on page 1.",
+      "notes": "HUMAN REVIEW: verify current ticker because the source describes a 2025 ticker change."
+    },
+    {
+      "ticker": "GPN",
+      "company_name": "Global Payments",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Payment processors",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Merchant acquiring and payments technology",
+      "evidence_summary": "Canonical source identifies Global Payments in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "PYPL",
+      "company_name": "PayPal",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Digital wallets",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Digital wallet, checkout, and crypto-overlap platform",
+      "evidence_summary": "Canonical source identifies PayPal in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "COF",
+      "company_name": "Capital One Financial",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Core financial infrastructure",
+      "expectation": "acceptable",
+      "importance": 3,
+      "role_summary": "Bank/fintech crossover and acquirer of Brex card-program assets",
+      "evidence_summary": "Canonical source identifies Capital One Financial in this role on page 3.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "XYZ",
+      "company_name": "Block",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Digital wallets",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Cash App and Square ecosystem",
+      "evidence_summary": "Canonical source identifies Block in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "CHYM",
+      "company_name": "Chime Financial",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Neobanks",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Digital-first consumer banking platform",
+      "evidence_summary": "Canonical source identifies Chime Financial in this role on page 2.",
+      "notes": "HUMAN REVIEW: source reports a recent listing; verify ticker and status."
+    },
+    {
+      "ticker": "AFRM",
+      "company_name": "Affirm Holdings",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "BNPL",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Public BNPL leader",
+      "evidence_summary": "Canonical source identifies Affirm Holdings in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "KLAR",
+      "company_name": "Klarna Group",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "International",
+      "public_status": "public",
+      "category_name": "BNPL",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Global BNPL platform",
+      "evidence_summary": "Canonical source identifies Klarna Group in this role on page 2.",
+      "notes": "HUMAN REVIEW: source reports a recent listing; verify ticker and status."
+    },
+    {
+      "ticker": "HOOD",
+      "company_name": "Robinhood",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Wealth and trading platforms",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Retail brokerage with crypto overlap",
+      "evidence_summary": "Canonical source identifies Robinhood in this role on page 3.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": null,
+      "company_name": "Stripe",
+      "exchange": null,
+      "reference_identifier": "private-company:stripe",
+      "listing_region": null,
+      "public_status": "private",
+      "category_name": "Private IPO candidates",
+      "expectation": "private_reference",
+      "importance": 5,
+      "role_summary": "Private payments-infrastructure leader",
+      "evidence_summary": "Canonical source identifies Stripe in this role on page 3.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": null,
+      "company_name": "Revolut",
+      "exchange": null,
+      "reference_identifier": "private-company:revolut",
+      "listing_region": null,
+      "public_status": "private",
+      "category_name": "Private IPO candidates",
+      "expectation": "private_reference",
+      "importance": 4,
+      "role_summary": "Private neobank and trading platform",
+      "evidence_summary": "Canonical source identifies Revolut in this role on page 3.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": null,
+      "company_name": "Plaid",
+      "exchange": null,
+      "reference_identifier": "private-company:plaid",
+      "listing_region": null,
+      "public_status": "private",
+      "category_name": "Embedded finance",
+      "expectation": "private_reference",
+      "importance": 4,
+      "role_summary": "Private financial-data infrastructure provider",
+      "evidence_summary": "Canonical source identifies Plaid in this role on page 3.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    }
+  ],
+  "benchmark_caveats": [
+    "This is a QA/reference artifact, not ground truth or an investable universe.",
+    "Listing status and thematic relevance require versioned review.",
+    "HUMAN REVIEW notes identify classifications requiring external confirmation."
+  ],
+  "sources": [
+    {
+      "source_document": "fintech companies.pdf",
+      "source_page": "1-3",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations appear in evidence summaries.",
+      "source_hash": "6aae40a03f3d7c8f65e32830191c5071f466a0c94e4786057ffef0b9cdb33047"
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "ev-autonomous-driving",
+    "benchmark_name": "EV and Autonomous Driving",
+    "research_question": "Which companies should be researched across electric vehicles, autonomy stacks, sensors, and enabling components?",
+    "description": "QA reference for research-map coverage in ev and autonomous driving.",
+    "domain": "Mobility",
+    "difficulty": "intermediate",
+    "benchmark_status": "source_reconciled_pending_human_review",
+    "version": "v0.2",
+    "source_document": "ev autonomous driving companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Reconciled to the canonical repository PDF. Security records absent from the source are retained with human-review flags."
+  },
+  "categories": [
+    {
+      "category_name": "Vehicle platforms",
+      "category_role": "EV and autonomous vehicle manufacturers",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Autonomy and sensors",
+      "category_role": "Driving software, compute, and sensing",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Legacy distressed cases",
+      "category_role": "Boundary and failure references",
+      "importance": 2,
+      "expected_status": "excluded",
+      "notes": "Explicit boundary case."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "TSLA",
+      "company_name": "Tesla",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Vehicle platforms",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Reference entity for vehicle platforms.",
+      "evidence_summary": "Canonical source identifies Tesla in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "MBLY",
+      "company_name": "Mobileye Global",
+      "exchange": "NASDAQ",
+      "listing_region": "Israel",
+      "public_status": "public",
+      "category_name": "Autonomy and sensors",
+      "expectation": "international_reference",
+      "importance": 5,
+      "role_summary": "Reference entity for autonomy and sensors.",
+      "evidence_summary": "Canonical source identifies Mobileye Global in the stated thematic role on page 2.",
+      "notes": "Source page 2; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "LAZR",
+      "company_name": "Luminar Technologies",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Autonomy and sensors",
+      "expectation": "acceptable",
+      "importance": 3,
+      "role_summary": "Reference entity for autonomy and sensors.",
+      "evidence_summary": "Canonical source identifies Luminar Technologies in the stated thematic role on page 2.",
+      "notes": "Source page 2; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "FSRNQ",
+      "company_name": "Fisker",
+      "exchange": "OTC",
+      "listing_region": "US",
+      "public_status": "delisted",
+      "category_name": "Legacy distressed cases",
+      "expectation": "must_exclude",
+      "importance": 3,
+      "role_summary": "Reference entity for legacy distressed cases.",
+      "evidence_summary": "Not located in the canonical PDF during v0.2 reconciliation; retained without inventing source support.",
+      "notes": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    }
+  ],
+  "benchmark_caveats": [
+    "This benchmark is a QA/reference artifact, not ground truth or an investable universe.",
+    "Company status, listing, and thematic relevance can change and require versioned review.",
+    "1 security record(s) require human review because they were not located in the canonical source."
+  ],
+  "sources": [
+    {
+      "source_document": "ev autonomous driving companies.pdf",
+      "source_page": "1-4",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations are recorded in evidence summaries.",
+      "source_hash": "452178d239db63d85dad318b2a1e41c4ddf709b23d799cdc074e03bed59c975f"
+    }
+  ]
+}

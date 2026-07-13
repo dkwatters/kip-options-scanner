@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "ai-data-center-networking-cabling",
+    "benchmark_name": "AI Data-Center Networking and Cabling",
+    "research_question": "Which public companies should be researched across AI data-center networking, optical interconnects, and high-speed cabling?",
+    "description": "QA reference for research-map coverage in ai data-center networking and cabling.",
+    "domain": "AI infrastructure",
+    "difficulty": "intermediate",
+    "benchmark_status": "source_reconciled",
+    "version": "v0.2",
+    "source_document": "datacenter networking companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Reconciled to the canonical repository PDF. Security records absent from the source are retained with human-review flags."
+  },
+  "categories": [
+    {
+      "category_name": "Networking silicon",
+      "category_role": "Direct switching and interconnect silicon",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Optical and cabling",
+      "category_role": "High-speed optical components and physical connectivity",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "General telecom carriers",
+      "category_role": "Connectivity providers without material AI data-center exposure",
+      "importance": 2,
+      "expected_status": "excluded",
+      "notes": "Explicit boundary case."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "AVGO",
+      "company_name": "Broadcom",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Networking silicon",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Reference entity for networking silicon.",
+      "evidence_summary": "Canonical source identifies Broadcom in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "ANET",
+      "company_name": "Arista Networks",
+      "exchange": "NYSE",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Networking silicon",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Reference entity for networking silicon.",
+      "evidence_summary": "Canonical source identifies Arista Networks in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "COHR",
+      "company_name": "Coherent",
+      "exchange": "NYSE",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Optical and cabling",
+      "expectation": "should_include",
+      "importance": 3,
+      "role_summary": "Reference entity for optical and cabling.",
+      "evidence_summary": "Canonical source identifies Coherent in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "NOK",
+      "company_name": "Nokia",
+      "exchange": "NYSE",
+      "listing_region": "International",
+      "public_status": "public",
+      "category_name": "General telecom carriers",
+      "expectation": "international_reference",
+      "importance": 3,
+      "role_summary": "Reference entity for general telecom carriers.",
+      "evidence_summary": "Canonical source identifies Nokia in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    }
+  ],
+  "benchmark_caveats": [
+    "This benchmark is a QA/reference artifact, not ground truth or an investable universe.",
+    "Company status, listing, and thematic relevance can change and require versioned review.",
+    "All retained security records were located in the canonical source PDF."
+  ],
+  "sources": [
+    {
+      "source_document": "datacenter networking companies.pdf",
+      "source_page": "1-3",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations are recorded in evidence summaries.",
+      "source_hash": "30d36fcdf029bae9bbdf70c0138cb1c650a260c3ee814ee3e3e07099bc4304d2"
+    }
+  ]
+}

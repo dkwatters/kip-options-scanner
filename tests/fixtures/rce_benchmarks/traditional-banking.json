@@ -1,0 +1,239 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "traditional-banking",
+    "benchmark_name": "Traditional Banking",
+    "research_question": "Which public companies and reference entities matter across traditional U.S. banking business models?",
+    "description": "QA reference separating money centers, capital markets, regional, custody, and card-issuing banks.",
+    "domain": "Financial services",
+    "difficulty": "intermediate",
+    "benchmark_status": "source_reconciled",
+    "version": "v0.2",
+    "source_document": "traditional banking companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Canonical fixture derived from the repository PDF; explicit human-review flags preserve uncertain time-sensitive classifications."
+  },
+  "categories": [
+    {
+      "category_name": "Money-center banks",
+      "category_role": "Large global systemically important banks",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Investment banks and capital markets",
+      "category_role": "Advisory, underwriting, and trading franchises",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Regional and super-regional banks",
+      "category_role": "Geographically concentrated lending banks",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Custody and trust banks",
+      "category_role": "Fee-based asset servicing and custody",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Card-issuing bank holding companies",
+      "category_role": "Banks driven materially by cards and networks",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Community banks",
+      "category_role": "Long-tail smaller depositories",
+      "importance": 2,
+      "expected_status": "optional",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Asset managers",
+      "category_role": "AUM-fee businesses outside the banking boundary",
+      "importance": 2,
+      "expected_status": "adjacent",
+      "notes": "Source-defined research-map category."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "JPM",
+      "company_name": "JPMorgan Chase",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Money-center banks",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Largest diversified U.S. bank",
+      "evidence_summary": "Canonical source identifies JPMorgan Chase in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "BAC",
+      "company_name": "Bank of America",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Money-center banks",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Major U.S. money-center bank",
+      "evidence_summary": "Canonical source identifies Bank of America in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "C",
+      "company_name": "Citigroup",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Money-center banks",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Global turnaround bank",
+      "evidence_summary": "Canonical source identifies Citigroup in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "GS",
+      "company_name": "Goldman Sachs",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Investment banks and capital markets",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Capital-markets leader",
+      "evidence_summary": "Canonical source identifies Goldman Sachs in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "MS",
+      "company_name": "Morgan Stanley",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Investment banks and capital markets",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Investment bank and wealth manager",
+      "evidence_summary": "Canonical source identifies Morgan Stanley in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "USB",
+      "company_name": "US Bancorp",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Regional and super-regional banks",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Large super-regional bank",
+      "evidence_summary": "Canonical source identifies US Bancorp in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "STT",
+      "company_name": "State Street",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Custody and trust banks",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Global custody and asset servicing bank",
+      "evidence_summary": "Canonical source identifies State Street in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "COF",
+      "company_name": "Capital One Financial",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Card-issuing bank holding companies",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Card issuer, bank, and Discover network owner",
+      "evidence_summary": "Canonical source identifies Capital One Financial in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "AXP",
+      "company_name": "American Express",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Card-issuing bank holding companies",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Closed-loop network and issuing bank",
+      "evidence_summary": "Canonical source identifies American Express in this role on page 3.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "KRE",
+      "company_name": "SPDR S&P Regional Banking ETF",
+      "exchange": "NYSE Arca",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Regional and super-regional banks",
+      "expectation": "fund_reference",
+      "importance": 3,
+      "role_summary": "Broad regional-bank comparison vehicle",
+      "evidence_summary": "Canonical source identifies SPDR S&P Regional Banking ETF in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "BLK",
+      "company_name": "BlackRock",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Asset managers",
+      "expectation": "must_exclude",
+      "importance": 2,
+      "role_summary": "Asset manager outside lending-bank boundary",
+      "evidence_summary": "Canonical source identifies BlackRock in this role on page 3.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    }
+  ],
+  "benchmark_caveats": [
+    "This is a QA/reference artifact, not ground truth or an investable universe.",
+    "Listing status and thematic relevance require versioned review.",
+    "HUMAN REVIEW notes identify classifications requiring external confirmation."
+  ],
+  "sources": [
+    {
+      "source_document": "traditional banking companies.pdf",
+      "source_page": "1-3",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations appear in evidence summaries.",
+      "source_hash": "9d146f751510f92c3e26e412f25e5036e75809a132f89207c71bef7e8dbb4303"
+    }
+  ]
+}

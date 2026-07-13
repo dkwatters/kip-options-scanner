@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "nuclear-power-ai-data-centers",
+    "benchmark_name": "Nuclear Power for AI Data Centers",
+    "research_question": "Which companies and reference entities matter when researching nuclear power supply for AI data centers?",
+    "description": "QA reference for research-map coverage in nuclear power for ai data centers.",
+    "domain": "Energy infrastructure",
+    "difficulty": "intermediate",
+    "benchmark_status": "source_reconciled_pending_human_review",
+    "version": "v0.2",
+    "source_document": "nuclear data center companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Reconciled to the canonical repository PDF. Security records absent from the source are retained with human-review flags."
+  },
+  "categories": [
+    {
+      "category_name": "Nuclear generation",
+      "category_role": "Operating nuclear power exposure",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Advanced reactors and fuel",
+      "category_role": "New reactor technology and nuclear fuel",
+      "importance": 5,
+      "expected_status": "adjacent",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Broad clean-energy funds",
+      "category_role": "Diversified funds used only for context",
+      "importance": 2,
+      "expected_status": "optional",
+      "notes": "Expected research-map coverage."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "CEG",
+      "company_name": "Constellation Energy",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Nuclear generation",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Reference entity for nuclear generation.",
+      "evidence_summary": "Canonical source identifies Constellation Energy in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "CCJ",
+      "company_name": "Cameco",
+      "exchange": "NYSE",
+      "listing_region": "Canada",
+      "public_status": "public",
+      "category_name": "Advanced reactors and fuel",
+      "expectation": "international_reference",
+      "importance": 5,
+      "role_summary": "Reference entity for advanced reactors and fuel.",
+      "evidence_summary": "Canonical source identifies Cameco in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": null,
+      "company_name": "TerraPower",
+      "reference_identifier": "private-company:terrapower",
+      "exchange": null,
+      "listing_region": "US",
+      "public_status": "private",
+      "category_name": "Advanced reactors and fuel",
+      "expectation": "private_reference",
+      "importance": 3,
+      "role_summary": "Reference entity for advanced reactors and fuel.",
+      "evidence_summary": "Not located in the canonical PDF during v0.2 reconciliation; retained without inventing source support.",
+      "notes": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "ticker": "NLR",
+      "company_name": "VanEck Uranium and Nuclear ETF",
+      "exchange": "NYSE Arca",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Broad clean-energy funds",
+      "expectation": "fund_reference",
+      "importance": 3,
+      "role_summary": "Reference entity for broad clean-energy funds.",
+      "evidence_summary": "Not located in the canonical PDF during v0.2 reconciliation; retained without inventing source support.",
+      "notes": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    }
+  ],
+  "benchmark_caveats": [
+    "This benchmark is a QA/reference artifact, not ground truth or an investable universe.",
+    "Company status, listing, and thematic relevance can change and require versioned review.",
+    "2 security record(s) require human review because they were not located in the canonical source."
+  ],
+  "sources": [
+    {
+      "source_document": "nuclear data center companies.pdf",
+      "source_page": "1-2",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations are recorded in evidence summaries.",
+      "source_hash": "8a4fc84d7e6c7943f8637fcf82be73f140e1e6af44ed4f348bb661d939abe2a8"
+    }
+  ]
+}

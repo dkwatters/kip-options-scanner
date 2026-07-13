@@ -1,0 +1,232 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "fusion-energy",
+    "benchmark_name": "Fusion Energy",
+    "research_question": "Which public companies and reference entities matter across the fusion-energy value chain?",
+    "description": "QA reference for fusion developers, enabling suppliers, strategic partners, and private leaders.",
+    "domain": "Energy technology",
+    "difficulty": "advanced",
+    "benchmark_status": "source_reconciled",
+    "version": "v0.2",
+    "source_document": "fusion energy companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Canonical fixture derived from the repository PDF; explicit human-review flags preserve uncertain time-sensitive classifications."
+  },
+  "categories": [
+    {
+      "category_name": "Public fusion developers",
+      "category_role": "Publicly listed fusion reactor developers",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "HTS magnets and superconductors",
+      "category_role": "REBCO tape and magnet systems",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Cryogenic and industrial gases",
+      "category_role": "Cryogenic systems required by fusion plants",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Strategic investors",
+      "category_role": "Corporate equity investors in fusion developers",
+      "importance": 3,
+      "expected_status": "adjacent",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Power-offtake partners",
+      "category_role": "Companies contracting for future fusion output",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Private fusion leaders",
+      "category_role": "Non-public reactor developers",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Fuel-cycle infrastructure",
+      "category_role": "Tritium and fuel handling",
+      "importance": 3,
+      "expected_status": "optional",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Power electronics",
+      "category_role": "Grid integration and conversion equipment",
+      "importance": 3,
+      "expected_status": "optional",
+      "notes": "Source-defined research-map category."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "GFUZ",
+      "company_name": "General Fusion Group",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Public fusion developers",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Public magnetized-target fusion developer",
+      "evidence_summary": "Canonical source identifies General Fusion Group in this role on page 1.",
+      "notes": "HUMAN REVIEW: source reports a same-day listing; verify current listing status before use."
+    },
+    {
+      "ticker": "DJT",
+      "company_name": "Trump Media & Technology Group",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Public fusion developers",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Proposed public route for TAE Technologies",
+      "evidence_summary": "Canonical source identifies Trump Media & Technology Group in this role on page 1.",
+      "notes": "HUMAN REVIEW: merger completion and resulting exposure require verification."
+    },
+    {
+      "ticker": "AMSC",
+      "company_name": "American Superconductor",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "HTS magnets and superconductors",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Public HTS conductor supplier",
+      "evidence_summary": "Canonical source identifies American Superconductor in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "BRKR",
+      "company_name": "Bruker Corporation",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "HTS magnets and superconductors",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Superconductor and magnet-system supplier",
+      "evidence_summary": "Canonical source identifies Bruker Corporation in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "LIN",
+      "company_name": "Linde plc",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Cryogenic and industrial gases",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Large-scale cryogenic systems supplier",
+      "evidence_summary": "Canonical source identifies Linde plc in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "GOOGL",
+      "company_name": "Alphabet",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Power-offtake partners",
+      "expectation": "acceptable",
+      "importance": 3,
+      "role_summary": "Investor and prospective fusion power buyer",
+      "evidence_summary": "Canonical source identifies Alphabet in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "E",
+      "company_name": "Eni",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "International",
+      "public_status": "public",
+      "category_name": "Strategic investors",
+      "expectation": "international_reference",
+      "importance": 3,
+      "role_summary": "CFS investor and offtake partner",
+      "evidence_summary": "Canonical source identifies Eni in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "MSFT",
+      "company_name": "Microsoft",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Power-offtake partners",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Helion power-purchase counterparty",
+      "evidence_summary": "Canonical source identifies Microsoft in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": null,
+      "company_name": "Commonwealth Fusion Systems",
+      "exchange": null,
+      "reference_identifier": "private-company:commonwealth-fusion-systems",
+      "listing_region": null,
+      "public_status": "private",
+      "category_name": "Private fusion leaders",
+      "expectation": "private_reference",
+      "importance": 5,
+      "role_summary": "Private SPARC/ARC fusion leader",
+      "evidence_summary": "Canonical source identifies Commonwealth Fusion Systems in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": null,
+      "company_name": "Helion Energy",
+      "exchange": null,
+      "reference_identifier": "private-company:helion-energy",
+      "listing_region": null,
+      "public_status": "private",
+      "category_name": "Private fusion leaders",
+      "expectation": "private_reference",
+      "importance": 5,
+      "role_summary": "Private fusion developer with Microsoft offtake",
+      "evidence_summary": "Canonical source identifies Helion Energy in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    }
+  ],
+  "benchmark_caveats": [
+    "This is a QA/reference artifact, not ground truth or an investable universe.",
+    "Listing status and thematic relevance require versioned review.",
+    "HUMAN REVIEW notes identify classifications requiring external confirmation."
+  ],
+  "sources": [
+    {
+      "source_document": "fusion energy companies.pdf",
+      "source_page": "1-2",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations appear in evidence summaries.",
+      "source_hash": "c5b9d75f3c3c6a94b74185f29320ff3e30e8a577c2c1eaabfaa32324861c49cb"
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "defense-drones-counter-drone",
+    "benchmark_name": "Defense Drones and Counter-Drone",
+    "research_question": "Which companies should be researched across military drones, autonomy, sensors, and counter-drone systems?",
+    "description": "QA reference for research-map coverage in defense drones and counter-drone.",
+    "domain": "Defense",
+    "difficulty": "intermediate",
+    "benchmark_status": "source_reconciled",
+    "version": "v0.2",
+    "source_document": "defense drone companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Reconciled to the canonical repository PDF. Security records absent from the source are retained with human-review flags."
+  },
+  "categories": [
+    {
+      "category_name": "Drone platforms",
+      "category_role": "Uncrewed aerial system manufacturers",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Counter-drone systems",
+      "category_role": "Detection and defeat technologies",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Consumer drones",
+      "category_role": "Non-defense platforms",
+      "importance": 2,
+      "expected_status": "excluded",
+      "notes": "Explicit boundary case."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "AVAV",
+      "company_name": "AeroVironment",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Drone platforms",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Reference entity for drone platforms.",
+      "evidence_summary": "Canonical source identifies AeroVironment in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "KTOS",
+      "company_name": "Kratos Defense & Security Solutions",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Drone platforms",
+      "expectation": "should_include",
+      "importance": 5,
+      "role_summary": "Reference entity for drone platforms.",
+      "evidence_summary": "Canonical source identifies Kratos Defense & Security Solutions in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "LHX",
+      "company_name": "L3Harris Technologies",
+      "exchange": "NYSE",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Counter-drone systems",
+      "expectation": "should_include",
+      "importance": 3,
+      "role_summary": "Reference entity for counter-drone systems.",
+      "evidence_summary": "Canonical source identifies L3Harris Technologies in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": null,
+      "company_name": "Anduril Industries",
+      "reference_identifier": "private-company:anduril-industries",
+      "exchange": null,
+      "listing_region": "US",
+      "public_status": "private",
+      "category_name": "Counter-drone systems",
+      "expectation": "private_reference",
+      "importance": 3,
+      "role_summary": "Reference entity for counter-drone systems.",
+      "evidence_summary": "Canonical source identifies Anduril Industries in the stated thematic role on page 3.",
+      "notes": "Source page 3; classification retained under the benchmark rubric."
+    }
+  ],
+  "benchmark_caveats": [
+    "This benchmark is a QA/reference artifact, not ground truth or an investable universe.",
+    "Company status, listing, and thematic relevance can change and require versioned review.",
+    "All retained security records were located in the canonical source PDF."
+  ],
+  "sources": [
+    {
+      "source_document": "defense drone companies.pdf",
+      "source_page": "1-3",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations are recorded in evidence summaries.",
+      "source_hash": "de0ef6efbcc684d1c65eda424f14766136e5a156296b54e07938bae4a801d226"
+    }
+  ]
+}

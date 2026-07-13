@@ -14,12 +14,19 @@ The platform began as a stock/options screener, but the current architecture is 
 | --- | --- | --- | --- |
 | Research Question Taxonomy (RQT) | The product taxonomy that classifies a user's natural-language research question by intent domain, lens, scope, confidence, and clarification need. | What kind of research is the user asking for? | Designed / Planned |
 | Research Intent Profile | The structured output of RQT classification and the handoff object into RCE. | How should the user's question be represented before conversation artifacts are proposed? | Designed / Planned |
-| Research Conversation Engine (RCE) | The guided workflow that translates a user's research question into structured, user-reviewed research artifacts. | How does user intent become a research artifact? | Designed / Planned |
+| Research Conversation Engine (RCE) | The short Research Launch workflow that translates a user's research question into structured, user-reviewed research artifacts and terminates with a Proposed Research Universe. | How does user intent become a research artifact? | Designed / Planned |
+| RCE Benchmark | A versioned QA/reference artifact describing reviewer expectations for one exact RCE research question; it is neither ground truth nor a production Research Universe. | What coverage and boundary cases should RCE reviewers compare against? | QA subsystem v0.1 |
 | Research Guidance | Persistent contextual support attached to a Research Session after the brief Research Conversation has clarified intent. | What should the user understand about the current research state? | Product concept |
 | Research Session | The durable product record of a user's research process, including original question, mission, universe, findings, refinements, decisions, and saved notes. | What research should the platform remember? | Product concept |
 | Research Refinement | A structured modification to existing research rather than a continuation of a generic AI chat. | What changed in this research and why? | Product concept |
 | Research Mission | The user's top-level investment question, thesis, or exploratory intent. | What are we researching? | Product concept |
 | Research Strategy | The user-understandable plan for investigating a Research Mission. | How will this mission be researched? | Product concept |
+| Research Plan | The internal RCE planning artifact that structures how an analyst would investigate the interpreted question. | How should this research be structured before universe construction? | Designed / Planned |
+| Research Universe Construction Standard (RUCS) | The product methodology for constructing Proposed Research Universes from a Research Mission. | How should RCE build a useful candidate universe? | Designed / Planned |
+| Proposed Research Universe | The reviewable candidate universe produced by RCE before user approval. | What population is being proposed for research? | Designed / Planned |
+| Research Map | The ephemeral session-specific decomposition of a research topic before company selection. | What areas must be considered before listing companies? | Designed / Planned |
+| Universe Review | The internal RCE quality review of a Proposed Research Universe before user presentation. | Is this proposed universe useful enough to show? | Designed / Planned |
+| Research Utility Score | A future experimental score for the quality of a Proposed Research Universe as a research artifact, not the securities inside it. | How useful is this proposed universe for research? | Future concept |
 | AI-Assisted Research Universe Definition | A proposed Research Universe Definition produced from a Research Mission and requiring user review before use. | What universe is being proposed? | Designed / Planned |
 | Candidate Security | A security proposed by RCE for possible inclusion in a Research Universe. | Why might this security be in scope? | Designed / Planned |
 | Inclusion Rationale | The explanation for why a Candidate Security may belong in the proposed universe. | Why is this candidate included? | Designed / Planned |
@@ -85,13 +92,15 @@ Status: Designed / Planned. Defined in `docs/product/Research_Question_Taxonomy_
 
 Definition: The guided workflow that translates a user's plain-language research question into structured research artifacts the user can review before downstream analysis begins.
 
-Purpose: Help the user move from intent to a reviewable Research Universe Definition without bypassing user approval or model boundaries. RCE exists only to understand intent, clarify when necessary, define a Research Mission, and propose a Research Universe.
+Purpose: Help the user move from intent to a reviewable Research Universe Definition without bypassing user approval or model boundaries. RCE exists only to understand intent, state assumptions, clarify when confidence is too low, define a Research Mission, and propose a Research Universe.
 
 Owns: Structured mission interpretation, candidate universe proposal, Candidate Securities, Inclusion Rationale, review/edit/name/save workflow, and handoff to snapshot creation.
 
 Does NOT Own: Security scoring, option evaluation, trade recommendations, analytical model behavior, general chatbot behavior, arbitrary question answering, OAM scoring, SAM calculations, Opportunity Discovery behavior, Evaluation Profile behavior, Study Protocol execution, repository schema, cloud jobs, or research conclusions.
 
 Relationships: Starts from a Research Mission and may produce an AI-Assisted Research Universe Definition that becomes a User-Approved Research Universe after user review.
+
+Policy: RCE should follow a maximum two-turn model: user question, optional clarification only when confidence is below threshold, then Proposed Research Universe. For reasonably interpretable questions, and for responses at or above the default `0.70` confidence threshold, it should return a candidate research list immediately with assumptions, limitations, relevant categories, Candidate Securities, Inclusion Rationale, and confidence. Follow-up questions are Research Refinements that update the Research Mission and Proposed Research Universe rather than reopening the original conversation.
 
 Status: Designed / Planned.
 
@@ -165,6 +174,90 @@ Relationships: A Research Strategy may use a Research Universe, Security Researc
 
 Status: Product concept. Defined in `docs/product/Product_Vision_and_Experience_Architecture.md`.
 
+### Research Plan
+
+Definition: The internal RCE planning artifact that describes how an analyst would structure research after Interpretation and before Universe Construction.
+
+Purpose: Convert a Research Intent Profile into a practical plan for constructing a Proposed Research Universe.
+
+Owns: Research objective, primary theme, research lens, included areas, excluded areas, adjacent areas, candidate subdomains, assumptions, and known blind spots.
+
+Does NOT Own: Candidate approval, security scoring, option scoring, SAM calculations, Opportunity Discovery behavior, OAM scoring, Study Protocol behavior, repository schema, cloud jobs, or investment conclusions.
+
+Relationships: Produced during RCE Research Planning and consumed by Universe Construction.
+
+Status: Designed / Planned.
+
+### Research Universe Construction Standard (RUCS)
+
+Definition: The product methodology for how RCE should construct Proposed Research Universes.
+
+Purpose: Standardize Proposed Research Universe construction around research usefulness over popularity, coverage before ranking, Research Map first and company list second, explicit included/excluded/adjacent areas, candidate selection standards, informational diversity, visible assumptions, and refinement readiness.
+
+Owns: Methodology for upstream universe proposal quality.
+
+Does NOT Own: Security scoring, option scoring, Research Utility Score implementation, prompt implementation, SAM calculations, Opportunity Discovery behavior, OAM scoring, Study Protocol execution, repository schema, cloud jobs, or investment conclusions.
+
+Relationships: Guides RCE before an AI-Assisted Research Universe Definition or User-Approved Research Universe exists. Defined in `docs/product/Research_Universe_Construction_Standard.md`.
+
+Status: Designed / Planned.
+
+### Proposed Research Universe
+
+Definition: The reviewable candidate universe produced by RCE before user approval.
+
+Purpose: Give the user a structured research population to inspect, edit, rename, refine, or approve before downstream analysis begins.
+
+Owns: Candidate population proposal, included/excluded/adjacent areas, coverage assessment, candidate rationale, assumptions, and refinement options.
+
+Does NOT Own: Final universe approval, snapshot creation, security quality, option quality, SAM output, OD output, OAM output, trade recommendations, or suitability conclusions.
+
+Relationships: May become an AI-Assisted Research Universe Definition and then a User-Approved Research Universe after review.
+
+Status: Designed / Planned.
+
+### Research Map
+
+Definition: An ephemeral session-specific decomposition of the user's research topic before company selection.
+
+Purpose: Help RCE reason from a Research Mission to included, excluded, and adjacent areas before proposing Candidate Securities.
+
+Owns: Temporary explanation of the investable ecosystem for the current Proposed Research Universe.
+
+Does NOT Own: Canonical taxonomy, persisted industry classification, candidate ranking, security quality, option quality, or downstream model behavior.
+
+Relationships: Created by RCE during Research Launch and used to explain Proposed Research Universe coverage.
+
+Status: Designed / Planned.
+
+### Universe Review
+
+Definition: The internal RCE quality review of a Proposed Research Universe before it is translated into user-facing presentation.
+
+Purpose: Assess whether the proposed universe is useful as a research artifact before the user reviews it.
+
+Owns: Coverage assessment, relevance assessment, informational diversity assessment, missing areas, weak candidates, redundant candidates, recommended improvements, and future-facing Draft Research Utility Score.
+
+Does NOT Own: Executable scoring, security quality, option quality, SAM score, OAM score, rankings, recommendations, suitability conclusions, downstream analysis, persistence, or repository schema.
+
+Relationships: Follows Universe Construction and informs User Presentation.
+
+Status: Designed / Planned.
+
+### Research Utility Score
+
+Definition: A future experimental score for the quality of a Proposed Research Universe as a research artifact.
+
+Purpose: Potentially assess proposed-universe usefulness across Coverage, Relevance, Informational Diversity, Explainability, and Refinement Readiness.
+
+Owns: No current executable behavior. Future scoring would require a separate specification.
+
+Does NOT Own: Security attractiveness, option quality, SAM score, OAM score, predictions, rankings, recommendations, or suitability conclusions.
+
+Relationships: Future concept defined by RUCS. Not implemented.
+
+Status: Future concept.
+
 ### AI-Assisted Research Universe Definition
 
 Definition: A proposed Research Universe Definition generated by RCE from a Research Mission and presented for user review.
@@ -186,6 +279,8 @@ Definition: A security proposed by RCE for possible inclusion in an AI-Assisted 
 Purpose: Make proposed universe membership reviewable before it becomes part of a Research Universe Definition.
 
 Owns: Provisional candidate identity and associated Inclusion Rationale.
+
+Required display fields: ticker, company name, inclusion rationale, category, and confidence.
 
 Does NOT Own: Security quality, option quality, ranking, technical strength, suitability, or trade action.
 
@@ -784,11 +879,11 @@ flowchart TD
 
 ## Research Workflow
 
-Question -> Research Conversation -> Research Guidance -> Research Mission -> Research Universe -> Security Analysis -> Opportunity Discovery -> Findings -> Research Refinement
+Question -> Research Launch -> Research Guidance -> Research Mission -> Research Universe -> Security Analysis -> Opportunity Discovery -> Findings -> Research Refinement
 
 The implementation-oriented workflow is:
 
-User Question -> RQT Classification -> Research Intent Profile -> RCE Structured Interpretation -> Candidate Universe Proposal -> User Review/Edit/Name -> Research Universe Definition -> Research Universe Snapshot -> SAM/SAE -> OD/OAM/OAE -> Research Repository -> Findings -> Research Refinement
+User Question -> RQT Classification -> Research Intent Profile -> optional clarification when confidence is too low -> Proposed Research Universe -> User Review/Edit/Name -> Research Universe Definition -> Research Universe Snapshot -> SAM/SAE -> OD/OAM/OAE -> Research Repository -> Findings -> Research Refinement
 
 After the user-approved universe exists, the technical workflow remains:
 
@@ -802,7 +897,9 @@ Downstream workflows should not care whether a Research Universe was created man
 
 RCE remains upstream of downstream research execution. It translates intent into structured artifacts and does not score securities, evaluate options, recommend trades, or alter SAM, SAE, OD, OAM, OAE, Evaluation Profiles, Study Protocols, cloud jobs, database schema, or Research Repository evidence semantics.
 
-Research Conversation should be brief. Research Guidance persists through the Research Session. The platform should remember the Original Question, Research Mission, Research Universe, Findings, Refinements, Decisions, and Saved Notes, not conversation turns as the primary product object.
+RCE is model-agnostic. The deterministic mock provider is used for local development and tests, and the OpenAI provider can be enabled with `RCE_PROVIDER=openai`, `OPENAI_API_KEY`, and optional `RCE_OPENAI_MODEL`. OpenAI provider output is currently session-only interpretation in the Research Workspace; it does not persist generated content, save Research Universe Definitions, create snapshots, or run downstream models.
+
+Research Conversation should be intentionally short and candidate-list-first where the question is interpretable. It exists only to launch structured research and ends with a Proposed Research Universe. Research Guidance persists through the Research Session. The platform should remember the Original Question, Research Mission, Research Universe, Findings, Refinements, Decisions, and Saved Notes, not message history as the primary product object.
 
 ---
 
@@ -816,6 +913,12 @@ Research Conversation should be brief. Research Guidance persists through the Re
 - Use Research Intent Profile for the structured classification output passed from RQT to RCE.
 - Use Research Mission for the user's top-level question, thesis, or exploratory intent.
 - Use Research Strategy for the user-understandable plan that investigates a Research Mission.
+- Use Research Plan for the internal RCE artifact that structures the interpreted question before universe construction.
+- Use Research Universe Construction Standard or RUCS for the methodology governing Proposed Research Universe construction.
+- Use Proposed Research Universe for the RCE-produced candidate universe before user approval.
+- Use Research Map for the ephemeral session-specific decomposition of the research topic before company selection.
+- Use Universe Review for the internal quality review of a Proposed Research Universe before user presentation.
+- Use Research Utility Score only as a future experimental score for proposed-universe quality; do not use it as a security-quality score.
 - Use AI-Assisted Research Universe Definition for an RCE-proposed universe before user approval.
 - Use Candidate Security for a proposed member of an AI-assisted universe.
 - Use Inclusion Rationale for the explanation of why a Candidate Security may belong in scope.

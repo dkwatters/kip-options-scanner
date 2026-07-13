@@ -1,0 +1,225 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "critical-infrastructure-cybersecurity",
+    "benchmark_name": "Critical Infrastructure Cybersecurity",
+    "research_question": "Which public companies and reference entities matter when researching cybersecurity for critical infrastructure?",
+    "description": "QA reference spanning OT/ICS, industrial visibility, physical communications, monitoring, vulnerability, identity, and data security.",
+    "domain": "Cybersecurity",
+    "difficulty": "advanced",
+    "benchmark_status": "source_reconciled",
+    "version": "v0.2",
+    "source_document": "critical infra cybersecurity companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Canonical fixture derived from the repository PDF; explicit human-review flags preserve uncertain time-sensitive classifications."
+  },
+  "categories": [
+    {
+      "category_name": "OT / ICS security",
+      "category_role": "Security for SCADA, industrial control systems, and operational technology",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Industrial networking and visibility",
+      "category_role": "Secure converged industrial networking and OT visibility",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Physical and communications security",
+      "category_role": "Resilient communications and integrated physical/cyber protection",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Broad enterprise cybersecurity",
+      "category_role": "General endpoint, network, cloud, and zero-trust platforms",
+      "importance": 3,
+      "expected_status": "adjacent",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Monitoring and DDoS protection",
+      "category_role": "Infrastructure-scale network monitoring and denial-of-service defense",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Vulnerability management",
+      "category_role": "Exposure assessment, scanning, and compliance",
+      "importance": 4,
+      "expected_status": "core",
+      "notes": "Source-defined research-map category."
+    },
+    {
+      "category_name": "Identity and data security",
+      "category_role": "Identity, data posture, and hybrid-cloud protection",
+      "importance": 3,
+      "expected_status": "adjacent",
+      "notes": "Source-defined research-map category."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "PANW",
+      "company_name": "Palo Alto Networks",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "OT / ICS security",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Dedicated OT security within a broad platform",
+      "evidence_summary": "Canonical source identifies Palo Alto Networks in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "FTNT",
+      "company_name": "Fortinet",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "OT / ICS security",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Enterprise and industrial network security",
+      "evidence_summary": "Canonical source identifies Fortinet in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "CSCO",
+      "company_name": "Cisco Systems",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Industrial networking and visibility",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Secure industrial networking and visibility",
+      "evidence_summary": "Canonical source identifies Cisco Systems in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": null,
+      "company_name": "Dragos",
+      "exchange": null,
+      "reference_identifier": "private-company:dragos",
+      "listing_region": null,
+      "public_status": "private",
+      "category_name": "OT / ICS security",
+      "expectation": "private_reference",
+      "importance": 5,
+      "role_summary": "Specialized OT security vendor",
+      "evidence_summary": "Canonical source identifies Dragos in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": null,
+      "company_name": "Claroty",
+      "exchange": null,
+      "reference_identifier": "private-company:claroty",
+      "listing_region": null,
+      "public_status": "private",
+      "category_name": "OT / ICS security",
+      "expectation": "private_reference",
+      "importance": 5,
+      "role_summary": "Specialized cyber-physical security vendor",
+      "evidence_summary": "Canonical source identifies Claroty in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "MSI",
+      "company_name": "Motorola Solutions",
+      "exchange": "NYSE",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Physical and communications security",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Resilient public-safety communications and physical security",
+      "evidence_summary": "Canonical source identifies Motorola Solutions in this role on page 1.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "CRWD",
+      "company_name": "CrowdStrike",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Broad enterprise cybersecurity",
+      "expectation": "acceptable",
+      "importance": 3,
+      "role_summary": "Endpoint detection platform adjacent to OT",
+      "evidence_summary": "Canonical source identifies CrowdStrike in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "NTCT",
+      "company_name": "Netscout Systems",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Monitoring and DDoS protection",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Carrier-grade monitoring and DDoS defense",
+      "evidence_summary": "Canonical source identifies Netscout Systems in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "QLYS",
+      "company_name": "Qualys",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Vulnerability management",
+      "expectation": "should_include",
+      "importance": 4,
+      "role_summary": "Cloud vulnerability and compliance management",
+      "evidence_summary": "Canonical source identifies Qualys in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    },
+    {
+      "ticker": "OKTA",
+      "company_name": "Okta",
+      "exchange": "NASDAQ",
+      "reference_identifier": null,
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Identity and data security",
+      "expectation": "acceptable",
+      "importance": 3,
+      "role_summary": "Identity layer for zero-trust architectures",
+      "evidence_summary": "Canonical source identifies Okta in this role on page 2.",
+      "notes": "Classification follows the canonical source and benchmark rubric."
+    }
+  ],
+  "benchmark_caveats": [
+    "This is a QA/reference artifact, not ground truth or an investable universe.",
+    "Listing status and thematic relevance require versioned review.",
+    "HUMAN REVIEW notes identify classifications requiring external confirmation."
+  ],
+  "sources": [
+    {
+      "source_document": "critical infra cybersecurity companies.pdf",
+      "source_page": "1-3",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations appear in evidence summaries.",
+      "source_hash": "b619474cc42a310159822fe9ca72912a3b4bb80073b348ad442667780c34ef59"
+    }
+  ]
+}

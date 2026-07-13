@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "space-exploration",
+    "benchmark_name": "Space and Space Exploration",
+    "research_question": "Which public companies and private references cover launch, satellites, space infrastructure, and exploration?",
+    "description": "QA reference for research-map coverage in space and space exploration.",
+    "domain": "Aerospace",
+    "difficulty": "intermediate",
+    "benchmark_status": "source_reconciled_pending_human_review",
+    "version": "v0.2",
+    "source_document": "space exploration companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Reconciled to the canonical repository PDF. Security records absent from the source are retained with human-review flags."
+  },
+  "categories": [
+    {
+      "category_name": "Launch and spacecraft",
+      "category_role": "Launch vehicles and spacecraft platforms",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Satellite infrastructure",
+      "category_role": "Satellite manufacturing and services",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Space funds",
+      "category_role": "Diversified thematic vehicles",
+      "importance": 2,
+      "expected_status": "optional",
+      "notes": "Expected research-map coverage."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "RKLB",
+      "company_name": "Rocket Lab USA",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Launch and spacecraft",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Reference entity for launch and spacecraft.",
+      "evidence_summary": "Not located in the canonical PDF during v0.2 reconciliation; retained without inventing source support.",
+      "notes": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "ticker": "IRDM",
+      "company_name": "Iridium Communications",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Satellite infrastructure",
+      "expectation": "should_include",
+      "importance": 5,
+      "role_summary": "Reference entity for satellite infrastructure.",
+      "evidence_summary": "Canonical source identifies Iridium Communications in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "SPCX",
+      "company_name": "SpaceX",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Launch and spacecraft",
+      "expectation": "must_include",
+      "importance": 3,
+      "role_summary": "Reference entity for launch and spacecraft.",
+      "evidence_summary": "Canonical source identifies SpaceX in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "ARKX",
+      "company_name": "ARK Space Exploration & Innovation ETF",
+      "exchange": "Cboe BZX",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Space funds",
+      "expectation": "fund_reference",
+      "importance": 3,
+      "role_summary": "Reference entity for space funds.",
+      "evidence_summary": "Not located in the canonical PDF during v0.2 reconciliation; retained without inventing source support.",
+      "notes": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    }
+  ],
+  "benchmark_caveats": [
+    "This benchmark is a QA/reference artifact, not ground truth or an investable universe.",
+    "Company status, listing, and thematic relevance can change and require versioned review.",
+    "2 security record(s) require human review because they were not located in the canonical source."
+  ],
+  "sources": [
+    {
+      "source_document": "space exploration companies.pdf",
+      "source_page": "1-4",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations are recorded in evidence summaries.",
+      "source_hash": "f382f4038d4e7f468d5ef039bfcb94bd894cb27bf4cc73f6b944e4eb1ca37022"
+    }
+  ]
+}

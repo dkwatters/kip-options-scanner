@@ -447,12 +447,22 @@ RCE depends on the Research Question Taxonomy design specified in `docs/product/
 
 RCE should remain intentionally narrow. It exists only to understand intent, clarify when necessary, define a Research Mission, and propose a Research Universe. It should not become the platform's analytical model, recommendation layer, or general-purpose chatbot.
 
+RCE interpretation should be provider-agnostic. The application boundary is a Research Conversation provider interface that captures provider name, model name, prompt version, request and response timestamps, structured output, confidence, warnings, errors, and optional raw output. Initial implementation should use a deterministic mock provider only; live model providers can be added later behind the same interface.
+
 #### Phase RCE-1 - Workflow and Artifact Design
 
 - Define RCE, Research Mission, AI-Assisted Research Universe Definition, Candidate Security, Inclusion Rationale, User-Approved Research Universe, and Research Universe Snapshot.
 - Document the user-reviewed workflow from plain-language question to approved Research Universe Definition.
 - Define RQT intent domains, research lenses, Research Intent Profile fields, confidence handling, persona-aware conversation, representative scenarios, and future prompt template needs.
 - Keep the sprint documentation-only.
+
+#### Phase RCE-1A - Provider Interface
+
+- Add a Research Conversation provider abstraction without binding the platform to any single AI vendor.
+- Add deterministic mock provider behavior for tests and local development.
+- Capture provider metadata, structured responses, confidence, warnings, errors, and optional raw responses.
+- Preserve the possibility of comparing interpretations across providers in future work.
+- Do not add live AI calls, persistence, scoring, OD, SAM, OAM, Evaluation Profile, Study Protocol, cloud, or repository behavior changes.
 
 #### Phase RCE-2 - Research Workspace UX Prototype
 

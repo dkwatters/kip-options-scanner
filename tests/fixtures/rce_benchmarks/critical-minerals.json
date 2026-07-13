@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "critical-minerals",
+    "benchmark_name": "Critical Minerals",
+    "research_question": "Which companies and reference vehicles cover extraction, processing, and supply security for critical minerals?",
+    "description": "QA reference for research-map coverage in critical minerals.",
+    "domain": "Materials",
+    "difficulty": "intermediate",
+    "benchmark_status": "source_reconciled_pending_human_review",
+    "version": "v0.2",
+    "source_document": "critical minerals companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Reconciled to the canonical repository PDF. Security records absent from the source are retained with human-review flags."
+  },
+  "categories": [
+    {
+      "category_name": "Producers",
+      "category_role": "Mining and production assets",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Processing and refining",
+      "category_role": "Separation and downstream processing",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "Diversified funds",
+      "category_role": "Portfolio reference vehicles",
+      "importance": 2,
+      "expected_status": "optional",
+      "notes": "Expected research-map coverage."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "MP",
+      "company_name": "MP Materials",
+      "exchange": "NYSE",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Producers",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Reference entity for producers.",
+      "evidence_summary": "Canonical source identifies MP Materials in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "ALB",
+      "company_name": "Albemarle",
+      "exchange": "NYSE",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Producers",
+      "expectation": "should_include",
+      "importance": 5,
+      "role_summary": "Reference entity for producers.",
+      "evidence_summary": "Not located in the canonical PDF during v0.2 reconciliation; retained without inventing source support.",
+      "notes": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "ticker": "LYC",
+      "company_name": "Lynas Rare Earths",
+      "exchange": "ASX",
+      "listing_region": "Australia",
+      "public_status": "public",
+      "category_name": "Processing and refining",
+      "expectation": "international_reference",
+      "importance": 3,
+      "role_summary": "Reference entity for processing and refining.",
+      "evidence_summary": "Canonical source identifies Lynas Rare Earths in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "REMX",
+      "company_name": "VanEck Rare Earth and Strategic Metals ETF",
+      "exchange": "NYSE Arca",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "Diversified funds",
+      "expectation": "fund_reference",
+      "importance": 3,
+      "role_summary": "Reference entity for diversified funds.",
+      "evidence_summary": "Not located in the canonical PDF during v0.2 reconciliation; retained without inventing source support.",
+      "notes": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    }
+  ],
+  "benchmark_caveats": [
+    "This benchmark is a QA/reference artifact, not ground truth or an investable universe.",
+    "Company status, listing, and thematic relevance can change and require versioned review.",
+    "2 security record(s) require human review because they were not located in the canonical source."
+  ],
+  "sources": [
+    {
+      "source_document": "critical minerals companies.pdf",
+      "source_page": "1-3",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations are recorded in evidence summaries.",
+      "source_hash": "2386d39c5f52aa52d4eb100a939112207629427abe3a6a077aa58a14d104ed12"
+    }
+  ]
+}

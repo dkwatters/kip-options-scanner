@@ -387,6 +387,185 @@ Complete
 
 ---
 
+### Milestone M20 - Model-Agnostic RCE Provider Interface v0.1
+
+Date: 2026-07-09
+
+Definition:
+The platform added the first executable Research Conversation Engine provider abstraction so RCE interpretation can support multiple model providers without coupling the service layer to OpenAI or any single vendor.
+
+Evidence:
+
+- `src/research_conversation.py` defines `ResearchConversationProvider`, `ResearchConversationRequest`, `ResearchConversationResponse`, `ProviderMetadata`, and `ResearchConversationService`.
+- `MockResearchConversationProvider` returns deterministic placeholder structured output for tests and local development.
+- Provider metadata captures provider name, model name, prompt version, request timestamp, response timestamp, confidence, warnings, errors, structured response, and optional raw response.
+- Unit tests verify mock-provider use, metadata capture, provider error handling, and sending the same request shape to different providers.
+- The implementation makes no live AI calls and adds no database persistence.
+- The sprint does not change scoring, Opportunity Discovery, Security Analysis Model, Option Analysis Model, Evaluation Profiles, Study Protocols, cloud jobs, repository schema, or analytical behavior.
+
+Rationale:
+RCE should be an intent-translation boundary rather than a vendor integration. A provider abstraction lets future work compare structured interpretations across model providers while preserving user review and downstream research boundaries.
+
+Status:
+Complete
+
+---
+
+### Milestone M21 - RCE OpenAI Provider v0.1
+
+Date: 2026-07-09
+
+Definition:
+The platform added the first live OpenAI-backed Research Conversation Engine provider behind the existing model-agnostic provider interface.
+
+Evidence:
+
+- `src/research_conversation/openai_provider.py` implements OpenAI RCE interpretation with structured JSON parsing and missing-key handling.
+- `RCE_PROVIDER`, `OPENAI_API_KEY`, and `RCE_OPENAI_MODEL` configure provider selection and model choice.
+- The Research Workspace Start Conversation action calls the configured provider and displays Research Intent, Suggested Research Mission, Suggested Research Universe Name, candidate categories, candidate securities with inclusion rationale, clarifying questions, warnings, and limitations.
+- RCE output remains in Streamlit session state only.
+- No Research Universe Definitions are saved, no snapshots are created, and SAM, OD, OAM, scoring, Study Protocol, cloud job, database schema, and repository semantics are unchanged.
+- Unit tests cover OpenAI provider instantiation without API calls, missing API key handling, valid structured JSON parsing, malformed response handling, deterministic mock behavior, and config-based provider switching.
+
+Rationale:
+OpenAI is one provider implementation, not the RCE boundary itself. Conversation starts the research process by translating intent into reviewable structure; evidence and downstream models complete research without becoming investment recommendations.
+
+Status:
+Complete
+
+---
+
+### Milestone M22 - RCE Candidate-List-First Response Policy v0.2
+
+Date: 2026-07-09
+
+Definition:
+The Research Conversation Engine response behavior and Research Workspace display were updated so the first response favors a useful candidate research list over multi-turn clarification.
+
+Evidence:
+
+- RCE policy now allows at most one clarifying question before producing a response.
+- Reasonably interpretable company, theme, industry, or market questions should return a candidate research universe immediately.
+- Clarifying questions are treated as optional refinements unless the original question is too ambiguous to classify.
+- The first response includes assumptions and limitations instead of delaying output.
+- Follow-up questions should refine the current research artifact rather than restart the conversation.
+- The Research Workspace uses user-facing headings: "Here's how I understand your question," "What we'll investigate," "Areas that seem relevant," "Companies to start with," "Assumptions," and "Ways you can refine this."
+- Candidate lists display ticker, company name, category, inclusion rationale, and confidence, with the first 25 shown by default when more are available.
+- The deterministic mock provider includes a cybersecurity-market response for "I'd like to understand the cybersecurity market." with 25 candidate securities.
+- The sprint did not change scoring, Opportunity Discovery behavior, Security Analysis Model calculations, Option Analysis Model calculations, Study Protocol execution, cloud jobs, repository persistence, database schema, or downstream analytical behavior.
+
+Rationale:
+RCE should minimize time from question to useful research artifact. Conversation starts the process, but evidence completes it; therefore the first RCE output should be reviewable structure with explicit assumptions, not a blocker-style clarification loop.
+
+Status:
+Complete
+
+---
+
+### Milestone M23 - RCE Research Launch Experience v1.0
+
+Date: 2026-07-09
+
+Definition:
+The Research Conversation Engine was reframed from a chatbot-style interaction into a short Research Launch workflow.
+
+Evidence:
+
+- RCE now follows a maximum two-turn model: user question, optional clarification only when confidence is below threshold, then Proposed Research Universe.
+- Confidence threshold behavior defaults to `0.70`; responses at or above threshold suppress clarifying questions.
+- Assumptions are treated as defaults, including U.S.-listed companies, general investment research, and medium-term perspective.
+- The terminal artifact is a Proposed Research Universe with interpretation, assumptions, proposed mission, categories, candidate companies, and ways to refine later.
+- The Research Workspace now presents Conversation Complete, Research Ready, and Ready to Build Research Universe states instead of a continuing conversation path.
+- Future follow-up questions are Research Refinements that update the Research Mission and Proposed Research Universe rather than reopening the original conversation.
+- The sprint did not change scoring, Opportunity Discovery behavior, Security Analysis Model calculations, Option Analysis Model calculations, Study Protocol execution, cloud jobs, repository persistence, database schema, or downstream analytical behavior.
+
+Rationale:
+Research Conversation exists only to launch structured research. Research is intentionally persistent; conversation is intentionally short. The platform should remember research artifacts rather than message history.
+
+Status:
+Complete
+
+---
+
+### Milestone M24 - RCE Research Universe Construction Methodology v0.1
+
+Date: 2026-07-09
+
+Definition:
+The Research Conversation Engine was updated to construct a dynamic Research Map before proposing a Research Universe.
+
+Evidence:
+
+- The RCE OpenAI system prompt now instructs the model to think like a senior investment analyst, research librarian, and thematic equity researcher constructing the first draft of a study.
+- RCE methodology now follows: interpret the research objective, construct a dynamic Research Map, decide included and excluded map areas, propose a representative Research Universe, and assess coverage.
+- Structured RCE output now supports research objective, Research Map, included areas, excluded areas, candidate subdomains, coverage assessment, and ways to refine.
+- The Research Workspace now presents Proposed Research Universe output as Research Map -> Included Areas -> Excluded Areas -> Candidate Companies -> Coverage Assessment -> Assumptions -> Ways to Refine.
+- Developer QA examples were added for AI networking/interconnect, AI cancer research, and retail AI adoption prompts.
+- The Research Map is documented as ephemeral and generated fresh for each research session, not a manually curated taxonomy.
+- The sprint did not change SAM scoring, Opportunity Discovery, Option Analysis Model behavior, database schema, repository persistence, cloud jobs, analytical behavior, or Research Workflow orchestration.
+
+Rationale:
+The RCE should not merely answer a user question or return a popularity-weighted ticker list. It should construct a useful first-pass study universe by mapping the investable ecosystem, making scope decisions explicit, and optimizing for coverage before downstream deterministic analysis begins.
+
+Status:
+Complete
+
+---
+
+### Milestone M25 - Research Universe Construction Standard v0.1
+
+Date: 2026-07-09
+
+Definition:
+The platform added a documentation-only Research Universe Construction Standard (RUCS) for how RCE should construct Proposed Research Universes.
+
+Evidence:
+
+- `docs/product/Research_Universe_Construction_Standard.md` defines RUCS as the formal methodology for Proposed Research Universe construction.
+- RUCS establishes research usefulness over popularity, coverage before ranking, and Research Map first, company list second.
+- The standard distinguishes included, excluded, and adjacent areas.
+- Candidate selection standards require plausible research-scope rationale rather than popularity or implied attractiveness.
+- Informational diversity is defined as variety that improves downstream research comparison.
+- Assumptions are documented as visible editable defaults, and refinements are treated as changes to the current research artifact.
+- RUCS clarifies that SAM, OD, and OAM remain downstream evidence systems and are not changed by universe construction methodology.
+- Research Utility Score is documented only as a future experimental score for Proposed Research Universe quality, not security quality.
+- The sprint changed documentation only and did not change executable behavior, prompt behavior, scoring, SAM calculations, Opportunity Discovery behavior, Option Analysis Model behavior, Study Protocol execution, repository behavior, database schema, cloud jobs, or UI behavior.
+
+Rationale:
+RCE needs a formal construction standard so Proposed Research Universes are evaluated as research artifacts rather than as popularity-weighted ticker lists. RUCS makes the quality bar explicit before any future scoring, persistence, or workflow changes are considered.
+
+Status:
+Complete
+
+---
+
+### Milestone M26 - Multi-Stage RCE Reasoning Design v0.1
+
+Date: 2026-07-09
+
+Definition:
+The platform added a documentation-only design for RCE as a multi-stage internal research-planning workflow.
+
+Evidence:
+
+- RUCS now defines the internal RCE workflow as User Question -> Interpretation -> Research Planning -> Universe Construction -> Universe Review -> User Presentation.
+- Interpretation outputs a Research Intent Profile.
+- Research Planning outputs a Research Plan with research objective, primary theme, research lens, included areas, excluded areas, adjacent areas, candidate subdomains, assumptions, and known blind spots.
+- Universe Construction outputs Candidate Securities with ticker, company, subdomain, rationale, and confidence.
+- Universe Review outputs coverage assessment, relevance assessment, informational diversity assessment, missing areas, weak candidates, redundant candidates, recommended improvements, and future-facing Draft Research Utility Score.
+- User Presentation outputs clean UI sections: "Here's how I understand your question," "How we'll approach it," "Areas included," "Areas excluded," "Companies to start with," "Assumptions," and "Ways to refine this."
+- RUCS now includes benchmark QA scenarios for AI networking/interconnects, AI cancer drug discovery, data center power buildout, cybersecurity market, Micron earnings call options, and fashion brands taking market share.
+- Research Utility Score remains experimental and future-facing, with dimensions Coverage, Relevance, Informational Diversity, Explainability, and Refinement Readiness.
+- The sprint changed documentation only and did not change analytical behavior, SAM, OD, OAM, Study Protocols, repository schema, cloud jobs, universe persistence, prompts, scoring, or UI behavior.
+
+Rationale:
+A multi-stage RCE design makes the research-planning process inspectable before implementation. It separates intent interpretation, analyst-style planning, candidate construction, internal quality review, and user presentation so future provider work can be evaluated without changing downstream analytical systems.
+
+Status:
+Complete
+
+---
+
 ## Observation Log
 
 ### Observation 001
@@ -584,6 +763,63 @@ Evidence: The RQT/RCE design separates intent domains, research lenses, Research
 Confidence: High
 
 Follow-up Questions: Which fields in the Research Intent Profile should be persisted first when RCE implementation begins, and which should remain transient conversation context?
+
+---
+
+### Observation 013
+
+Observation ID: OBS-013
+
+Date: 2026-07-09
+
+Study Protocol: Platform Architecture
+
+Observation: Proposed Research Universe quality should be judged separately from security quality.
+
+Evidence: RUCS defines coverage, relevance, informational diversity, explainability, and refinement readiness as future Research Utility Score dimensions while explicitly excluding security attractiveness, option quality, prediction, ranking, recommendation, and suitability conclusions.
+
+Confidence: High
+
+Follow-up Questions: What evidence should validate a future Research Utility Score before it is exposed in the product, and should it be rule-based, review-based, model-assisted, or a hybrid?
+
+---
+
+### Milestone M17 - RCE Benchmark Library and Ingestion Foundation v0.1
+
+Date: 2026-07-11
+
+Definition:
+The platform added a versioned, benchmark-only QA repository and reviewed-JSON import boundary for RCE reference artifacts.
+
+Evidence:
+
+- Four dedicated `rce_benchmark*` tables store benchmark metadata, categories, securities, and source provenance outside the production research database.
+- Canonical JSON validation enforces expected category, expectation, and public-status vocabularies.
+- The importer rejects duplicate benchmark versions and duplicate source definitions, reports ticker/data-quality classifications, supports dry-run, and applies a batch transactionally.
+- Twelve domain fixtures retain private, international, fund, distressed, and exclusion cases explicitly.
+- The source PDFs were not present in the workspace; v0.1 fixtures therefore remain `draft_pending_source_review` with explicit provenance caveats rather than claiming source approval.
+- No RCE prompt/reasoning behavior, SAM, OD, OAM, Study Protocol, Research Universe persistence, production scoring, or cloud job behavior changed.
+
+Status:
+Foundation complete; editorial source review pending.
+
+---
+
+### Observation 014
+
+Observation ID: OBS-014
+
+Date: 2026-07-11
+
+Study Protocol: Platform Architecture / RCE QA
+
+Observation: RCE benchmark expectations must remain separate from both production Research Universes and claims of ground truth.
+
+Evidence: The benchmark repository uses a separate default database and controlled importer. Its fixtures preserve negative and non-standard reference entities for QA while explicitly recording caveats, version, review status, and source provenance.
+
+Confidence: High for the architectural boundary; source-specific benchmark content remains pending because the reference PDFs were unavailable.
+
+Follow-up Questions: Which source-document pages support each security and category expectation, and who will approve the first source-reviewed versions?
 
 ---
 

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "ai-networking-interconnects",
+    "question": "I want to research AI networking and interconnect companies.",
+    "expected_research_lens": ["Theme / Narrative", "Competitive Position", "Infrastructure"],
+    "included_areas": ["AI networking chips", "Ethernet switching", "Optical interconnects", "Data center switching"],
+    "excluded_areas": ["General enterprise software", "Consumer AI applications", "Unrelated telecom carriers"],
+    "strong_candidates": ["AVGO", "MRVL", "ANET", "NVDA", "COHR", "LITE", "CSCO"],
+    "weak_or_off_target_candidates": ["Consumer app companies", "Generic SaaS companies", "Telecom carriers without AI data center exposure"]
+  },
+  {
+    "id": "ai-cancer-drug-discovery",
+    "question": "I am interested in AI companies solving cancer.",
+    "expected_research_lens": ["Theme / Narrative", "Healthcare", "Event-Driven"],
+    "included_areas": ["AI drug discovery", "Oncology biotechnology", "Precision medicine", "Computational biology", "Diagnostics"],
+    "excluded_areas": ["Generic AI infrastructure", "Hospitals", "Insurers"],
+    "strong_candidates": ["RXRX", "SDGR", "EXAI", "TEM", "GH", "ILMN"],
+    "weak_or_off_target_candidates": ["AI chip companies without cancer exposure", "General hospital operators", "Biotech names included only because they are popular"]
+  },
+  {
+    "id": "data-center-power-buildout",
+    "question": "Research energy companies with promising data center power buildout.",
+    "expected_research_lens": ["Theme / Narrative", "Macro Exposure", "Infrastructure"],
+    "included_areas": ["Utilities", "Independent power producers", "Grid equipment", "Electrical equipment", "Backup power"],
+    "excluded_areas": ["Cloud software", "Oil and gas without power infrastructure", "AI chips unless full infrastructure chain is requested"],
+    "strong_candidates": ["GEV", "ETN", "VRT", "PWR", "CEG", "VST", "NEE"],
+    "weak_or_off_target_candidates": ["Cloud software companies", "Consumer energy retailers", "Unrelated utilities with no capacity-buildout relevance"]
+  },
+  {
+    "id": "cybersecurity-market",
+    "question": "I would like to understand the cybersecurity market.",
+    "expected_research_lens": ["Competitive Position", "Fundamental", "Theme / Narrative", "Risk"],
+    "included_areas": ["Endpoint security", "Cloud security", "Identity", "Network security", "Zero trust", "Vulnerability management"],
+    "excluded_areas": ["General IT services", "Hardware resellers", "Broad software where security is immaterial"],
+    "strong_candidates": ["PANW", "CRWD", "ZS", "NET", "FTNT", "OKTA", "CYBR", "TENB", "RPD", "S"],
+    "weak_or_off_target_candidates": ["Generic cloud providers without a security thesis", "Low-relevance IT consultants", "Unrelated software companies"]
+  },
+  {
+    "id": "micron-earnings-call-options",
+    "question": "Micron earnings are next Tuesday. What bullish calls should I consider?",
+    "expected_research_lens": ["Options", "Event-Driven", "Risk"],
+    "included_areas": ["MU underlying", "Earnings event", "Bullish calls", "Expiration window", "Liquidity", "Spread", "Delta"],
+    "excluded_areas": ["Broad semiconductor universe", "Put strategies", "Common-stock recommendations"],
+    "strong_candidates": ["MU"],
+    "weak_or_off_target_candidates": ["NVDA as a substitute", "AMD as a substitute", "Price targets", "Options without liquidity context"]
+  },
+  {
+    "id": "fashion-brands-taking-market-share",
+    "question": "What fashion brands are best positioned to take market share?",
+    "expected_research_lens": ["Competitive Position", "Fundamental", "Valuation", "Consumer"],
+    "included_areas": ["Athletic apparel", "Footwear", "Luxury", "Specialty apparel", "Off-price retail"],
+    "excluded_areas": ["Grocery retail", "Consumer staples", "E-commerce platforms without fashion-brand thesis"],
+    "strong_candidates": ["NKE", "LULU", "DECK", "ONON", "RL", "TPR", "CPRI", "ANF", "URBN", "BURL"],
+    "weak_or_off_target_candidates": ["Grocery retailers", "Broad marketplaces without fashion focus", "Unrelated consumer products"]
+  }
+]

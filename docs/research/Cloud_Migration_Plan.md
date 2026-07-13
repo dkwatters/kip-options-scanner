@@ -49,6 +49,17 @@ The local laptop Task Scheduler setup remains useful for development and fallbac
 
 `RESEARCH_SCHEDULED_TIME_LABEL` is also accepted as an alternate scheduled time label.
 
+### Optional for Research Conversation Engine
+
+| Variable | Purpose |
+| --- | --- |
+| `RCE_PROVIDER` | RCE provider selector. Use `mock` for deterministic local behavior or `openai` for live structured interpretation. Defaults to `mock` when unset. |
+| `OPENAI_API_KEY` | OpenAI API key required when `RCE_PROVIDER=openai`. |
+| `RCE_OPENAI_MODEL` | Optional OpenAI model override for RCE interpretation. |
+| `RCE_DEBUG_ARTIFACTS` | Set to `true` to show provider, timing, fallback, parser, verification-marker, and candidate-count diagnostics in Research Workspace. |
+
+RCE provider settings affect only Research Workspace interpretation. They do not change scheduled scans, cloud jobs, repository schema, scoring, SAM, OD, OAM, or Study Protocol behavior.
+
 ### Optional for Local SQLite
 
 | Variable | Purpose |

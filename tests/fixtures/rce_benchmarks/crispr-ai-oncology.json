@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "benchmark": {
+    "benchmark_id": "crispr-ai-oncology",
+    "benchmark_name": "CRISPR and AI Oncology",
+    "research_question": "Which companies and reference entities matter at the intersection of CRISPR, AI-enabled discovery, and oncology?",
+    "description": "QA reference for research-map coverage in crispr and ai oncology.",
+    "domain": "Healthcare",
+    "difficulty": "intermediate",
+    "benchmark_status": "source_reconciled_pending_human_review",
+    "version": "v0.2",
+    "source_document": "crispr ai oncology companies.pdf",
+    "source_date": "2026-07-10",
+    "reviewed_by": "RCE benchmark corpus source reconciliation v0.2",
+    "review_notes": "Reconciled to the canonical repository PDF. Security records absent from the source are retained with human-review flags."
+  },
+  "categories": [
+    {
+      "category_name": "Gene editing",
+      "category_role": "CRISPR-based therapeutic platforms",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "AI oncology platforms",
+      "category_role": "Computational discovery and oncology data",
+      "importance": 5,
+      "expected_status": "core",
+      "notes": "Expected research-map coverage."
+    },
+    {
+      "category_name": "General AI infrastructure",
+      "category_role": "AI exposure without oncology relevance",
+      "importance": 2,
+      "expected_status": "excluded",
+      "notes": "Explicit boundary case."
+    }
+  ],
+  "securities": [
+    {
+      "ticker": "CRSP",
+      "company_name": "CRISPR Therapeutics",
+      "exchange": "NASDAQ",
+      "listing_region": "Switzerland",
+      "public_status": "public",
+      "category_name": "Gene editing",
+      "expectation": "international_reference",
+      "importance": 5,
+      "role_summary": "Reference entity for gene editing.",
+      "evidence_summary": "Canonical source identifies CRISPR Therapeutics in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "RXRX",
+      "company_name": "Recursion Pharmaceuticals",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "AI oncology platforms",
+      "expectation": "must_include",
+      "importance": 5,
+      "role_summary": "Reference entity for ai oncology platforms.",
+      "evidence_summary": "Canonical source identifies Recursion Pharmaceuticals in the stated thematic role on page 1.",
+      "notes": "Source page 1; classification retained under the benchmark rubric."
+    },
+    {
+      "ticker": "TEM",
+      "company_name": "Tempus AI",
+      "exchange": "NASDAQ",
+      "listing_region": "US",
+      "public_status": "public",
+      "category_name": "AI oncology platforms",
+      "expectation": "should_include",
+      "importance": 3,
+      "role_summary": "Reference entity for ai oncology platforms.",
+      "evidence_summary": "Not located in the canonical PDF during v0.2 reconciliation; retained without inventing source support.",
+      "notes": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    },
+    {
+      "ticker": null,
+      "company_name": "Insitro",
+      "reference_identifier": "private-company:insitro",
+      "exchange": null,
+      "listing_region": "US",
+      "public_status": "private",
+      "category_name": "AI oncology platforms",
+      "expectation": "private_reference",
+      "importance": 3,
+      "role_summary": "Reference entity for ai oncology platforms.",
+      "evidence_summary": "Not located in the canonical PDF during v0.2 reconciliation; retained without inventing source support.",
+      "notes": "HUMAN REVIEW: entity was retained from the foundation fixture but was not located in the canonical PDF; classification and provenance remain unresolved."
+    }
+  ],
+  "benchmark_caveats": [
+    "This benchmark is a QA/reference artifact, not ground truth or an investable universe.",
+    "Company status, listing, and thematic relevance can change and require versioned review.",
+    "2 security record(s) require human review because they were not located in the canonical source."
+  ],
+  "sources": [
+    {
+      "source_document": "crispr ai oncology companies.pdf",
+      "source_page": "1-3",
+      "source_section": "Entire canonical reference list",
+      "source_date": "2026-07-10",
+      "source_notes": "Canonical repository PDF; page-level security citations are recorded in evidence summaries.",
+      "source_hash": "6dac319628c1f709faccdfba2d075310ae43e1061829c20e6c91ac63646e83de"
+    }
+  ]
+}
