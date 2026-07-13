@@ -1,0 +1,38 @@
+{
+  "config_version": "rce-benchmark-scoring-v0.1",
+  "metric_version": "rce-benchmark-metrics-v0.1",
+  "candidate_weights": {
+    "must_include": 3.0,
+    "should_include": 2.0,
+    "acceptable": 1.0
+  },
+  "category_weights": {
+    "core": 3.0,
+    "adjacent": 2.0,
+    "optional": 1.0
+  },
+  "overall_weights": {
+    "weighted_candidate_recall": 0.25,
+    "category_coverage": 0.20,
+    "ranking_quality": 0.15,
+    "must_exclude_compliance": 0.10,
+    "listing_constraint_compliance": 0.10,
+    "candidate_validity": 0.10,
+    "rationale_completeness": 0.05,
+    "schema_provider_integrity": 0.05
+  },
+  "penalties": {
+    "must_exclude_per_violation": 0.25,
+    "excluded_category_per_violation": 0.25,
+    "listing_constraint_per_violation": 0.25
+  },
+  "cost_per_million_tokens_usd": {
+    "gpt-4.1-mini": {
+      "input": 0.40,
+      "cached_input": 0.10,
+      "output": 1.60,
+      "reasoning": 1.60
+    }
+  },
+  "cost_notes": "Rates are explicit benchmark configuration, not live pricing. Update by versioning this file; unknown models report null estimated cost."
+}

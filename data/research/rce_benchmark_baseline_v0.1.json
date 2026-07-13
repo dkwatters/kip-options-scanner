@@ -1,0 +1,29 @@
+{
+  "report_version": "rce-benchmark-baseline-v0.1",
+  "status": "not_executed_pending_explicit_api_cost_approval",
+  "execution_date": null,
+  "provider": "openai",
+  "model": "gpt-4.1-mini",
+  "prompt_version": "rce-multi-stage-artifact-pipeline-v0.1",
+  "benchmark_corpus_version": "v0.2",
+  "benchmark_count": 17,
+  "benchmarks_executed": 0,
+  "successful_runs": 0,
+  "failed_runs": 0,
+  "aggregate_scores": null,
+  "latency_distribution": null,
+  "token_usage": {
+    "input_tokens": 0,
+    "cached_input_tokens": 0,
+    "output_tokens": 0,
+    "reasoning_tokens": 0
+  },
+  "estimated_api_cost": 0.0,
+  "manual_review_items": [],
+  "results": [],
+  "notes": [
+    "No live API call was made because explicit API-cost approval was not provided.",
+    "The complete 17-domain baseline must not be run until the benchmark-runner checkpoint is committed and pushed; one narrowly selected live OpenAI benchmark has succeeded; and live token, latency, estimated-cost, persistence, exports, and scoring have been validated.",
+    "This manifest is not a benchmark result and makes no improvement or regression claim."
+  ]
+}

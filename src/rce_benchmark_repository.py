@@ -128,6 +128,106 @@ CREATE INDEX IF NOT EXISTS idx_rce_benchmark_security_ticker
   ON rce_benchmark_security (ticker);
 CREATE INDEX IF NOT EXISTS idx_rce_benchmark_source_hash
   ON rce_benchmark_source (source_hash);
+CREATE TABLE IF NOT EXISTS rce_benchmark_run (
+    benchmark_run_id TEXT PRIMARY KEY,
+    benchmark_id TEXT NOT NULL,
+    benchmark_version TEXT NOT NULL,
+    run_label TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    scoring_config_version TEXT NOT NULL,
+    run_timestamp TEXT NOT NULL,
+    latency_seconds REAL,
+    input_tokens INTEGER,
+    cached_input_tokens INTEGER,
+    output_tokens INTEGER,
+    reasoning_tokens INTEGER,
+    estimated_cost REAL,
+    raw_candidate_count INTEGER NOT NULL,
+    parsed_candidate_count INTEGER NOT NULL,
+    verified_candidate_count INTEGER NOT NULL,
+    run_status TEXT NOT NULL,
+    schema_valid INTEGER NOT NULL,
+    provider_verification_valid INTEGER NOT NULL,
+    fallback_used INTEGER NOT NULL,
+    error_type TEXT,
+    error_message TEXT,
+    raw_response_path TEXT,
+    parsed_artifact_path TEXT,
+    overall_score REAL,
+    parser_warnings TEXT,
+    FOREIGN KEY (benchmark_id, benchmark_version)
+      REFERENCES rce_benchmark (benchmark_id, version) ON DELETE RESTRICT
+);
+CREATE TABLE IF NOT EXISTS rce_benchmark_metric (
+    benchmark_run_id TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    metric_value REAL NOT NULL,
+    metric_weight REAL NOT NULL,
+    metric_version TEXT NOT NULL,
+    calculation_notes TEXT,
+    PRIMARY KEY (benchmark_run_id, metric_name),
+    FOREIGN KEY (benchmark_run_id) REFERENCES rce_benchmark_run (benchmark_run_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS rce_benchmark_candidate_result (
+    candidate_result_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    benchmark_run_id TEXT NOT NULL,
+    ticker TEXT,
+    company_name TEXT,
+    returned INTEGER NOT NULL,
+    returned_rank INTEGER,
+    expected_classification TEXT,
+    expected_category TEXT,
+    returned_category TEXT,
+    category_match INTEGER NOT NULL,
+    rationale_present INTEGER NOT NULL,
+    evidence_present INTEGER NOT NULL,
+    listing_valid INTEGER NOT NULL,
+    public_status_valid INTEGER NOT NULL,
+    validation_status TEXT,
+    comparison_outcome TEXT NOT NULL,
+    reviewer_status TEXT,
+    reviewer_notes TEXT,
+    FOREIGN KEY (benchmark_run_id) REFERENCES rce_benchmark_run (benchmark_run_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS rce_benchmark_category_result (
+    benchmark_run_id TEXT NOT NULL,
+    category_name TEXT NOT NULL,
+    expected_status TEXT NOT NULL,
+    importance INTEGER NOT NULL,
+    returned INTEGER NOT NULL,
+    coverage_credit REAL NOT NULL,
+    notes TEXT,
+    PRIMARY KEY (benchmark_run_id, category_name),
+    FOREIGN KEY (benchmark_run_id) REFERENCES rce_benchmark_run (benchmark_run_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS rce_benchmark_human_review (
+    review_id TEXT PRIMARY KEY,
+    benchmark_run_id TEXT NOT NULL,
+    review_dimension TEXT NOT NULL,
+    score REAL,
+    reviewer TEXT NOT NULL,
+    review_status TEXT NOT NULL,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (benchmark_run_id) REFERENCES rce_benchmark_run (benchmark_run_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS rce_benchmark_review_audit (
+    audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    review_id TEXT NOT NULL,
+    benchmark_run_id TEXT NOT NULL,
+    review_dimension TEXT NOT NULL,
+    score REAL,
+    reviewer TEXT NOT NULL,
+    review_status TEXT NOT NULL,
+    notes TEXT,
+    recorded_at TEXT NOT NULL,
+    FOREIGN KEY (benchmark_run_id) REFERENCES rce_benchmark_run (benchmark_run_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_rce_benchmark_run_label ON rce_benchmark_run (run_label, run_timestamp);
+CREATE INDEX IF NOT EXISTS idx_rce_candidate_review ON rce_benchmark_candidate_result (reviewer_status, comparison_outcome);
 """
 
 
