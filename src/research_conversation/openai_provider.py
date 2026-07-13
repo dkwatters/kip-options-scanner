@@ -25,6 +25,23 @@ DEFAULT_RCE_OPENAI_MODEL = "gpt-4.1-mini"
 OPENAI_PROVIDER_NAME = "openai"
 LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER = "LIVE_OPENAI_RCE_RESPONSE"
 
+OPENAI_RCE_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "name": "rce_response",
+    "strict": False,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "provider_verification_marker": {
+                "type": "string",
+                "enum": [LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER],
+            },
+        },
+        "required": ["provider_verification_marker"],
+        "additionalProperties": True,
+    },
+}
+
 RCE_SYSTEM_PROMPT = """You are the Research Conversation Engine for an investment research platform.
 
 Your job is NOT to recommend investments.
@@ -217,7 +234,7 @@ class OpenAIResearchConversationProvider:
                     {"role": "system", "content": RCE_SYSTEM_PROMPT},
                     {"role": "user", "content": self._user_prompt(request)},
                 ],
-                text={"format": {"type": "json_object"}},
+                text={"format": OPENAI_RCE_RESPONSE_FORMAT},
             )
             response_timestamp = utc_now()
             response_text = self._response_text(raw_response)

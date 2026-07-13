@@ -1,6 +1,8 @@
 import unittest
 import json
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 from src.research_conversation import (
     DEFAULT_RESEARCH_LAUNCH_ASSUMPTIONS,
@@ -20,6 +22,7 @@ from src.research_conversation import (
 )
 from src.research_conversation.openai_provider import (
     DEVELOPER_QA_EXAMPLES,
+    LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER,
     OpenAIResearchConversationProvider,
     RCE_SYSTEM_PROMPT,
     parse_structured_response,
@@ -137,6 +140,31 @@ class LowConfidenceProvider:
 
 
 class ResearchConversationTest(unittest.TestCase):
+    def test_openai_response_schema_requires_provider_verification_marker(self):
+        client = MagicMock()
+        client.responses.create.return_value = SimpleNamespace(
+            output_text=json.dumps(
+                {
+                    "provider_verification_marker": (
+                        LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER
+                    )
+                }
+            )
+        )
+        provider = OpenAIResearchConversationProvider(client=client)
+
+        provider.interpret(ResearchConversationRequest(original_question="Research AI."))
+
+        response_format = client.responses.create.call_args.kwargs["text"]["format"]
+        schema = response_format["schema"]
+
+        self.assertEqual(response_format["type"], "json_schema")
+        self.assertIn("provider_verification_marker", schema["required"])
+        self.assertEqual(
+            schema["properties"]["provider_verification_marker"]["enum"],
+            [LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER],
+        )
+
     def test_artifact_models_serialize_to_dicts(self):
         plan = ResearchPlan(
             research_objective="Research AI networking.",
