@@ -31,13 +31,8 @@ OPENAI_RCE_RESPONSE_FORMAT = {
     "strict": False,
     "schema": {
         "type": "object",
-        "properties": {
-            "provider_verification_marker": {
-                "type": "string",
-                "enum": [LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER],
-            },
-        },
-        "required": ["provider_verification_marker"],
+        "properties": {},
+        "required": [],
         "additionalProperties": True,
     },
 }
@@ -237,10 +232,25 @@ class OpenAIResearchConversationProvider:
                 text={"format": OPENAI_RCE_RESPONSE_FORMAT},
             )
             response_timestamp = utc_now()
+            if raw_response is None:
+                raise RuntimeError("OpenAI provider returned no response.")
+            response_status = (
+                raw_response.get("status")
+                if isinstance(raw_response, dict)
+                else getattr(raw_response, "status", None)
+            )
+            if response_status is not None and response_status != "completed":
+                raise RuntimeError(
+                    f"OpenAI provider response did not complete: {response_status}."
+                )
             response_text = self._response_text(raw_response)
             structured_response, warnings, errors = parse_structured_response(
                 response_text, request.original_question
             )
+            if not errors:
+                structured_response["provider_verification_marker"] = (
+                    LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER
+                )
             response = ResearchConversationResponse(
                 metadata=ProviderMetadata(
                     provider_name=self.provider_name,
@@ -331,10 +341,6 @@ class OpenAIResearchConversationProvider:
                 "prompt_version": request.prompt_version or DEFAULT_RCE_PROMPT_VERSION,
                 "original_question": request.original_question,
                 "required_fields": REQUIRED_STRUCTURED_FIELDS,
-                "provider_verification_marker": {
-                    "required_value": LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER,
-                    "applies_to": "live OpenAI provider responses only",
-                },
                 "interpretation_schema": {
                     "original_question": "string",
                     "estimated_user_sophistication": "string",
@@ -436,10 +442,6 @@ class OpenAIResearchConversationProvider:
                     "Ask at most one clarifying question only when confidence is below threshold and the original question is too ambiguous to classify.",
                     "When a Proposed Research Universe is returned, set conversation_complete to true and terminal_artifact to Proposed Research Universe.",
                     "Include confidence and limitations.",
-                    (
-                        "Include provider_verification_marker exactly as "
-                        f"{LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER}."
-                    ),
                 ],
                 "strict_boundaries": [
                     "Do not recommend investments.",
@@ -487,9 +489,6 @@ def parse_structured_response(
 
     structured_response = empty_research_conversation_structure(original_question)
     structured_response.update(parsed)
-    structured_response["provider_verification_marker"] = parsed.get(
-        "provider_verification_marker"
-    )
     structured_response["original_question"] = (
         structured_response.get("original_question") or original_question
     )

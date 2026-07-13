@@ -140,29 +140,91 @@ class LowConfidenceProvider:
 
 
 class ResearchConversationTest(unittest.TestCase):
-    def test_openai_response_schema_requires_provider_verification_marker(self):
+    def test_openai_provider_stamps_verified_marker_after_successful_parse(self):
         client = MagicMock()
         client.responses.create.return_value = SimpleNamespace(
+            status="completed",
             output_text=json.dumps(
                 {
-                    "provider_verification_marker": (
-                        LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER
-                    )
+                    "original_question": "Research AI.",
+                    "primary_intent": "Build an AI research universe.",
+                    "candidate_securities": [],
                 }
             )
         )
         provider = OpenAIResearchConversationProvider(client=client)
 
-        provider.interpret(ResearchConversationRequest(original_question="Research AI."))
+        response = provider.interpret(
+            ResearchConversationRequest(original_question="Research AI.")
+        )
 
         response_format = client.responses.create.call_args.kwargs["text"]["format"]
         schema = response_format["schema"]
 
         self.assertEqual(response_format["type"], "json_schema")
-        self.assertIn("provider_verification_marker", schema["required"])
         self.assertEqual(
-            schema["properties"]["provider_verification_marker"]["enum"],
-            [LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER],
+            response.structured_response["provider_verification_marker"],
+            LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER,
+        )
+        self.assertEqual(
+            response.structured_response["primary_intent"],
+            "Build an AI research universe.",
+        )
+        self.assertNotIn("provider_verification_marker", schema["properties"])
+        self.assertNotIn("provider_verification_marker", schema["required"])
+
+    def test_openai_provider_exception_cannot_receive_verified_marker(self):
+        client = MagicMock()
+        client.responses.create.side_effect = RuntimeError("provider unavailable")
+
+        response = OpenAIResearchConversationProvider(client=client).interpret(
+            ResearchConversationRequest(original_question="Research AI.")
+        )
+
+        self.assertTrue(response.has_errors)
+        self.assertIsNone(response.raw_response)
+        self.assertNotIn(
+            "provider_verification_marker", response.structured_response
+        )
+
+    def test_openai_missing_response_cannot_receive_verified_marker(self):
+        client = MagicMock()
+        client.responses.create.return_value = None
+
+        response = OpenAIResearchConversationProvider(client=client).interpret(
+            ResearchConversationRequest(original_question="Research AI.")
+        )
+
+        self.assertTrue(response.has_errors)
+        self.assertIsNone(response.raw_response)
+        self.assertNotIn(
+            "provider_verification_marker", response.structured_response
+        )
+
+    def test_incomplete_openai_response_cannot_receive_verified_marker(self):
+        client = MagicMock()
+        client.responses.create.return_value = SimpleNamespace(
+            status="failed",
+            output_text=json.dumps({"candidate_securities": []}),
+        )
+
+        response = OpenAIResearchConversationProvider(client=client).interpret(
+            ResearchConversationRequest(original_question="Research AI.")
+        )
+
+        self.assertTrue(response.has_errors)
+        self.assertIn("did not complete", response.errors[0])
+        self.assertNotIn(
+            "provider_verification_marker", response.structured_response
+        )
+
+    def test_mock_provider_never_receives_openai_verification_marker(self):
+        response = MockResearchConversationProvider().interpret(
+            ResearchConversationRequest(original_question="Research robotics.")
+        )
+
+        self.assertNotIn(
+            "provider_verification_marker", response.structured_response
         )
 
     def test_artifact_models_serialize_to_dicts(self):
@@ -871,8 +933,8 @@ class ResearchConversationTest(unittest.TestCase):
         self.assertIn("research_plan_schema", prompt_payload)
         self.assertIn("universe_review_schema", prompt_payload)
         self.assertIn("benchmark_qa_fixtures", prompt_payload)
-        self.assertIn("provider_verification_marker", prompt_payload)
-        self.assertIn("LIVE_OPENAI_RCE_RESPONSE", prompt_payload)
+        self.assertNotIn("provider_verification_marker", prompt_payload)
+        self.assertNotIn("LIVE_OPENAI_RCE_RESPONSE", prompt_payload)
 
     def test_openai_response_parser_handles_malformed_response(self):
         structured_response, warnings, errors = parse_structured_response(

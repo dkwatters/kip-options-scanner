@@ -14,6 +14,9 @@ from src.rce_benchmark_runner import compare_run_sets, run_benchmark
 from src.research_conversation import (
     MockResearchConversationProvider, ProviderMetadata, ResearchConversationResponse, utc_now,
 )
+from src.research_conversation.openai_provider import (
+    LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER,
+)
 
 
 FIXTURE_PATH = Path("tests/fixtures/rce_benchmarks/ai-data-center-networking-cabling.json")
@@ -154,11 +157,49 @@ class RCEBenchmarkRunnerTests(unittest.TestCase):
                 "mock", "mock-rce-v0.2", "test-prompt", now, now,
                 selected_provider_name="openai", fallback_used=True, mock_provider_used=True,
             ),
-            structured_response={"candidate_securities": []},
+            structured_response={
+                "candidate_securities": [],
+                "provider_verification_marker": LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER,
+            },
         )
         result = run_benchmark(self.fixture, ResponseProvider(response), run_label="fallback")
         self.assertEqual(result["run_status"], "failed")
         self.assertFalse(result["provider_verification_valid"])
+
+    def test_benchmark_rejects_openai_response_without_verification_marker(self):
+        now = utc_now()
+        response = ResearchConversationResponse(
+            metadata=ProviderMetadata("openai", "test-model", "test-prompt", now, now),
+            structured_response={"candidate_securities": []},
+        )
+
+        result = run_benchmark(
+            self.fixture, ResponseProvider(response), run_label="missing-marker"
+        )
+
+        self.assertEqual(result["run_status"], "failed")
+        self.assertEqual(
+            result["error_message"],
+            "Provider verification marker is invalid or missing.",
+        )
+        self.assertFalse(result["provider_verification_valid"])
+
+    def test_benchmark_accepts_exact_openai_verification_marker(self):
+        now = utc_now()
+        response = ResearchConversationResponse(
+            metadata=ProviderMetadata("openai", "test-model", "test-prompt", now, now),
+            structured_response={
+                "candidate_securities": [],
+                "provider_verification_marker": LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER,
+            },
+        )
+
+        result = run_benchmark(
+            self.fixture, ResponseProvider(response), run_label="verified-marker"
+        )
+
+        self.assertEqual(result["run_status"], "success")
+        self.assertTrue(result["provider_verification_valid"])
 
     def test_preview_creates_no_database_or_artifact_writes(self):
         with tempfile.TemporaryDirectory() as directory:
