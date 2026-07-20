@@ -336,8 +336,7 @@ class OpenAIResearchConversationProvider:
         return with_rce_diagnostics(response)
 
     def _user_prompt(self, request: ResearchConversationRequest) -> str:
-        return json.dumps(
-            {
+        payload = {
                 "prompt_version": request.prompt_version or DEFAULT_RCE_PROMPT_VERSION,
                 "original_question": request.original_question,
                 "required_fields": REQUIRED_STRUCTURED_FIELDS,
@@ -451,9 +450,26 @@ class OpenAIResearchConversationProvider:
                     "Do not create or imply a final research universe.",
                 ],
                 "developer_qa_examples": DEVELOPER_QA_EXAMPLES,
-                "benchmark_qa_fixtures": BENCHMARK_QA_FIXTURES,
             }
-        )
+        if request.request_origin == "general_user":
+            if request.anchor_companies:
+                payload["anchor_companies"] = list(request.anchor_companies)
+                payload["anchor_company_guidance"] = [
+                    "These are user-supplied starting points; consider them, but do not blindly include them.",
+                    "Discover relevant public companies beyond the supplied anchors.",
+                    "Do not let the candidate universe collapse into a list made mainly of anchors.",
+                    "When possible, return anchor_company_review records with supplied_value, normalized_company_name, normalized_ticker, disposition (included, not_included, or unresolved), and an explanation only when supported.",
+                ]
+                payload["anchor_company_review_schema"] = [{
+                    "supplied_value": "string",
+                    "normalized_company_name": "string or null",
+                    "normalized_ticker": "string or null",
+                    "disposition": "included, not_included, or unresolved",
+                    "explanation": "string or null; do not fabricate",
+                }]
+        else:
+            payload["benchmark_qa_fixtures"] = BENCHMARK_QA_FIXTURES
+        return json.dumps(payload)
 
     @staticmethod
     def _response_text(raw_response: Any) -> str:

@@ -71,6 +71,10 @@ from src.quality_diagnostics import (
     rule_failure_distribution,
     status_distribution,
 )
+from src.navigation import apply_pending_navigation, request_navigation
+from src.rce_benchmark_explorer_page import render_benchmark_explorer
+from src.research_universe_builder_page import render_research_universe_builder, start_new_research
+from src.research_universe_review_page import render_current_research_universe_page
 from src.research_repository import (
     DATABASE_URL_ENV,
     RESEARCH_REPOSITORY_BACKEND_ENV,
@@ -91,6 +95,7 @@ from src.technical_analysis import (
 )
 from src.tradier_client import TradierAPIError, TradierClient, TradierConfigurationError
 from src.universe import UniverseError, load_universe
+from src.universe_analysis_page import render_universe_analysis
 
 ROOT = Path(__file__).resolve().parent
 EASTERN_TIME = ZoneInfo("America/New_York")
@@ -1534,6 +1539,8 @@ def render_saved_research_universes(active_universe_path, active_universe_symbol
     """Render available CSV-backed Research Universes without changing persistence."""
     universe_rows = []
     for universe_path in sorted((ROOT / "data").glob("*.csv")):
+        if universe_path.stem.casefold() == "universe_default":
+            continue
         try:
             universe = load_universe(str(universe_path))
             security_count = len(universe)
@@ -1541,19 +1548,40 @@ def render_saved_research_universes(active_universe_path, active_universe_symbol
             security_count = UNAVAILABLE
         universe_rows.append(
             {
-                "Research Universe": universe_path.stem,
-                "Source": str(universe_path.relative_to(ROOT)),
-                "Securities": security_count,
-                "Current": "Yes" if str(universe_path) == active_universe_path else "",
+                "Research Universe": universe_path.stem.replace("_", " ").title().removesuffix(" V1"),
+                "Companies": security_count,
+                "Availability": "Available",
+                "_path": universe_path,
             }
         )
 
     if not universe_rows and not active_universe_symbols:
-        st.info("No saved Research Universes are available yet.")
+        st.info("Your saved and recent Research Universes will appear here.")
         return
 
     if universe_rows:
-        st.dataframe(pd.DataFrame(universe_rows), hide_index=True, width="stretch")
+        for index, row in enumerate(universe_rows):
+            with st.container(border=True):
+                st.subheader(row["Research Universe"])
+                st.caption(f"{row['Companies']} companies · {row['Availability']}")
+                if st.button("Open Research Universe", key=f"open_compatibility_universe_{index}"):
+                    from uuid import uuid4
+                    from src.research_universe import ResearchUniverseReviewService, UniverseType
+                    from src.research_universe_builder_page import _saved_records, readable_universe_title
+
+                    universe_id = str(uuid4())
+                    st.session_state.current_research_universe = ResearchUniverseReviewService().assemble(
+                        universe_id=universe_id,
+                        title=readable_universe_title(None, row["Research Universe"], ""),
+                        starting_companies=_saved_records(row["_path"], universe_id),
+                        provenance={
+                            "persistence": "compatibility_csv",
+                            "universe_type": UniverseType.IMPORTED,
+                            "saved_research_source": str(row["_path"]),
+                            "source_summary": "Compatibility CSV data",
+                        },
+                    )
+                    request_navigation("Research Universe")
 
     if active_universe_symbols:
         st.caption(
@@ -1561,12 +1589,6 @@ def render_saved_research_universes(active_universe_path, active_universe_symbol
             + str(len(active_universe_symbols))
             + " securities."
         )
-
-
-def set_selected_page(page):
-    """Move between existing Streamlit pages from landing-page action buttons."""
-    st.session_state.selected_page = page
-    st.rerun()
 
 
 def response_field(structured_response, field_name, default=UNAVAILABLE):
@@ -2054,13 +2076,61 @@ def render_research_workspace(active_universe_path, active_universe_symbols):
             st.markdown("#### " + page)
             st.caption(description)
             if st.button(button_label, key=f"open_{page}"):
-                set_selected_page(page)
+                request_navigation(page)
 
 
 def render_research_repository_page():
-    st.header("Research Repository")
+    st.title("History")
     st.caption("Archived research observations available through the current repository.")
     render_recent_research()
+
+
+def render_home(active_universe_path, active_universe_symbols):
+    """Render the product landing page without starting analytical work."""
+    st.title("Home")
+    st.markdown("## What would you like to research?")
+    st.write("Start with an idea. We'll build a Research Universe, refine it together, and then analyze it.")
+    st.space("small")
+
+    market_column, company_column = st.columns(2, gap="large")
+    with market_column:
+        with st.container(border=True, height="stretch"):
+            st.subheader("Build a Research Universe")
+            st.write(
+                "Research an industry, technology, investment theme, market segment, "
+                "or competitive landscape."
+            )
+            st.space("small")
+            if st.button(
+                "Start Research",
+                type="primary",
+                width="stretch",
+                key="home_launch_market_research",
+            ):
+                start_new_research()
+    with company_column:
+        with st.container(border=True, height="stretch"):
+            st.subheader("Company")
+            st.write("Analyze an individual publicly traded company.")
+            st.space("small")
+            if st.button(
+                "Analyze Company",
+                width="stretch",
+                key="home_analyze_company",
+            ):
+                request_navigation("Company Analysis")
+
+    st.space("medium")
+    st.header("Continue Research")
+    st.caption("Research Universes are living projects you can return to as your work develops.")
+    current_universe = st.session_state.get("current_research_universe")
+    if current_universe:
+        with st.container(border=True):
+            st.subheader(current_universe.title)
+            st.caption(f"{len(current_universe.approved_membership)} companies · Current session")
+            if st.button("Open Research Universe", key="home_open_current_universe"):
+                request_navigation("Research Universe")
+    render_saved_research_universes(active_universe_path, active_universe_symbols)
 
 
 def actual_time_label(scan_timestamp):
@@ -2846,6 +2916,11 @@ TAM_REQUIRED_INDICATOR_COLUMNS = [
     "momentum_state",
     "volatility_state",
 ]
+TAM_PRIMARY_COLUMNS = [
+    "ticker", "price", "price_vs_sma_20", "price_vs_sma_50", "price_vs_sma_200",
+    "rsi_14", "macd_histogram", "trend_state", "momentum_state", "volatility_state",
+    "technical_setup_grade_experimental", "technical_setup_score_experimental",
+]
 TAM_BADGE_LABELS = {
     "above": "[Above]",
     "below": "[Below]",
@@ -2929,6 +3004,30 @@ def tam_summary_metrics(rows, latest_timestamp):
 def tam_badge(value):
     key = str(value or "unavailable").strip().lower()
     return TAM_BADGE_LABELS.get(key, f"[{key.replace('_', ' ').title()}]")
+
+
+def tam_signed_percent(value):
+    if value in (None, ""):
+        return UNAVAILABLE
+    number = float(value)
+    symbol = "▲" if number > 0.01 else "▼" if number < -0.01 else "●"
+    return f"{symbol} {number:.2%}"
+
+
+def tam_numeric_color(value):
+    if value in (None, ""):
+        return ""
+    number = float(value)
+    return "color: #137333" if number > 0.01 else "color: #b3261e" if number < -0.01 else "color: #7a5d00"
+
+
+def tam_state_color(value):
+    label = str(value or "").casefold()
+    if any(token in label for token in ("bullish", "positive", "constructive")):
+        return "color: #137333"
+    if any(token in label for token in ("bearish", "negative", "deteriorating")):
+        return "color: #b3261e"
+    return "color: #7a5d00"
 
 
 def tam_display_row(row):
@@ -3015,11 +3114,15 @@ def render_tam_count_chart(rows, label_column="State"):
         st.info("No rows are available for this view.")
 
 
-def render_technical_analysis_explorer_workflow():
-    st.subheader("Security Analysis Explorer")
-    st.caption(
-        "Read-only SAM QA view. These observations do not filter, rank, score, or alter options."
-    )
+def render_legacy_technical_analysis_explorer_workflow():
+    handoff = st.session_state.get("active_universe_analysis_handoff")
+    active_run = st.session_state.get("active_universe_analysis_run")
+    st.title(handoff.universe_title if handoff else "Universe Analysis")
+    if handoff:
+        st.write(handoff.research_question)
+        st.caption(f"Research Universe · {handoff.expected_constituent_count} companies")
+    else:
+        st.caption("Population-level technical comparison from stored observations.")
     try:
         repository = research_repository_from_env()
         filter_options = repository.technical_analysis_observations(
@@ -3030,28 +3133,53 @@ def render_technical_analysis_explorer_workflow():
         return
 
     scan_ids = list(filter_options["available_scan_ids"])
-    selected_scan = st.selectbox(
-        "Scan ID",
-        options=[""] + scan_ids,
-        format_func=lambda value: "All scans" if value == "" else value,
-        key="tam_scan_id",
-    )
-    latest_scan_only = st.toggle(
-        "Latest scan only",
-        value=True,
-        key="tam_latest_scan_only",
-        disabled=bool(selected_scan),
-    )
+    selected_scan = active_run.scan_id if active_run else ""
+    latest_scan_only = False if active_run else True
+    with st.expander("Advanced analysis controls", icon=":material/tune:"):
+        browse_history = st.toggle(
+            "Browse historical scans (compatibility)", value=False,
+            key="tam_browse_historical_scans", disabled=not bool(scan_ids),
+        )
+        if browse_history:
+            selected_scan = st.selectbox(
+                "Scan ID", options=[""] + scan_ids,
+                format_func=lambda value: "All scans" if value == "" else value,
+                key="tam_scan_id",
+            )
+            latest_scan_only = st.toggle(
+                "Latest scan only", value=True, key="tam_latest_scan_only",
+                disabled=bool(selected_scan),
+            )
+        elif active_run:
+            st.caption("Current Research Universe run: " + active_run.scan_id)
 
+    pending_ticker = st.session_state.pop("benchmark_pending_sam_ticker", None)
+    if pending_ticker and pending_ticker in filter_options["available_tickers"]:
+        st.session_state.tam_ticker_search = ""
+        st.session_state.tam_tickers = [pending_ticker]
+    elif pending_ticker:
+        st.session_state.benchmark_sam_handoff_error = (
+            f"{pending_ticker} has no stored SAM observation and cannot be selected in this experience."
+        )
     ticker_search = st.text_input("Ticker search", key="tam_ticker_search").strip().upper()
     ticker_options = [
         ticker
         for ticker in filter_options["available_tickers"]
         if not ticker_search or ticker.startswith(ticker_search)
     ]
+    handoff_error = st.session_state.pop("benchmark_sam_handoff_error", None)
+    if handoff_error:
+        st.warning(handoff_error)
+    default_tickers = []
+    if active_run:
+        default_tickers = list(active_run.analyzed_tickers)
+    elif handoff:
+        allowed = set(filter_options["available_tickers"])
+        default_tickers = [ticker for ticker in handoff.approved_constituents if ticker in allowed]
     selected_tickers = st.multiselect(
         "Tickers",
         options=ticker_options,
+        default=default_tickers,
         key="tam_tickers",
     )
     trend_states = st.multiselect(
@@ -3084,10 +3212,38 @@ def render_technical_analysis_explorer_workflow():
         return
 
     rows = [tam_display_row(row) for row in observations["rows"]]
-    render_metric_grid(
-        tam_summary_metrics(rows, observations["latest_technical_timestamp"]),
-        columns_per_row=4,
-    )
+    expected_count = active_run.requested_constituent_count if active_run else handoff.total_member_count if handoff else len(rows)
+    st.caption(f"Showing {len(rows)} of {expected_count} universe members")
+    if active_run:
+        st.caption(
+            f"Requested {active_run.requested_constituent_count} · "
+            f"analyzed {len(active_run.analyzed_tickers)} · "
+            f"unavailable {active_run.requested_constituent_count - len(active_run.analyzed_tickers)}"
+        )
+        with st.expander("Research Universe result ledger"):
+            st.dataframe(pd.DataFrame([{
+                "Company": entry.company_name,
+                "Ticker or identifier": entry.ticker_or_identifier or "Unresolved",
+                "Result": entry.status.value,
+                "Reason": entry.reason,
+            } for entry in active_run.ledger]), hide_index=True)
+    summary = tam_summary_metrics(rows, observations["latest_technical_timestamp"])
+    render_metric_grid({
+        "Companies analyzed": summary["Tickers Characterized"],
+        "Strong setups": summary["Strong Count"],
+        "Constructive setups": summary["Constructive Count"],
+        "Weak/poor setups": summary["Weak/Poor Count"],
+        "Bullish trends": summary["Bullish Trend Count"],
+        "Average technical score": summary["Average SAM Score (Experimental)"],
+    }, columns_per_row=3)
+    with st.expander("Population details"):
+        render_metric_grid({
+            key: value for key, value in summary.items()
+            if key not in {
+                "Tickers Characterized", "Strong Count", "Constructive Count",
+                "Weak/Poor Count", "Bullish Trend Count", "Average SAM Score (Experimental)",
+            }
+        }, columns_per_row=4)
     if observations.get("selected_scan_id"):
         st.caption("Selected technical scan_id: " + observations["selected_scan_id"])
 
@@ -3095,44 +3251,68 @@ def render_technical_analysis_explorer_workflow():
         st.info("No technical characterization rows match the selected filters.")
         return
 
-    st.subheader("Latest SAM Observations")
+    st.subheader("Company comparison")
     st.caption(
         "Security Setup Score is Experimental / Observational. It summarizes SAM "
         "observations only and does not define Research Universe gates or influence "
         "Opportunity Discovery, OAM scoring, OAE, rankings, filters, thresholds, or "
         "Evaluation Profile logic."
     )
+    st.caption("Legend: ▲ positive/above · ▼ negative/below · ● neutral/near; text labels remain visible.")
     st.dataframe(
         pd.DataFrame(rows)
-        .reindex(columns=TAM_DISPLAY_COLUMNS)
+        .reindex(columns=TAM_PRIMARY_COLUMNS)
         .rename(
             columns={
-                "technical_setup_score_experimental": "SAM Setup Score (Experimental)",
-                "technical_setup_grade_experimental": "SAM Setup Grade (Experimental)",
+                "technical_setup_score_experimental": "Technical score (descriptive)",
+                "technical_setup_grade_experimental": "Setup",
+                "price_vs_sma_20": "Price vs 20-day SMA",
+                "price_vs_sma_50": "Price vs 50-day SMA",
+                "price_vs_sma_200": "Price vs 200-day SMA",
+                "rsi_14": "RSI",
+                "macd_histogram": "MACD",
+                "trend_state": "Trend",
+                "momentum_state": "Momentum",
+                "volatility_state": "Volatility",
             }
         )
         .style.format(
             {
                 "price": format_decimal,
-                "sma_20": format_decimal,
-                "sma_50": format_decimal,
-                "sma_200": format_decimal,
-                "price_vs_sma_20": format_percent,
-                "price_vs_sma_50": format_percent,
-                "price_vs_sma_200": format_percent,
-                "sma_20_vs_sma_50": format_percent,
-                "sma_50_vs_sma_200": format_percent,
-                "rsi_14": format_decimal,
-                "macd_line": format_decimal,
-                "macd_signal": format_decimal,
-                "macd_histogram": format_decimal,
-                "SAM Setup Score (Experimental)": format_decimal,
-                "technical_score": format_decimal,
+                "Price vs 20-day SMA": tam_signed_percent,
+                "Price vs 50-day SMA": tam_signed_percent,
+                "Price vs 200-day SMA": tam_signed_percent,
+                "RSI": format_decimal,
+                "MACD": format_decimal,
+                "Technical score (descriptive)": format_decimal,
             }
-        ),
+        ).map(
+            tam_numeric_color,
+            subset=["Price vs 20-day SMA", "Price vs 50-day SMA", "Price vs 200-day SMA", "MACD"],
+        ).map(tam_state_color, subset=["Trend", "Momentum"]),
         hide_index=True,
         width="stretch",
     )
+    with st.expander("Technical data and diagnostics", icon=":material/database:"):
+        st.dataframe(pd.DataFrame(rows).reindex(columns=TAM_DISPLAY_COLUMNS), hide_index=True)
+
+    selected_company = st.selectbox(
+        "Explore a company", [row["ticker"] for row in rows], key="universe_detail_ticker"
+    )
+    selected_row = next(row for row in rows if row["ticker"] == selected_company)
+    with st.expander(f"Why does {selected_company} have this setup?", expanded=False):
+        st.write(
+            f"Trend: {selected_row.get('trend_state', 'unavailable')}. "
+            f"Momentum: {selected_row.get('momentum_state', 'unavailable')}. "
+            f"Volatility: {selected_row.get('volatility_state', 'unavailable')}."
+        )
+        st.caption(f"Observation timestamp: {selected_row.get('technical_timestamp', UNAVAILABLE)}")
+        if st.button("View Company Analysis", key="view_company_analysis"):
+            st.session_state["company_analysis_context"] = {
+                "ticker": selected_company, "row": selected_row, "parent_handoff": handoff,
+                "return_destination": "Universe Analysis",
+            }
+            request_navigation("Company Analysis")
 
     rsi_tab, trend_tab, momentum_tab, volatility_tab, missing_tab = st.tabs(
         [
@@ -3165,6 +3345,53 @@ def load_local_environment():
         load_dotenv(env_path)
 
 
+def render_technical_analysis_explorer_workflow():
+    """Render the user-facing exact-universe analysis experience."""
+    render_universe_analysis()
+
+
+def launch_benchmark_company_analysis(ticker: str) -> None:
+    """Use the existing Security Research/SAM ticker-selection contract."""
+    canonical = str(ticker or "").strip().upper()
+    if not canonical:
+        st.session_state.benchmark_sam_handoff_error = "SAM requires a public ticker."
+        return
+    st.session_state.benchmark_pending_sam_ticker = canonical
+    st.session_state["company_analysis_context"] = {
+        "ticker": canonical,
+        "row": {"ticker": canonical, "technical_timestamp": UNAVAILABLE},
+        "parent_handoff": None,
+        "return_destination": "Research Universe",
+    }
+    request_navigation("Company Analysis")
+
+
+def render_company_analysis_shell():
+    context = st.session_state.get("company_analysis_context")
+    if not context:
+        st.info("Select a company from Universe Analysis to open its company-level context.")
+        return
+    ticker = context["ticker"]
+    company_name = context.get("company_name") or ticker
+    row = context["row"]
+    parent = context.get("parent_handoff")
+    st.subheader(company_name)
+    if company_name != ticker:
+        st.caption(ticker)
+    if parent:
+        st.caption(f"From {parent.universe_title} · Version {parent.universe_version}")
+    st.write(
+        f"Trend: {row.get('trend_state', 'unavailable')}. "
+        f"Momentum: {row.get('momentum_state', 'unavailable')}. "
+        f"Volatility: {row.get('volatility_state', 'unavailable')}."
+    )
+    st.caption(f"Observation timestamp: {row.get('technical_timestamp', UNAVAILABLE)}")
+    st.info("The deeper single-company experience is the next redesign target.")
+    destination = context.get("return_destination") or "Universe Analysis"
+    if st.button(f"Return to {destination}", icon=":material/arrow_back:"):
+        request_navigation(destination)
+
+
 def enforce_app_password():
     expected_password = os.getenv(APP_PASSWORD_ENV, "")
     if not expected_password:
@@ -3186,27 +3413,41 @@ def main():
     load_local_environment()
     st.set_page_config(page_title="Kip Options Scanner", layout="wide")
     enforce_app_password()
-    st.title("Kip Options Scanner")
-    st.caption("Phase 4B - Research tool only - No trading or order placement")
+    apply_pending_navigation()
     default_universe_path = str(ROOT / "data" / "technology_growth_ai_v1.csv")
     if "research_universe_path" not in st.session_state:
         st.session_state.research_universe_path = default_universe_path
     reload_universe = False
+    compatibility_routes = {
+        "Research Workspace": "Home",
+        "Research Universe Builder": "Research Launchpad",
+        "Benchmark Explorer": "Research Universe",
+        "Research Universes": "Research Universe",
+        "Benchmark Curator Workbench": "Administration",
+        "Security Analysis Explorer": "Company Analysis",
+        "Security Research": "Company Analysis",
+        "Opportunity Research": "Opportunities",
+        "Research Repository": "History",
+        "Tradier Connection": "Administration",
+        "Startup Check": "Administration",
+    }
+    current_route = st.session_state.get("selected_page", "Home")
+    if current_route in compatibility_routes:
+        st.session_state.selected_page = compatibility_routes[current_route]
     app_pages = [
-        "Research Workspace",
-        "Security Research",
-        "Opportunity Research",
-        "Research Repository",
-        "Startup Check",
-        "Tradier Connection",
+        "Home",
+        "Research Launchpad",
+        "Research Universe",
+        "Universe Analysis",
+        "Company Analysis",
+        "Opportunities",
+        "History",
+        "Administration",
     ]
     with st.sidebar:
+        st.markdown("## Kip Research")
         selected_page = st.radio("Navigation", app_pages, key="selected_page")
-        st.header("Tradier Connection")
-        ticker = st.text_input("Ticker symbol", value="SPY", max_chars=10).strip().upper()
-        get_quote = st.button("Get Quote")
-        show_diagnostic_data = st.checkbox("Show Diagnostic Data")
-        if selected_page == "Opportunity Research":
+        if selected_page == "Opportunities":
             st.text_input(
                 "Research Universe CSV",
                 key="research_universe_path",
@@ -3220,22 +3461,29 @@ def main():
     except UniverseError as error:
         universe_error = error
         with st.sidebar:
-            if selected_page == "Opportunity Research":
+            if selected_page == "Opportunities":
                 st.error("Unable to load Research Universe: " + str(error))
         universe = []
     universe_symbols = [item.symbol for item in universe]
     with st.sidebar:
         render_research_sidebar_metadata(
-            selected_page if selected_page in ("Security Research", "Opportunity Research") else None,
+            {
+                "Company Analysis": "Security Research",
+                "Opportunities": "Opportunity Research",
+            }.get(selected_page),
             path,
             len(universe_symbols),
         )
 
-    if selected_page == "Research Workspace":
-        render_research_workspace(path, universe_symbols)
-    elif selected_page == "Security Research":
+    if selected_page == "Home":
+        render_home(path, universe_symbols)
+    elif selected_page == "Company Analysis":
+        st.title("Company Analysis")
+        render_company_analysis_shell()
+    elif selected_page == "Universe Analysis":
         render_technical_analysis_explorer_workflow()
-    elif selected_page == "Opportunity Research":
+    elif selected_page == "Opportunities":
+        st.title("Opportunities")
         (
             opportunity_discovery_tab,
             option_chain_explorer_tab,
@@ -3259,12 +3507,33 @@ def main():
             render_option_chain_explorer_workflow()
         with option_analysis_explorer_tab:
             render_quality_engine_diagnostics_workflow()
-    elif selected_page == "Research Repository":
+    elif selected_page == "History":
         render_research_repository_page()
-    elif selected_page == "Startup Check":
-        render_startup_check()
-    elif selected_page == "Tradier Connection":
-        render_tradier_quote(ticker, get_quote, show_diagnostic_data)
+    elif selected_page == "Research Launchpad":
+        render_research_universe_builder(root=ROOT, analyze_company=launch_benchmark_company_analysis)
+    elif selected_page == "Research Universe":
+        render_current_research_universe_page(analyze_company=launch_benchmark_company_analysis)
+    elif selected_page == "Administration":
+        st.title("Administration")
+        admin_page = st.selectbox(
+            "Administration area",
+            [
+                "Tradier Connection",
+                "Developer diagnostics",
+                "Benchmark certification",
+                "Startup Check",
+            ],
+        )
+        st.space("small")
+        if admin_page == "Tradier Connection":
+            ticker = st.text_input("Ticker symbol", value="SPY", max_chars=10).strip().upper()
+            get_quote = st.button("Get Quote", type="primary")
+            show_diagnostic_data = st.checkbox("Show Diagnostic Data")
+            render_tradier_quote(ticker, get_quote, show_diagnostic_data)
+        elif admin_page in ("Developer diagnostics", "Startup Check"):
+            render_startup_check()
+        else:
+            render_benchmark_explorer(ROOT, analyze_company=launch_benchmark_company_analysis)
 
 
 if __name__ == "__main__":

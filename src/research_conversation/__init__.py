@@ -87,6 +87,9 @@ class ResearchConversationRequest:
     prompt_version: str = DEFAULT_RCE_PROMPT_VERSION
     request_timestamp: datetime = field(default_factory=utc_now)
     context: dict[str, Any] = field(default_factory=dict)
+    anchor_companies: tuple[str, ...] = ()
+    breadth_preference: str | None = None
+    request_origin: str = "unspecified"
 
 
 @dataclass(frozen=True)
@@ -211,6 +214,11 @@ class ResearchConversationService:
             original_question=original_question.strip(),
             context=context or {},
         )
+        return self.interpret_request(request)
+
+    def interpret_request(
+        self, request: ResearchConversationRequest
+    ) -> ResearchConversationResponse:
         selected_provider_name = getattr(self.provider, "provider_name", "unknown")
         selected_model_name = getattr(self.provider, "model_name", "unknown")
         try:

@@ -996,5 +996,25 @@ class ResearchConversationTest(unittest.TestCase):
         self.assertTrue(presentation["universe_review"])
 
 
+def test_marvell_mrvl_remains_associated_through_rce_parser():
+    payload = json.dumps({
+        "candidate_securities": [{
+            "company_name": "Marvell Technology",
+            "ticker": "MRVL",
+            "subdomain": "Networking semiconductors",
+            "inclusion_rationale": "Supplies data-center networking silicon.",
+            "confidence": 0.9,
+        }],
+    })
+
+    structured, _, errors = parse_structured_response(payload, "AI networking")
+
+    assert errors == []
+    candidate = structured["candidate_securities"][0]
+    assert (candidate["company_name"], candidate["ticker"]) == (
+        "Marvell Technology", "MRVL",
+    )
+
+
 if __name__ == "__main__":
     unittest.main()
