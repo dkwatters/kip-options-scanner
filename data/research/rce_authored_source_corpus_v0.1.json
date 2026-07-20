@@ -1,0 +1,4317 @@
+{
+  "schema_version": "1.0",
+  "source_corpus_version": "authored-source-v0.1",
+  "generated_from": "docs/research/benchmarks",
+  "benchmark_count": 17,
+  "primary_unique_company_count": 377,
+  "primary_placement_count": 381,
+  "benchmarks": [
+    {
+      "benchmark_id": "ai-data-center-networking-cabling",
+      "benchmark_name": "AI Data Center Networking & Cabling",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "datacenter networking companies.pdf",
+      "source_sha256": "30d36fcdf029bae9bbdf70c0138cb1c650a260c3ee814ee3e3e07099bc4304d2",
+      "primary_unique_company_count": 17,
+      "primary_placement_count": 17,
+      "records": [
+        {
+          "company_name": "Arista Networks",
+          "ticker_or_identifier": "ANET",
+          "source_page": "1",
+          "source_section": "Network Switches & Routers (Systems)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Cisco Systems",
+          "ticker_or_identifier": "CSCO",
+          "source_page": "1",
+          "source_section": "Network Switches & Routers (Systems)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Nokia",
+          "ticker_or_identifier": "NOK",
+          "source_page": "1",
+          "source_section": "Network Switches & Routers (Systems)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Broadcom",
+          "ticker_or_identifier": "AVGO",
+          "source_page": "1",
+          "source_section": "Switching Silicon & Custom Networking ASICs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Marvell Technology",
+          "ticker_or_identifier": "MRVL",
+          "source_page": "1",
+          "source_section": "Switching Silicon & Custom Networking ASICs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Coherent Corp",
+          "ticker_or_identifier": "COHR",
+          "source_page": "1",
+          "source_section": "Optical Components, Transceivers & Connectivity Chips",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Lumentum Holdings",
+          "ticker_or_identifier": "LITE",
+          "source_page": "1",
+          "source_section": "Optical Components, Transceivers & Connectivity Chips",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Credo Technology",
+          "ticker_or_identifier": "CRDO",
+          "source_page": "2",
+          "source_section": "Optical Components, Transceivers & Connectivity Chips",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Astera Labs",
+          "ticker_or_identifier": "ALAB",
+          "source_page": "2",
+          "source_section": "Optical Components, Transceivers & Connectivity Chips",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Fabrinet",
+          "ticker_or_identifier": "FN",
+          "source_page": "2",
+          "source_section": "Optical Components, Transceivers & Connectivity Chips",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ciena",
+          "ticker_or_identifier": "CIEN",
+          "source_page": "2",
+          "source_section": "Optical Networking Systems & Data Center Interconnect (DCI)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Amphenol",
+          "ticker_or_identifier": "APH",
+          "source_page": "2",
+          "source_section": "Copper Cabling, Connectors & Fiber Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "TE Connectivity",
+          "ticker_or_identifier": "TEL",
+          "source_page": "2",
+          "source_section": "Copper Cabling, Connectors & Fiber Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Corning",
+          "ticker_or_identifier": "GLW",
+          "source_page": "2",
+          "source_section": "Copper Cabling, Connectors & Fiber Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "CommScope",
+          "ticker_or_identifier": "COMM",
+          "source_page": "2",
+          "source_section": "Copper Cabling, Connectors & Fiber Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Belden",
+          "ticker_or_identifier": "BDC",
+          "source_page": "2",
+          "source_section": "Copper Cabling, Connectors & Fiber Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Lumen Technologies",
+          "ticker_or_identifier": "LUMN",
+          "source_page": "3",
+          "source_section": "Long-Haul / Dark Fiber Network Operators",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "ai-power-supply-chain",
+      "benchmark_name": "AI Power Supply Chain",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "ai power supply chain.pdf",
+      "source_sha256": "669253bf7d250a09cbca2b20ae7a1700fd419f7b59b902228a808be015dbacef",
+      "primary_unique_company_count": 39,
+      "primary_placement_count": 41,
+      "records": [
+        {
+          "company_name": "GE Vernova",
+          "ticker_or_identifier": "GEV",
+          "source_page": "1",
+          "source_section": "Natural Gas Generation & Turbines",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Siemens Energy",
+          "ticker_or_identifier": "XTRA:ENR/OTC:SMEGF",
+          "source_page": "1",
+          "source_section": "Natural Gas Generation & Turbines",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Mitsubishi Heavy Industries",
+          "ticker_or_identifier": "TYO:7011",
+          "source_page": "1",
+          "source_section": "Natural Gas Generation & Turbines",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Constellation Energy",
+          "ticker_or_identifier": "CEG",
+          "source_page": "1",
+          "source_section": "Nuclear (Summary -- See Prior Dedicated List for Full Detail)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Vistra",
+          "ticker_or_identifier": "VST",
+          "source_page": "1",
+          "source_section": "Nuclear (Summary -- See Prior Dedicated List for Full Detail)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Oklo",
+          "ticker_or_identifier": "OKLO",
+          "source_page": "1",
+          "source_section": "Nuclear (Summary -- See Prior Dedicated List for Full Detail)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "X-Energy",
+          "ticker_or_identifier": "XE",
+          "source_page": "1",
+          "source_section": "Nuclear (Summary -- See Prior Dedicated List for Full Detail)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "NuScale Power",
+          "ticker_or_identifier": "SMR",
+          "source_page": "1",
+          "source_section": "Nuclear (Summary -- See Prior Dedicated List for Full Detail)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Talen Energy",
+          "ticker_or_identifier": "TLN",
+          "source_page": "1",
+          "source_section": "Nuclear (Summary -- See Prior Dedicated List for Full Detail)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": true,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Dominion Energy",
+          "ticker_or_identifier": "D",
+          "source_page": "1",
+          "source_section": "Nuclear (Summary -- See Prior Dedicated List for Full Detail)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": true,
+          "placement_index": 1
+        },
+        {
+          "company_name": "NextEra Energy",
+          "ticker_or_identifier": "NEE",
+          "source_page": "1",
+          "source_section": "Utilities & Diversified Power Producers with Major Data Center Exposure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Dominion Energy",
+          "ticker_or_identifier": "D",
+          "source_page": "2",
+          "source_section": "Utilities & Diversified Power Producers with Major Data Center Exposure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": true,
+          "placement_index": 2
+        },
+        {
+          "company_name": "Southern Company",
+          "ticker_or_identifier": "SO",
+          "source_page": "2",
+          "source_section": "Utilities & Diversified Power Producers with Major Data Center Exposure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Duke Energy",
+          "ticker_or_identifier": "DUK",
+          "source_page": "2",
+          "source_section": "Utilities & Diversified Power Producers with Major Data Center Exposure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "American Electric Power",
+          "ticker_or_identifier": "AEP",
+          "source_page": "2",
+          "source_section": "Utilities & Diversified Power Producers with Major Data Center Exposure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Entergy",
+          "ticker_or_identifier": "ETR",
+          "source_page": "2",
+          "source_section": "Utilities & Diversified Power Producers with Major Data Center Exposure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Talen Energy",
+          "ticker_or_identifier": "TLN",
+          "source_page": "2",
+          "source_section": "Utilities & Diversified Power Producers with Major Data Center Exposure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": true,
+          "placement_index": 2
+        },
+        {
+          "company_name": "First Solar",
+          "ticker_or_identifier": "FSLR",
+          "source_page": "2",
+          "source_section": "Solar & Renewables",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Brookfield Renewable",
+          "ticker_or_identifier": "BEPC/BEP",
+          "source_page": "2",
+          "source_section": "Solar & Renewables",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Nextpower",
+          "ticker_or_identifier": "Recentlypublic",
+          "source_page": "2",
+          "source_section": "Solar & Renewables",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Orsted",
+          "ticker_or_identifier": "OTC:DNNGY",
+          "source_page": "2",
+          "source_section": "Solar & Renewables",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Fluence Energy",
+          "ticker_or_identifier": "FLNC",
+          "source_page": "2",
+          "source_section": "Battery Storage & Grid-Scale Storage",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Eos Energy Enterprises",
+          "ticker_or_identifier": "EOSE",
+          "source_page": "2",
+          "source_section": "Battery Storage & Grid-Scale Storage",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Albemarle",
+          "ticker_or_identifier": "ALB",
+          "source_page": "2",
+          "source_section": "Battery Storage & Grid-Scale Storage",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Bloom Energy",
+          "ticker_or_identifier": "BE",
+          "source_page": "3",
+          "source_section": "On-Site / Behind-the-Meter Generation & Backup Power",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Plug Power",
+          "ticker_or_identifier": "PLUG",
+          "source_page": "3",
+          "source_section": "On-Site / Behind-the-Meter Generation & Backup Power",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Caterpillar",
+          "ticker_or_identifier": "CAT",
+          "source_page": "3",
+          "source_section": "On-Site / Behind-the-Meter Generation & Backup Power",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Cummins",
+          "ticker_or_identifier": "CMI",
+          "source_page": "3",
+          "source_section": "On-Site / Behind-the-Meter Generation & Backup Power",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Generac",
+          "ticker_or_identifier": "GNRC",
+          "source_page": "3",
+          "source_section": "On-Site / Behind-the-Meter Generation & Backup Power",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Eaton",
+          "ticker_or_identifier": "ETN",
+          "source_page": "3",
+          "source_section": "Grid Equipment: Transformers, Switchgear, Power Distribution & Cooling",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Vertiv",
+          "ticker_or_identifier": "VRT",
+          "source_page": "3",
+          "source_section": "Grid Equipment: Transformers, Switchgear, Power Distribution & Cooling",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Schneider Electric",
+          "ticker_or_identifier": "EPA:SU/OTC:SBGSF",
+          "source_page": "3",
+          "source_section": "Grid Equipment: Transformers, Switchgear, Power Distribution & Cooling",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ABB",
+          "ticker_or_identifier": "ABBN.SW",
+          "source_page": "3",
+          "source_section": "Grid Equipment: Transformers, Switchgear, Power Distribution & Cooling",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Hitachi Energy",
+          "ticker_or_identifier": "TYO:6501",
+          "source_page": "3",
+          "source_section": "Grid Equipment: Transformers, Switchgear, Power Distribution & Cooling",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Powell Industries",
+          "ticker_or_identifier": "POWL",
+          "source_page": "3",
+          "source_section": "Grid Equipment: Transformers, Switchgear, Power Distribution & Cooling",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Prysmian",
+          "ticker_or_identifier": "OTC:PRYMF",
+          "source_page": "3",
+          "source_section": "Grid Equipment: Transformers, Switchgear, Power Distribution & Cooling",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Quanta Services",
+          "ticker_or_identifier": "PWR",
+          "source_page": "4",
+          "source_section": "Grid Infrastructure Construction / EPC",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "MasTec",
+          "ticker_or_identifier": "MTZ",
+          "source_page": "4",
+          "source_section": "Grid Infrastructure Construction / EPC",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Kinder Morgan",
+          "ticker_or_identifier": "KMI",
+          "source_page": "4",
+          "source_section": "Natural Gas Midstream / Pipelines (Fuel Supply Side)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Williams Companies",
+          "ticker_or_identifier": "WMB",
+          "source_page": "4",
+          "source_section": "Natural Gas Midstream / Pipelines (Fuel Supply Side)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Energy Transfer",
+          "ticker_or_identifier": "ET",
+          "source_page": "4",
+          "source_section": "Natural Gas Midstream / Pipelines (Fuel Supply Side)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "crispr-ai-oncology",
+      "benchmark_name": "CRISPR & AI Oncology",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "crispr ai oncology companies.pdf",
+      "source_sha256": "6dac319628c1f709faccdfba2d075310ae43e1061829c20e6c91ac63646e83de",
+      "primary_unique_company_count": 29,
+      "primary_placement_count": 29,
+      "records": [
+        {
+          "company_name": "CRISPR Therapeutics",
+          "ticker_or_identifier": "CRSP",
+          "source_page": "1",
+          "source_section": "CRISPR / Gene-Editing Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Intellia Therapeutics",
+          "ticker_or_identifier": "NTLA",
+          "source_page": "1",
+          "source_section": "CRISPR / Gene-Editing Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Beam Therapeutics",
+          "ticker_or_identifier": "BEAM",
+          "source_page": "1",
+          "source_section": "CRISPR / Gene-Editing Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Editas Medicine",
+          "ticker_or_identifier": "EDIT",
+          "source_page": "1",
+          "source_section": "CRISPR / Gene-Editing Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Caribou Biosciences",
+          "ticker_or_identifier": "CRBU",
+          "source_page": "1",
+          "source_section": "CRISPR / Gene-Editing Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Prime Medicine",
+          "ticker_or_identifier": "PRME",
+          "source_page": "1",
+          "source_section": "CRISPR / Gene-Editing Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Recursion Pharmaceuticals",
+          "ticker_or_identifier": "RXRX",
+          "source_page": "1",
+          "source_section": "AI-Native Drug Discovery Platforms (Oncology-Focused)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Schrodinger",
+          "ticker_or_identifier": "SDGR",
+          "source_page": "1",
+          "source_section": "AI-Native Drug Discovery Platforms (Oncology-Focused)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Relay Therapeutics",
+          "ticker_or_identifier": "RLAY",
+          "source_page": "1",
+          "source_section": "AI-Native Drug Discovery Platforms (Oncology-Focused)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Insilico Medicine",
+          "ticker_or_identifier": "HKEX-listed 2025",
+          "source_page": "1",
+          "source_section": "AI-Native Drug Discovery Platforms (Oncology-Focused)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "XtalPi",
+          "ticker_or_identifier": "2228.HK",
+          "source_page": "2",
+          "source_section": "AI-Native Drug Discovery Platforms (Oncology-Focused)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Generate:Biomedicines",
+          "ticker_or_identifier": "2026IPO",
+          "source_page": "2",
+          "source_section": "AI-Native Drug Discovery Platforms (Oncology-Focused)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Legend Biotech",
+          "ticker_or_identifier": "LEGN",
+          "source_page": "2",
+          "source_section": "Clinical-Stage Cell & Gene Therapy / CAR-T Oncology Companies",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Autolus Therapeutics",
+          "ticker_or_identifier": "AUTL",
+          "source_page": "2",
+          "source_section": "Clinical-Stage Cell & Gene Therapy / CAR-T Oncology Companies",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Allogene Therapeutics",
+          "ticker_or_identifier": "ALLO",
+          "source_page": "2",
+          "source_section": "Clinical-Stage Cell & Gene Therapy / CAR-T Oncology Companies",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Fate Therapeutics",
+          "ticker_or_identifier": "FATE",
+          "source_page": "2",
+          "source_section": "Clinical-Stage Cell & Gene Therapy / CAR-T Oncology Companies",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Illumina",
+          "ticker_or_identifier": "ILMN",
+          "source_page": "2",
+          "source_section": "Genomics & Sequencing Infrastructure (Enabling Tools)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "10x Genomics",
+          "ticker_or_identifier": "TXG",
+          "source_page": "2",
+          "source_section": "Genomics & Sequencing Infrastructure (Enabling Tools)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Twist Bioscience",
+          "ticker_or_identifier": "TWST",
+          "source_page": "2",
+          "source_section": "Genomics & Sequencing Infrastructure (Enabling Tools)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Pacific Biosciences",
+          "ticker_or_identifier": "PACB",
+          "source_page": "2",
+          "source_section": "Genomics & Sequencing Infrastructure (Enabling Tools)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Thermo Fisher Scientific",
+          "ticker_or_identifier": "TMO",
+          "source_page": "2",
+          "source_section": "Genomics & Sequencing Infrastructure (Enabling Tools)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Eli Lilly",
+          "ticker_or_identifier": "LLY",
+          "source_page": "3",
+          "source_section": "Major Pharma Anchor Partners (Capital & Validation Signal)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Novartis",
+          "ticker_or_identifier": "NVS",
+          "source_page": "3",
+          "source_section": "Major Pharma Anchor Partners (Capital & Validation Signal)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Roche / Genentech",
+          "ticker_or_identifier": "RHHBY",
+          "source_page": "3",
+          "source_section": "Major Pharma Anchor Partners (Capital & Validation Signal)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Johnson & Johnson",
+          "ticker_or_identifier": "JNJ",
+          "source_page": "3",
+          "source_section": "Major Pharma Anchor Partners (Capital & Validation Signal)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Bristol Myers Squibb",
+          "ticker_or_identifier": "BMY",
+          "source_page": "3",
+          "source_section": "Major Pharma Anchor Partners (Capital & Validation Signal)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "GSK",
+          "ticker_or_identifier": "GSK",
+          "source_page": "3",
+          "source_section": "Major Pharma Anchor Partners (Capital & Validation Signal)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Gilead Sciences",
+          "ticker_or_identifier": "GILD",
+          "source_page": "3",
+          "source_section": "Major Pharma Anchor Partners (Capital & Validation Signal)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Merck",
+          "ticker_or_identifier": "MRK",
+          "source_page": "3",
+          "source_section": "Major Pharma Anchor Partners (Capital & Validation Signal)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "critical-infrastructure-cybersecurity",
+      "benchmark_name": "Critical Infrastructure Cybersecurity",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "critical infra cybersecurity companies.pdf",
+      "source_sha256": "b619474cc42a310159822fe9ca72912a3b4bb80073b348ad442667780c34ef59",
+      "primary_unique_company_count": 19,
+      "primary_placement_count": 19,
+      "records": [
+        {
+          "company_name": "Palo Alto Networks",
+          "ticker_or_identifier": "PANW",
+          "source_page": "1",
+          "source_section": "OT/ICS & Industrial Cybersecurity",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Fortinet",
+          "ticker_or_identifier": "FTNT",
+          "source_page": "1",
+          "source_section": "OT/ICS & Industrial Cybersecurity",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Cisco Systems",
+          "ticker_or_identifier": "CSCO",
+          "source_page": "1",
+          "source_section": "OT/ICS & Industrial Cybersecurity",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Honeywell",
+          "ticker_or_identifier": "HON",
+          "source_page": "1",
+          "source_section": "Diversified Industrial & Physical Security Conglomerates",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Motorola Solutions",
+          "ticker_or_identifier": "MSI",
+          "source_page": "1",
+          "source_section": "Diversified Industrial & Physical Security Conglomerates",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Rockwell Automation",
+          "ticker_or_identifier": "ROK",
+          "source_page": "1",
+          "source_section": "Diversified Industrial & Physical Security Conglomerates",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "General Dynamics",
+          "ticker_or_identifier": "DDpD",
+          "source_page": "2",
+          "source_section": "Diversified Industrial & Physical Security Conglomerates",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "CrowdStrike",
+          "ticker_or_identifier": "CRWD",
+          "source_page": "2",
+          "source_section": "General-Purpose Cybersecurity Leaders",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Zscaler",
+          "ticker_or_identifier": "ZS",
+          "source_page": "2",
+          "source_section": "General-Purpose Cybersecurity Leaders",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "SentinelOne",
+          "ticker_or_identifier": "S",
+          "source_page": "2",
+          "source_section": "General-Purpose Cybersecurity Leaders",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Check Point Software",
+          "ticker_or_identifier": "CHKP",
+          "source_page": "2",
+          "source_section": "General-Purpose Cybersecurity Leaders",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Okta",
+          "ticker_or_identifier": "OKTA",
+          "source_page": "2",
+          "source_section": "General-Purpose Cybersecurity Leaders",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Netscout Systems",
+          "ticker_or_identifier": "NTCT",
+          "source_page": "2",
+          "source_section": "Network Monitoring, DDoS Protection & Vulnerability Management",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Qualys",
+          "ticker_or_identifier": "QLYS",
+          "source_page": "2",
+          "source_section": "Network Monitoring, DDoS Protection & Vulnerability Management",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Tenable Holdings",
+          "ticker_or_identifier": "TENB",
+          "source_page": "2",
+          "source_section": "Network Monitoring, DDoS Protection & Vulnerability Management",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Akamai Technologies",
+          "ticker_or_identifier": "AKAM",
+          "source_page": "2",
+          "source_section": "Network Monitoring, DDoS Protection & Vulnerability Management",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Varonis Systems",
+          "ticker_or_identifier": "VRNS",
+          "source_page": "3",
+          "source_section": "Identity, Data & Hybrid-Cloud Security",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Broadcom",
+          "ticker_or_identifier": "AVGO",
+          "source_page": "3",
+          "source_section": "Identity, Data & Hybrid-Cloud Security",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "IBM",
+          "ticker_or_identifier": "IBM",
+          "source_page": "3",
+          "source_section": "Identity, Data & Hybrid-Cloud Security",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Dragos",
+          "ticker_or_identifier": null,
+          "source_page": "1",
+          "source_section": "OT/ICS & Industrial Cybersecurity",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Claroty",
+          "ticker_or_identifier": null,
+          "source_page": "1",
+          "source_section": "OT/ICS & Industrial Cybersecurity",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "critical-minerals",
+      "benchmark_name": "Critical Minerals",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "critical minerals companies.pdf",
+      "source_sha256": "2386d39c5f52aa52d4eb100a939112207629427abe3a6a077aa58a14d104ed12",
+      "primary_unique_company_count": 14,
+      "primary_placement_count": 14,
+      "records": [
+        {
+          "company_name": "MP Materials",
+          "ticker_or_identifier": "MP",
+          "source_page": "1",
+          "source_section": "Rare Earth Elements & Permanent Magnets",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "USA Rare Earth",
+          "ticker_or_identifier": "USAR",
+          "source_page": "1",
+          "source_section": "Rare Earth Elements & Permanent Magnets",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Lynas Rare Earths",
+          "ticker_or_identifier": "ASX:LYC",
+          "source_page": "1",
+          "source_section": "Rare Earth Elements & Permanent Magnets",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ucore Rare Metals",
+          "ticker_or_identifier": "TSXV:UCU",
+          "source_page": "1",
+          "source_section": "Rare Earth Elements & Permanent Magnets",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Freeport-McMoRan",
+          "ticker_or_identifier": "FCX",
+          "source_page": "1",
+          "source_section": "Copper (AI Data Center & Grid Demand Driver)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Southern Copper",
+          "ticker_or_identifier": "SCCO",
+          "source_page": "1",
+          "source_section": "Copper (AI Data Center & Grid Demand Driver)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ivanhoe Mines",
+          "ticker_or_identifier": "TSX:IVN",
+          "source_page": "1",
+          "source_section": "Copper (AI Data Center & Grid Demand Driver)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Teck Resources",
+          "ticker_or_identifier": "TSX:TECK.B",
+          "source_page": "1",
+          "source_section": "Copper (AI Data Center & Grid Demand Driver)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Rio Tinto",
+          "ticker_or_identifier": "RIO",
+          "source_page": "1",
+          "source_section": "Copper (AI Data Center & Grid Demand Driver)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Hudbay Minerals",
+          "ticker_or_identifier": "TSX:HBM",
+          "source_page": "1",
+          "source_section": "Copper (AI Data Center & Grid Demand Driver)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Almonty Industries",
+          "ticker_or_identifier": "ALM/TSX:AII",
+          "source_page": "2",
+          "source_section": "Tungsten",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "United States Antimony Corp",
+          "ticker_or_identifier": "UAMY",
+          "source_page": "2",
+          "source_section": "Antimony",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Perpetua Resources",
+          "ticker_or_identifier": "PPTA",
+          "source_page": "2",
+          "source_section": "Antimony",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Sunshine Silver Mining & Refining",
+          "ticker_or_identifier": "recent S-1/IPO filer",
+          "source_page": "2",
+          "source_section": "Gallium & Germanium (Semiconductor-Critical)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "crypto-adjacent-companies",
+      "benchmark_name": "Crypto-Adjacent Companies",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "crypto adjacent companies.pdf",
+      "source_sha256": "e83e773ea32961d20a06ccba0422ec76d192706e44ad8297d4f3e4d9738be80f",
+      "primary_unique_company_count": 25,
+      "primary_placement_count": 25,
+      "records": [
+        {
+          "company_name": "IREN",
+          "ticker_or_identifier": "IREN",
+          "source_page": "1",
+          "source_section": "Bitcoin Mining (Pure-Play & AI-Compute Hybrid)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "MARA Holdings",
+          "ticker_or_identifier": "MARA",
+          "source_page": "1",
+          "source_section": "Bitcoin Mining (Pure-Play & AI-Compute Hybrid)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Riot Platforms",
+          "ticker_or_identifier": "RIOT",
+          "source_page": "1",
+          "source_section": "Bitcoin Mining (Pure-Play & AI-Compute Hybrid)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "CleanSpark",
+          "ticker_or_identifier": "CLSK",
+          "source_page": "1",
+          "source_section": "Bitcoin Mining (Pure-Play & AI-Compute Hybrid)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "TeraWulf",
+          "ticker_or_identifier": "WULF",
+          "source_page": "1",
+          "source_section": "Bitcoin Mining (Pure-Play & AI-Compute Hybrid)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Core Scientific",
+          "ticker_or_identifier": "CORZ",
+          "source_page": "1",
+          "source_section": "Bitcoin Mining (Pure-Play & AI-Compute Hybrid)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Cipher Mining",
+          "ticker_or_identifier": "CIFR",
+          "source_page": "1",
+          "source_section": "Bitcoin Mining (Pure-Play & AI-Compute Hybrid)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Bitdeer Technologies",
+          "ticker_or_identifier": "BTDR",
+          "source_page": "1",
+          "source_section": "Bitcoin Mining (Pure-Play & AI-Compute Hybrid)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Hut 8",
+          "ticker_or_identifier": "HUT",
+          "source_page": "1",
+          "source_section": "Bitcoin Mining (Pure-Play & AI-Compute Hybrid)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "HIVE Digital Technologies",
+          "ticker_or_identifier": "HIVE",
+          "source_page": "1",
+          "source_section": "Bitcoin Mining (Pure-Play & AI-Compute Hybrid)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Canaan",
+          "ticker_or_identifier": "CAN",
+          "source_page": "1",
+          "source_section": "Mining Hardware / ASIC Chip Makers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Coinbase Global",
+          "ticker_or_identifier": "COIN",
+          "source_page": "2",
+          "source_section": "Crypto Exchanges & Trading Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Bullish",
+          "ticker_or_identifier": "BLSH",
+          "source_page": "2",
+          "source_section": "Crypto Exchanges & Trading Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Gemini",
+          "ticker_or_identifier": "GEMI",
+          "source_page": "2",
+          "source_section": "Crypto Exchanges & Trading Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Robinhood",
+          "ticker_or_identifier": "HOOD",
+          "source_page": "2",
+          "source_section": "Crypto Exchanges & Trading Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Circle Internet Group",
+          "ticker_or_identifier": "CRCLinissuerat",
+          "source_page": "2",
+          "source_section": "Stablecoin Issuers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "BitGo Holdings",
+          "ticker_or_identifier": "BTGO",
+          "source_page": "2",
+          "source_section": "Digital Asset Custody & Institutional Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Galaxy Digital",
+          "ticker_or_identifier": "GLXY",
+          "source_page": "2",
+          "source_section": "Digital Asset Custody & Institutional Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Bakkt",
+          "ticker_or_identifier": "BKKT",
+          "source_page": "2",
+          "source_section": "Digital Asset Custody & Institutional Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Strategy (formerly MicroStrategy)",
+          "ticker_or_identifier": "MSTR",
+          "source_page": "3",
+          "source_section": "Corporate Bitcoin Treasury Holders (\"Digital Asset Treasury\" Companies)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Twenty One Capital",
+          "ticker_or_identifier": "XXI",
+          "source_page": "3",
+          "source_section": "Corporate Bitcoin Treasury Holders (\"Digital Asset Treasury\" Companies)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "PayPal",
+          "ticker_or_identifier": "PYPL",
+          "source_page": "3",
+          "source_section": "Payments & Financial Market Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Block (formerly Square)",
+          "ticker_or_identifier": "XYZ",
+          "source_page": "3",
+          "source_section": "Payments & Financial Market Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Visa",
+          "ticker_or_identifier": "V",
+          "source_page": "3",
+          "source_section": "Payments & Financial Market Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "CME Group",
+          "ticker_or_identifier": "CME",
+          "source_page": "3",
+          "source_section": "Payments & Financial Market Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "defense-drones-counter-drone",
+      "benchmark_name": "Defense Drones & Counter-Drone",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "defense drone companies.pdf",
+      "source_sha256": "de0ef6efbcc684d1c65eda424f14766136e5a156296b54e07938bae4a801d226",
+      "primary_unique_company_count": 19,
+      "primary_placement_count": 19,
+      "records": [
+        {
+          "company_name": "Lockheed Martin",
+          "ticker_or_identifier": "LMT",
+          "source_page": "1",
+          "source_section": "Major Defense Primes (Diversified, Drone Is One Segment)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "RTX",
+          "ticker_or_identifier": "RTX",
+          "source_page": "1",
+          "source_section": "Major Defense Primes (Diversified, Drone Is One Segment)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Northrop Grumman",
+          "ticker_or_identifier": "NOC",
+          "source_page": "1",
+          "source_section": "Major Defense Primes (Diversified, Drone Is One Segment)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "L3Harris Technologies",
+          "ticker_or_identifier": "LHX",
+          "source_page": "1",
+          "source_section": "Major Defense Primes (Diversified, Drone Is One Segment)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "General Dynamics",
+          "ticker_or_identifier": "GD",
+          "source_page": "1",
+          "source_section": "Major Defense Primes (Diversified, Drone Is One Segment)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "AeroVironment",
+          "ticker_or_identifier": "AVAV",
+          "source_page": "1",
+          "source_section": "Pure-Play Military Drone / Loitering Munition Manufacturers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Kratos Defense & Security Solutions",
+          "ticker_or_identifier": "KTOS",
+          "source_page": "1",
+          "source_section": "Pure-Play Military Drone / Loitering Munition Manufacturers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Red Cat Holdings",
+          "ticker_or_identifier": "RCAT",
+          "source_page": "1",
+          "source_section": "Up-and-Coming Small-Cap Drone Plays",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ondas Holdings",
+          "ticker_or_identifier": "ONDS",
+          "source_page": "1",
+          "source_section": "Up-and-Coming Small-Cap Drone Plays",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Draganfly",
+          "ticker_or_identifier": "DPRO",
+          "source_page": "2",
+          "source_section": "Up-and-Coming Small-Cap Drone Plays",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Unusual Machines",
+          "ticker_or_identifier": "UMAC",
+          "source_page": "2",
+          "source_section": "Up-and-Coming Small-Cap Drone Plays",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "AIRO Group Holdings",
+          "ticker_or_identifier": "AIRO",
+          "source_page": "2",
+          "source_section": "Up-and-Coming Small-Cap Drone Plays",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ZenaTech",
+          "ticker_or_identifier": "ZENA",
+          "source_page": "2",
+          "source_section": "Up-and-Coming Small-Cap Drone Plays",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Duke Robotics",
+          "ticker_or_identifier": "DUKR",
+          "source_page": "2",
+          "source_section": "Up-and-Coming Small-Cap Drone Plays",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "VisionWave Holdings",
+          "ticker_or_identifier": "WVAV",
+          "source_page": "2",
+          "source_section": "Up-and-Coming Small-Cap Drone Plays",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "DroneShield",
+          "ticker_or_identifier": "ASX:DRO/OTC:DRSHF",
+          "source_page": "2",
+          "source_section": "Counter-Drone / Anti-UAS Specialists",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Axon Enterprise",
+          "ticker_or_identifier": "AXON",
+          "source_page": "2",
+          "source_section": "Counter-Drone / Anti-UAS Specialists",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ParaZero Technologies",
+          "ticker_or_identifier": "PRZO",
+          "source_page": "2",
+          "source_section": "Counter-Drone / Anti-UAS Specialists",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Palantir Technologies",
+          "ticker_or_identifier": "PLTR",
+          "source_page": "2",
+          "source_section": "AI, Software & Autonomy Layer",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Anduril Industries",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Notable Private Companies Shaping the Category",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Shield AI",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Notable Private Companies Shaping the Category",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Skydio",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Notable Private Companies Shaping the Category",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Epirus",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Notable Private Companies Shaping the Category",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "ev-autonomous-driving",
+      "benchmark_name": "EV & Autonomous Driving",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "ev autonomous driving companies.pdf",
+      "source_sha256": "452178d239db63d85dad318b2a1e41c4ddf709b23d799cdc074e03bed59c975f",
+      "primary_unique_company_count": 38,
+      "primary_placement_count": 38,
+      "records": [
+        {
+          "company_name": "Tesla",
+          "ticker_or_identifier": "TSLA",
+          "source_page": "1",
+          "source_section": "EV Manufacturers -- Pure-Play",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "BYD",
+          "ticker_or_identifier": "OTC:BYDDF",
+          "source_page": "1",
+          "source_section": "EV Manufacturers -- Pure-Play",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Rivian",
+          "ticker_or_identifier": "RIVN",
+          "source_page": "1",
+          "source_section": "EV Manufacturers -- Pure-Play",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Lucid Group",
+          "ticker_or_identifier": "LCID",
+          "source_page": "1",
+          "source_section": "EV Manufacturers -- Pure-Play",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "XPeng",
+          "ticker_or_identifier": "XPEV",
+          "source_page": "1",
+          "source_section": "EV Manufacturers -- Pure-Play",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "NIO",
+          "ticker_or_identifier": "NIO",
+          "source_page": "1",
+          "source_section": "EV Manufacturers -- Pure-Play",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Li Auto",
+          "ticker_or_identifier": "LI",
+          "source_page": "1",
+          "source_section": "EV Manufacturers -- Pure-Play",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "General Motors",
+          "ticker_or_identifier": "GM",
+          "source_page": "1",
+          "source_section": "Legacy Automakers with Major EV Programs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ford",
+          "ticker_or_identifier": "F",
+          "source_page": "1",
+          "source_section": "Legacy Automakers with Major EV Programs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Volkswagen Group",
+          "ticker_or_identifier": "OTC:VWAGY",
+          "source_page": "1",
+          "source_section": "Legacy Automakers with Major EV Programs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Stellantis",
+          "ticker_or_identifier": "STLA",
+          "source_page": "1",
+          "source_section": "Legacy Automakers with Major EV Programs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Toyota",
+          "ticker_or_identifier": "TM",
+          "source_page": "1",
+          "source_section": "Legacy Automakers with Major EV Programs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Alphabet (Waymo)",
+          "ticker_or_identifier": "GOOGL",
+          "source_page": "2",
+          "source_section": "Autonomous Driving Platforms & Robotaxi Operators",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Mobileye Global",
+          "ticker_or_identifier": "MBLY",
+          "source_page": "2",
+          "source_section": "Autonomous Driving Platforms & Robotaxi Operators",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Pony.ai",
+          "ticker_or_identifier": "PONY",
+          "source_page": "2",
+          "source_section": "Autonomous Driving Platforms & Robotaxi Operators",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Aurora Innovation",
+          "ticker_or_identifier": "AUR",
+          "source_page": "2",
+          "source_section": "Autonomous Long-Haul Trucking",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Hesai Group",
+          "ticker_or_identifier": "HSAI",
+          "source_page": "2",
+          "source_section": "LiDAR & Perception Sensors",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Innoviz Technologies",
+          "ticker_or_identifier": "INVZ",
+          "source_page": "2",
+          "source_section": "LiDAR & Perception Sensors",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Luminar Technologies",
+          "ticker_or_identifier": "LAZR",
+          "source_page": "2",
+          "source_section": "LiDAR & Perception Sensors",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ouster",
+          "ticker_or_identifier": "OUST",
+          "source_page": "2",
+          "source_section": "LiDAR & Perception Sensors",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Aeva Technologies",
+          "ticker_or_identifier": "AEVA",
+          "source_page": "2",
+          "source_section": "LiDAR & Perception Sensors",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Nvidia",
+          "ticker_or_identifier": "NVDA",
+          "source_page": "3",
+          "source_section": "Automotive AI Compute & Chips",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Qualcomm",
+          "ticker_or_identifier": "QCOM",
+          "source_page": "3",
+          "source_section": "Automotive AI Compute & Chips",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ambarella",
+          "ticker_or_identifier": "AMBA",
+          "source_page": "3",
+          "source_section": "Automotive AI Compute & Chips",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ChargePoint",
+          "ticker_or_identifier": "CHPT",
+          "source_page": "3",
+          "source_section": "EV Charging Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "EVgo",
+          "ticker_or_identifier": "EVGO",
+          "source_page": "3",
+          "source_section": "EV Charging Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Blink Charging",
+          "ticker_or_identifier": "BLNK",
+          "source_page": "3",
+          "source_section": "EV Charging Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Wallbox",
+          "ticker_or_identifier": "WBX",
+          "source_page": "3",
+          "source_section": "EV Charging Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "QuantumScape",
+          "ticker_or_identifier": "QS",
+          "source_page": "3",
+          "source_section": "Batteries & Battery Materials",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Solid Power",
+          "ticker_or_identifier": "SLDP",
+          "source_page": "3",
+          "source_section": "Batteries & Battery Materials",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Albemarle",
+          "ticker_or_identifier": "ALB",
+          "source_page": "3",
+          "source_section": "Batteries & Battery Materials",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Panasonic",
+          "ticker_or_identifier": "OTC:PCRFY",
+          "source_page": "3",
+          "source_section": "Batteries & Battery Materials",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Aptiv",
+          "ticker_or_identifier": "APTV",
+          "source_page": "3",
+          "source_section": "Components, Power Electronics & AV-Enabling Suppliers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "BorgWarner",
+          "ticker_or_identifier": "BWA",
+          "source_page": "3",
+          "source_section": "Components, Power Electronics & AV-Enabling Suppliers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ON Semiconductor",
+          "ticker_or_identifier": "ON",
+          "source_page": "3",
+          "source_section": "Components, Power Electronics & AV-Enabling Suppliers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "STMicroelectronics",
+          "ticker_or_identifier": "STM",
+          "source_page": "4",
+          "source_section": "Components, Power Electronics & AV-Enabling Suppliers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Uber Technologies",
+          "ticker_or_identifier": "UBER",
+          "source_page": "4",
+          "source_section": "Ride-Hailing / Robotaxi Platform Integrators",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Lyft",
+          "ticker_or_identifier": "LYFT",
+          "source_page": "4",
+          "source_section": "Ride-Hailing / Robotaxi Platform Integrators",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "fintech",
+      "benchmark_name": "Fintech",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "fintech companies.pdf",
+      "source_sha256": "6aae40a03f3d7c8f65e32830191c5071f466a0c94e4786057ffef0b9cdb33047",
+      "primary_unique_company_count": 16,
+      "primary_placement_count": 16,
+      "records": [
+        {
+          "company_name": "Visa",
+          "ticker_or_identifier": "V",
+          "source_page": "1",
+          "source_section": "Payment Networks & Card Rails",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Mastercard",
+          "ticker_or_identifier": "MA",
+          "source_page": "1",
+          "source_section": "Payment Networks & Card Rails",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "American Express",
+          "ticker_or_identifier": "AXP",
+          "source_page": "1",
+          "source_section": "Payment Networks & Card Rails",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Fiserv",
+          "ticker_or_identifier": "FISV",
+          "source_page": "1",
+          "source_section": "Payment Processors & Core Financial Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Global Payments",
+          "ticker_or_identifier": "GPN",
+          "source_page": "1",
+          "source_section": "Payment Processors & Core Financial Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "FIS",
+          "ticker_or_identifier": "FIS",
+          "source_page": "1",
+          "source_section": "Payment Processors & Core Financial Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "PayPal",
+          "ticker_or_identifier": "PYPL",
+          "source_page": "1",
+          "source_section": "Payment Processors & Core Financial Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Block (formerly Square)",
+          "ticker_or_identifier": "XYZ",
+          "source_page": "2",
+          "source_section": "Payment Processors & Core Financial Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Marqeta",
+          "ticker_or_identifier": "MQ",
+          "source_page": "2",
+          "source_section": "Payment Processors & Core Financial Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Chime Financial",
+          "ticker_or_identifier": "CHYM",
+          "source_page": "2",
+          "source_section": "Neobanks & Digital Banking",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "SoFi Technologies",
+          "ticker_or_identifier": "SOFI",
+          "source_page": "2",
+          "source_section": "Neobanks & Digital Banking",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Nu Holdings (Nubank)",
+          "ticker_or_identifier": "NU",
+          "source_page": "2",
+          "source_section": "Neobanks & Digital Banking",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Affirm Holdings",
+          "ticker_or_identifier": "AFRM",
+          "source_page": "2",
+          "source_section": "Buy Now, Pay Later (BNPL)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Klarna Group",
+          "ticker_or_identifier": "KLAR",
+          "source_page": "2",
+          "source_section": "Buy Now, Pay Later (BNPL)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Robinhood",
+          "ticker_or_identifier": "HOOD",
+          "source_page": "3",
+          "source_section": "Wealth & Trading Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Interactive Brokers",
+          "ticker_or_identifier": "IBKR",
+          "source_page": "3",
+          "source_section": "Wealth & Trading Platforms",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Stripe",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Private Fintechs Worth Watching",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Revolut",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Private Fintechs Worth Watching",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Plaid",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Private Fintechs Worth Watching",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Brex",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Private Fintechs Worth Watching",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ramp",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Private Fintechs Worth Watching",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Gusto",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Private Fintechs Worth Watching",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "fusion-energy",
+      "benchmark_name": "Fusion Energy",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "fusion energy companies.pdf",
+      "source_sha256": "c5b9d75f3c3c6a94b74185f29320ff3e30e8a577c2c1eaabfaa32324861c49cb",
+      "primary_unique_company_count": 10,
+      "primary_placement_count": 10,
+      "records": [
+        {
+          "company_name": "General Fusion Group",
+          "ticker_or_identifier": "GFUZ",
+          "source_page": "1",
+          "source_section": "Pure-Play Public Fusion Companies",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "TAE Technologies (via Trump Media)",
+          "ticker_or_identifier": "DJT",
+          "source_page": "1",
+          "source_section": "Pure-Play Public Fusion Companies",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "American Superconductor",
+          "ticker_or_identifier": "AMSC",
+          "source_page": "1",
+          "source_section": "High-Temperature Superconducting (HTS) Magnet Supply Chain",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Bruker Corporation",
+          "ticker_or_identifier": "BRKR",
+          "source_page": "1",
+          "source_section": "High-Temperature Superconducting (HTS) Magnet Supply Chain",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Linde plc",
+          "ticker_or_identifier": "LIN",
+          "source_page": "2",
+          "source_section": "Cryogenics & Industrial Gas Infrastructure",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Alphabet",
+          "ticker_or_identifier": "GOOGL",
+          "source_page": "2",
+          "source_section": "Corporate Investors & Power Offtake Partners",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Eni",
+          "ticker_or_identifier": "NYSE:E",
+          "source_page": "2",
+          "source_section": "Corporate Investors & Power Offtake Partners",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Microsoft",
+          "ticker_or_identifier": "MSFT",
+          "source_page": "2",
+          "source_section": "Corporate Investors & Power Offtake Partners",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Chevron",
+          "ticker_or_identifier": "CVX",
+          "source_page": "2",
+          "source_section": "Corporate Investors & Power Offtake Partners",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Cenovus Energy",
+          "ticker_or_identifier": "TSX:CVE",
+          "source_page": "2",
+          "source_section": "Corporate Investors & Power Offtake Partners",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Commonwealth Fusion Systems",
+          "ticker_or_identifier": null,
+          "source_page": "2",
+          "source_section": "Private Companies Still Defining the Sector",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Helion Energy",
+          "ticker_or_identifier": null,
+          "source_page": "2",
+          "source_section": "Private Companies Still Defining the Sector",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "glp1-obesity-drug-supply-chain",
+      "benchmark_name": "GLP-1 / Obesity Drug Supply Chain",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "glp1 supply chain companies.pdf",
+      "source_sha256": "af64f6f3dcda3c77bb5ee88161cfe68c9c45d4b53abe663da2888c1d0b3115a5",
+      "primary_unique_company_count": 12,
+      "primary_placement_count": 12,
+      "records": [
+        {
+          "company_name": "Novo Nordisk",
+          "ticker_or_identifier": "NVO",
+          "source_page": "1",
+          "source_section": "Market Leaders (Approved Drugs)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Eli Lilly",
+          "ticker_or_identifier": "LLY",
+          "source_page": "1",
+          "source_section": "Market Leaders (Approved Drugs)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Pfizer",
+          "ticker_or_identifier": "PFE",
+          "source_page": "1",
+          "source_section": "Market Leaders (Approved Drugs)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Amgen",
+          "ticker_or_identifier": "AMGN",
+          "source_page": "1",
+          "source_section": "Market Leaders (Approved Drugs)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Viking Therapeutics",
+          "ticker_or_identifier": "VKTX",
+          "source_page": "1",
+          "source_section": "Clinical-Stage Challengers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Structure Therapeutics",
+          "ticker_or_identifier": "GPCR",
+          "source_page": "1",
+          "source_section": "Clinical-Stage Challengers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Lonza Group",
+          "ticker_or_identifier": "SWX:LONN",
+          "source_page": "2",
+          "source_section": "Peptide Manufacturing & CDMOs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Samsung Biologics",
+          "ticker_or_identifier": "KRX:207940",
+          "source_page": "2",
+          "source_section": "Peptide Manufacturing & CDMOs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "West Pharmaceutical Services",
+          "ticker_or_identifier": "WST",
+          "source_page": "2",
+          "source_section": "Delivery Devices, Packaging & Fill-Finish",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Stevanato Group",
+          "ticker_or_identifier": "STVN",
+          "source_page": "2",
+          "source_section": "Delivery Devices, Packaging & Fill-Finish",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Gerresheimer",
+          "ticker_or_identifier": "XTRA:GXI",
+          "source_page": "2",
+          "source_section": "Delivery Devices, Packaging & Fill-Finish",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Hims & Hers Health",
+          "ticker_or_identifier": "HIMS",
+          "source_page": "2",
+          "source_section": "Telehealth & Direct-to-Consumer Distribution",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "CordenPharma",
+          "ticker_or_identifier": null,
+          "source_page": "2",
+          "source_section": "Peptide Manufacturing & CDMOs",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Catalent",
+          "ticker_or_identifier": "CTLT",
+          "source_page": "2",
+          "source_section": "Delivery Devices, Packaging & Fill-Finish",
+          "record_type": "prose-only reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ro",
+          "ticker_or_identifier": null,
+          "source_page": "2",
+          "source_section": "Telehealth & Direct-to-Consumer Distribution",
+          "record_type": "private-company reference",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "nuclear-power-ai-data-centers",
+      "benchmark_name": "Nuclear Power for AI Data Centers",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "nuclear data center companies.pdf",
+      "source_sha256": "8a4fc84d7e6c7943f8637fcf82be73f140e1e6af44ed4f348bb661d939abe2a8",
+      "primary_unique_company_count": 11,
+      "primary_placement_count": 11,
+      "records": [
+        {
+          "company_name": "Constellation Energy",
+          "ticker_or_identifier": "CEG",
+          "source_page": "1",
+          "source_section": "Companies With Signed Hyperscaler Deals",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Talen Energy",
+          "ticker_or_identifier": "TLN",
+          "source_page": "1",
+          "source_section": "Companies With Signed Hyperscaler Deals",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Dominion Energy",
+          "ticker_or_identifier": "D",
+          "source_page": "1",
+          "source_section": "Companies With Signed Hyperscaler Deals",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Vistra",
+          "ticker_or_identifier": "VST",
+          "source_page": "1",
+          "source_section": "Companies With Signed Hyperscaler Deals",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Oklo",
+          "ticker_or_identifier": "OKLO",
+          "source_page": "1",
+          "source_section": "Companies With Signed Hyperscaler Deals",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "X-Energy",
+          "ticker_or_identifier": "XE",
+          "source_page": "1",
+          "source_section": "Companies With Signed Hyperscaler Deals",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "NuScale Power",
+          "ticker_or_identifier": "SMR",
+          "source_page": "1",
+          "source_section": "Public SMR / Nuclear Plays Without a Hyperscaler Deal Yet",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "GE Vernova",
+          "ticker_or_identifier": "GEV",
+          "source_page": "1",
+          "source_section": "Public SMR / Nuclear Plays Without a Hyperscaler Deal Yet",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Cameco",
+          "ticker_or_identifier": "CCJ",
+          "source_page": "1",
+          "source_section": "Public SMR / Nuclear Plays Without a Hyperscaler Deal Yet",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Uranium Energy Corp",
+          "ticker_or_identifier": "UEC",
+          "source_page": "1",
+          "source_section": "Public SMR / Nuclear Plays Without a Hyperscaler Deal Yet",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "NANO Nuclear Energy",
+          "ticker_or_identifier": "NNE",
+          "source_page": "2",
+          "source_section": "Public SMR / Nuclear Plays Without a Hyperscaler Deal Yet",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "retail-sector",
+      "benchmark_name": "Retail Sector",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "retail sector companies.pdf",
+      "source_sha256": "3b0821750c4d538d1a915a8b65d12b343e0403b7c61049c541b252278eaea4c1",
+      "primary_unique_company_count": 31,
+      "primary_placement_count": 32,
+      "records": [
+        {
+          "company_name": "Walmart",
+          "ticker_or_identifier": "WMT",
+          "source_page": "1",
+          "source_section": "Big Box / Mass Merchandisers & Warehouse Clubs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Costco Wholesale",
+          "ticker_or_identifier": "COST",
+          "source_page": "1",
+          "source_section": "Big Box / Mass Merchandisers & Warehouse Clubs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Target",
+          "ticker_or_identifier": "TGT",
+          "source_page": "1",
+          "source_section": "Big Box / Mass Merchandisers & Warehouse Clubs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "BJ's Wholesale Club",
+          "ticker_or_identifier": "BJ",
+          "source_page": "1",
+          "source_section": "Big Box / Mass Merchandisers & Warehouse Clubs",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Home Depot",
+          "ticker_or_identifier": "HD",
+          "source_page": "1",
+          "source_section": "Home Improvement",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Lowe's",
+          "ticker_or_identifier": "LOW",
+          "source_page": "1",
+          "source_section": "Home Improvement",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "TJX Companies",
+          "ticker_or_identifier": "TJX",
+          "source_page": "1",
+          "source_section": "Off-Price / Value Retail",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ross Stores",
+          "ticker_or_identifier": "ROST",
+          "source_page": "1",
+          "source_section": "Off-Price / Value Retail",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Burlington Stores",
+          "ticker_or_identifier": "BURL",
+          "source_page": "1",
+          "source_section": "Off-Price / Value Retail",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Dillard's",
+          "ticker_or_identifier": "DDS",
+          "source_page": "2",
+          "source_section": "Department Stores",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Macy's",
+          "ticker_or_identifier": "M",
+          "source_page": "2",
+          "source_section": "Department Stores",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Kohl's",
+          "ticker_or_identifier": "KSS",
+          "source_page": "2",
+          "source_section": "Department Stores",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": true,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Dollar General",
+          "ticker_or_identifier": "DG",
+          "source_page": "2",
+          "source_section": "Dollar Stores / Deep Discount",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Dollar Tree",
+          "ticker_or_identifier": "DLTR",
+          "source_page": "2",
+          "source_section": "Dollar Stores / Deep Discount",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ralph Lauren",
+          "ticker_or_identifier": "RL",
+          "source_page": "2",
+          "source_section": "Specialty Apparel",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Gap Inc.",
+          "ticker_or_identifier": "GAP",
+          "source_page": "2",
+          "source_section": "Specialty Apparel",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Abercrombie & Fitch",
+          "ticker_or_identifier": "ANF",
+          "source_page": "2",
+          "source_section": "Specialty Apparel",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "American Eagle Outfitters",
+          "ticker_or_identifier": "AEO",
+          "source_page": "2",
+          "source_section": "Specialty Apparel",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Urban Outfitters",
+          "ticker_or_identifier": "URBN",
+          "source_page": "2",
+          "source_section": "Specialty Apparel",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Dick's Sporting Goods",
+          "ticker_or_identifier": "DKS",
+          "source_page": "2",
+          "source_section": "Sporting Goods & Outdoor",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Academy Sports + Outdoors",
+          "ticker_or_identifier": "ASO",
+          "source_page": "2",
+          "source_section": "Sporting Goods & Outdoor",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Best Buy",
+          "ticker_or_identifier": "BBY",
+          "source_page": "3",
+          "source_section": "Consumer Electronics",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ulta Beauty",
+          "ticker_or_identifier": "ULTA",
+          "source_page": "3",
+          "source_section": "Beauty, Pet & Home Furnishings Specialty",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Chewy",
+          "ticker_or_identifier": "CHWY",
+          "source_page": "3",
+          "source_section": "Beauty, Pet & Home Furnishings Specialty",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Williams-Sonoma",
+          "ticker_or_identifier": "WSM",
+          "source_page": "3",
+          "source_section": "Beauty, Pet & Home Furnishings Specialty",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "RH (Restoration Hardware)",
+          "ticker_or_identifier": "RH",
+          "source_page": "3",
+          "source_section": "Beauty, Pet & Home Furnishings Specialty",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "CVS Health",
+          "ticker_or_identifier": "CVS",
+          "source_page": "3",
+          "source_section": "Drug Store / Pharmacy Retail",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Saks Global",
+          "ticker_or_identifier": "private (post-HBC)",
+          "source_page": "3",
+          "source_section": "Distressed / Bankruptcy Watch (2026)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "QVC Group",
+          "ticker_or_identifier": "QVCGA (pre-filing)",
+          "source_page": "3",
+          "source_section": "Distressed / Bankruptcy Watch (2026)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Kohl's",
+          "ticker_or_identifier": "KSS",
+          "source_page": "3",
+          "source_section": "Distressed / Bankruptcy Watch (2026)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": true,
+          "placement_index": 2
+        },
+        {
+          "company_name": "Sportsman's Warehouse",
+          "ticker_or_identifier": "SPWH",
+          "source_page": "3",
+          "source_section": "Distressed / Bankruptcy Watch (2026)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Leslie's",
+          "ticker_or_identifier": "LESL",
+          "source_page": "4",
+          "source_section": "Distressed / Bankruptcy Watch (2026)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Saks Global",
+          "ticker_or_identifier": null,
+          "source_page": "3",
+          "source_section": "Distressed / Bankruptcy Watch (2026)",
+          "record_type": "distressed/boundary case",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "QVC Group",
+          "ticker_or_identifier": "QVCGA",
+          "source_page": "3",
+          "source_section": "Distressed / Bankruptcy Watch (2026)",
+          "record_type": "distressed/boundary case",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Kohl's",
+          "ticker_or_identifier": "KSS",
+          "source_page": "3",
+          "source_section": "Distressed / Bankruptcy Watch (2026)",
+          "record_type": "distressed/boundary case",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Sportsman's Warehouse",
+          "ticker_or_identifier": "SPWH",
+          "source_page": "3",
+          "source_section": "Distressed / Bankruptcy Watch (2026)",
+          "record_type": "distressed/boundary case",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Leslie's",
+          "ticker_or_identifier": "LESL",
+          "source_page": "4",
+          "source_section": "Distressed / Bankruptcy Watch (2026)",
+          "record_type": "distressed/boundary case",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Amazon",
+          "ticker_or_identifier": "AMZN",
+          "source_page": "4",
+          "source_section": "Online/E-commerce Pure-Plays",
+          "record_type": "categories-worth-adding example",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Etsy",
+          "ticker_or_identifier": "ETSY",
+          "source_page": "4",
+          "source_section": "Online/E-commerce Pure-Plays",
+          "record_type": "categories-worth-adding example",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Kroger",
+          "ticker_or_identifier": "KR",
+          "source_page": "4",
+          "source_section": "Grocery/Supermarket",
+          "record_type": "categories-worth-adding example",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Albertsons",
+          "ticker_or_identifier": "ACI",
+          "source_page": "4",
+          "source_section": "Grocery/Supermarket",
+          "record_type": "categories-worth-adding example",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "robotics-humanoids",
+      "benchmark_name": "Robotics & Humanoids",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "robotics humanoid companies.pdf",
+      "source_sha256": "ce76d6536c346ff1956095a53f9959c7ae017d0e55bcead73b379443cb9ead4e",
+      "primary_unique_company_count": 28,
+      "primary_placement_count": 28,
+      "records": [
+        {
+          "company_name": "Nidec",
+          "ticker_or_identifier": "6594.T",
+          "source_page": "1",
+          "source_section": "Component Design (Actuators, Motors, Reducers, Sensors)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Nabtesco",
+          "ticker_or_identifier": "6268.T",
+          "source_page": "1",
+          "source_section": "Component Design (Actuators, Motors, Reducers, Sensors)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Harmonic Drive Systems",
+          "ticker_or_identifier": "6324.T",
+          "source_page": "1",
+          "source_section": "Component Design (Actuators, Motors, Reducers, Sensors)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Moog",
+          "ticker_or_identifier": "MOG.A",
+          "source_page": "1",
+          "source_section": "Component Design (Actuators, Motors, Reducers, Sensors)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ROBOTIS",
+          "ticker_or_identifier": "108490.KQ",
+          "source_page": "1",
+          "source_section": "Component Design (Actuators, Motors, Reducers, Sensors)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Inovance Technology",
+          "ticker_or_identifier": "300124.SZ",
+          "source_page": "1",
+          "source_section": "Component Design (Actuators, Motors, Reducers, Sensors)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Tuopu Group",
+          "ticker_or_identifier": "601689.SS",
+          "source_page": "1",
+          "source_section": "Component Design (Actuators, Motors, Reducers, Sensors)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Zhejiang Sanhua Intelligent Controls",
+          "ticker_or_identifier": "002050.SZ",
+          "source_page": "1",
+          "source_section": "Component Design (Actuators, Motors, Reducers, Sensors)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Sensata Technologies",
+          "ticker_or_identifier": "ST",
+          "source_page": "1",
+          "source_section": "Component Design (Actuators, Motors, Reducers, Sensors)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "TE Connectivity",
+          "ticker_or_identifier": "TEL",
+          "source_page": "1",
+          "source_section": "Component Design (Actuators, Motors, Reducers, Sensors)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Nvidia",
+          "ticker_or_identifier": "NVDA",
+          "source_page": "1",
+          "source_section": "Technology (AI Compute, Foundation Models, Perception)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Qualcomm",
+          "ticker_or_identifier": "QCOM",
+          "source_page": "1",
+          "source_section": "Technology (AI Compute, Foundation Models, Perception)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Intel",
+          "ticker_or_identifier": "INTC",
+          "source_page": "1",
+          "source_section": "Technology (AI Compute, Foundation Models, Perception)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "AMD",
+          "ticker_or_identifier": "AMD",
+          "source_page": "1",
+          "source_section": "Technology (AI Compute, Foundation Models, Perception)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Mobileye",
+          "ticker_or_identifier": "MBLY",
+          "source_page": "2",
+          "source_section": "Technology (AI Compute, Foundation Models, Perception)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Alphabet",
+          "ticker_or_identifier": "GOOGL",
+          "source_page": "2",
+          "source_section": "Technology (AI Compute, Foundation Models, Perception)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Tesla",
+          "ticker_or_identifier": "TSLA",
+          "source_page": "2",
+          "source_section": "True Humanoid Robots (Public Platforms/Owners)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "UBTECH Robotics",
+          "ticker_or_identifier": "9880.HK",
+          "source_page": "2",
+          "source_section": "True Humanoid Robots (Public Platforms/Owners)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Hyundai Motor",
+          "ticker_or_identifier": "005380.KS",
+          "source_page": "2",
+          "source_section": "True Humanoid Robots (Public Platforms/Owners)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Xiaomi",
+          "ticker_or_identifier": "1810.HK",
+          "source_page": "2",
+          "source_section": "True Humanoid Robots (Public Platforms/Owners)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Faraday Future",
+          "ticker_or_identifier": "FFAI",
+          "source_page": "2",
+          "source_section": "True Humanoid Robots (Public Platforms/Owners)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Richtech Robotics",
+          "ticker_or_identifier": "RR",
+          "source_page": "2",
+          "source_section": "True Humanoid Robots (Public Platforms/Owners)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ABB",
+          "ticker_or_identifier": "ABBN.SW",
+          "source_page": "2",
+          "source_section": "Manufacturing-Focused (Industrial Automation & Integration)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "FANUC",
+          "ticker_or_identifier": "6954.T",
+          "source_page": "2",
+          "source_section": "Manufacturing-Focused (Industrial Automation & Integration)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Yaskawa Electric",
+          "ticker_or_identifier": "6506.T",
+          "source_page": "2",
+          "source_section": "Manufacturing-Focused (Industrial Automation & Integration)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Teradyne",
+          "ticker_or_identifier": "TER",
+          "source_page": "2",
+          "source_section": "Manufacturing-Focused (Industrial Automation & Integration)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Rockwell Automation",
+          "ticker_or_identifier": "ROK",
+          "source_page": "2",
+          "source_section": "Manufacturing-Focused (Industrial Automation & Integration)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Symbotic",
+          "ticker_or_identifier": "SYM",
+          "source_page": "2",
+          "source_section": "Manufacturing-Focused (Industrial Automation & Integration)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "semiconductor-packaging",
+      "benchmark_name": "Semiconductor Packaging",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "semiconductor packaging companies.pdf",
+      "source_sha256": "3b52040e4574a926088b4bbeee9a6156fb7c5d15a67c6191b11fb67ebfcb64f4",
+      "primary_unique_company_count": 24,
+      "primary_placement_count": 25,
+      "records": [
+        {
+          "company_name": "TSMC",
+          "ticker_or_identifier": "TSM",
+          "source_page": "1",
+          "source_section": "Foundries & IDMs with Captive Advanced Packaging",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Samsung Electronics",
+          "ticker_or_identifier": "KRX:005930",
+          "source_page": "1",
+          "source_section": "Foundries & IDMs with Captive Advanced Packaging",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": true,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Intel",
+          "ticker_or_identifier": "INTC",
+          "source_page": "1",
+          "source_section": "Foundries & IDMs with Captive Advanced Packaging",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ASE Technology Holding",
+          "ticker_or_identifier": "ASX/TWSE:3711",
+          "source_page": "1",
+          "source_section": "OSAT -- Outsourced Semiconductor Assembly & Test",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Amkor Technology",
+          "ticker_or_identifier": "AMKR",
+          "source_page": "1",
+          "source_section": "OSAT -- Outsourced Semiconductor Assembly & Test",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "JCET Group",
+          "ticker_or_identifier": "SSE:600584",
+          "source_page": "1",
+          "source_section": "OSAT -- Outsourced Semiconductor Assembly & Test",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Powertech Technology",
+          "ticker_or_identifier": "TWSE:6239",
+          "source_page": "1",
+          "source_section": "OSAT -- Outsourced Semiconductor Assembly & Test",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Tongfu Microelectronics",
+          "ticker_or_identifier": "SZSE:002156",
+          "source_page": "1",
+          "source_section": "OSAT -- Outsourced Semiconductor Assembly & Test",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ChipMOS Technologies",
+          "ticker_or_identifier": "IMOS",
+          "source_page": "2",
+          "source_section": "OSAT -- Outsourced Semiconductor Assembly & Test",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "BE Semiconductor Industries (Besi)",
+          "ticker_or_identifier": "AMS:BESI",
+          "source_page": "2",
+          "source_section": "Advanced Packaging & Bonding Equipment",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ASMPT",
+          "ticker_or_identifier": "HKEX:0522",
+          "source_page": "2",
+          "source_section": "Advanced Packaging & Bonding Equipment",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Kulicke & Soffa",
+          "ticker_or_identifier": "KLIC",
+          "source_page": "2",
+          "source_section": "Advanced Packaging & Bonding Equipment",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Applied Materials",
+          "ticker_or_identifier": "AMAT",
+          "source_page": "2",
+          "source_section": "Advanced Packaging & Bonding Equipment",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "DISCO Corporation",
+          "ticker_or_identifier": "TYO:6146",
+          "source_page": "2",
+          "source_section": "Advanced Packaging & Bonding Equipment",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "TOWA Corporation",
+          "ticker_or_identifier": "TYO:6315",
+          "source_page": "2",
+          "source_section": "Advanced Packaging & Bonding Equipment",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Teradyne",
+          "ticker_or_identifier": "TER",
+          "source_page": "2",
+          "source_section": "Semiconductor Test Equipment",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Advantest",
+          "ticker_or_identifier": "TYO:6857",
+          "source_page": "2",
+          "source_section": "Semiconductor Test Equipment",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Cohu",
+          "ticker_or_identifier": "COHU",
+          "source_page": "2",
+          "source_section": "Semiconductor Test Equipment",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Ibiden",
+          "ticker_or_identifier": "TYO:4062",
+          "source_page": "3",
+          "source_section": "Advanced Substrates & Interposer Materials",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Shinko Electric Industries",
+          "ticker_or_identifier": "TYO:6967",
+          "source_page": "3",
+          "source_section": "Advanced Substrates & Interposer Materials",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Unimicron",
+          "ticker_or_identifier": "TWSE:3037",
+          "source_page": "3",
+          "source_section": "Advanced Substrates & Interposer Materials",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Samsung Electro-Mechanics",
+          "ticker_or_identifier": "KRX:009150",
+          "source_page": "3",
+          "source_section": "Advanced Substrates & Interposer Materials",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "SK Hynix",
+          "ticker_or_identifier": "KRX:000660",
+          "source_page": "3",
+          "source_section": "HBM Memory (Packaging-Adjacent)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Micron Technology",
+          "ticker_or_identifier": "MU",
+          "source_page": "3",
+          "source_section": "HBM Memory (Packaging-Adjacent)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Samsung Electronics",
+          "ticker_or_identifier": "KRX:005930",
+          "source_page": "3",
+          "source_section": "HBM Memory (Packaging-Adjacent)",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": true,
+          "placement_index": 2
+        }
+      ]
+    },
+    {
+      "benchmark_id": "space-exploration",
+      "benchmark_name": "Space Exploration",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "space exploration companies.pdf",
+      "source_sha256": "f382f4038d4e7f468d5ef039bfcb94bd894cb27bf4cc73f6b944e4eb1ca37022",
+      "primary_unique_company_count": 27,
+      "primary_placement_count": 27,
+      "records": [
+        {
+          "company_name": "SpaceX",
+          "ticker_or_identifier": "SPCX",
+          "source_page": "1",
+          "source_section": "Launch Providers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Rocket Lab",
+          "ticker_or_identifier": "RKLB",
+          "source_page": "1",
+          "source_section": "Launch Providers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Firefly Aerospace",
+          "ticker_or_identifier": "FLY",
+          "source_page": "1",
+          "source_section": "Launch Providers",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "MDA Space",
+          "ticker_or_identifier": "TSX:MDA",
+          "source_page": "1",
+          "source_section": "Satellite Manufacturers & Operators",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Iridium Communications",
+          "ticker_or_identifier": "IRDM",
+          "source_page": "1",
+          "source_section": "Satellite Manufacturers & Operators",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Globalstar",
+          "ticker_or_identifier": "GSAT",
+          "source_page": "1",
+          "source_section": "Satellite Manufacturers & Operators",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "AST SpaceMobile",
+          "ticker_or_identifier": "ASTS",
+          "source_page": "1",
+          "source_section": "Satellite Communications & Connectivity",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Viasat",
+          "ticker_or_identifier": "VSAT",
+          "source_page": "2",
+          "source_section": "Satellite Communications & Connectivity",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "EchoStar",
+          "ticker_or_identifier": "SATS / ECHO",
+          "source_page": "2",
+          "source_section": "Satellite Communications & Connectivity",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Planet Labs",
+          "ticker_or_identifier": "PL",
+          "source_page": "2",
+          "source_section": "Earth Observation & Imagery",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "BlackSky",
+          "ticker_or_identifier": "BKSY",
+          "source_page": "2",
+          "source_section": "Earth Observation & Imagery",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Spire Global",
+          "ticker_or_identifier": "SPIR",
+          "source_page": "2",
+          "source_section": "Earth Observation & Imagery",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Satellogic",
+          "ticker_or_identifier": "SATL",
+          "source_page": "2",
+          "source_section": "Earth Observation & Imagery",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Redwire",
+          "ticker_or_identifier": "RDW",
+          "source_page": "2",
+          "source_section": "Space Infrastructure, Components & In-Space Manufacturing",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Karman Holdings",
+          "ticker_or_identifier": "KRMN",
+          "source_page": "2",
+          "source_section": "Space Infrastructure, Components & In-Space Manufacturing",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Mercury Systems",
+          "ticker_or_identifier": "MRCY",
+          "source_page": "2",
+          "source_section": "Space Infrastructure, Components & In-Space Manufacturing",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Intuitive Machines",
+          "ticker_or_identifier": "LUNR",
+          "source_page": "3",
+          "source_section": "Lunar & Deep Space Exploration",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Voyager Technologies",
+          "ticker_or_identifier": "VOYG",
+          "source_page": "3",
+          "source_section": "Commercial Space Stations & Habitats",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Virgin Galactic",
+          "ticker_or_identifier": "SPCE",
+          "source_page": "3",
+          "source_section": "Space Tourism",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Lockheed Martin",
+          "ticker_or_identifier": "LMT",
+          "source_page": "3",
+          "source_section": "Defense Primes with Major Space Segments",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Northrop Grumman",
+          "ticker_or_identifier": "NOC",
+          "source_page": "3",
+          "source_section": "Defense Primes with Major Space Segments",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "L3Harris Technologies",
+          "ticker_or_identifier": "LHX",
+          "source_page": "3",
+          "source_section": "Defense Primes with Major Space Segments",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "RTX",
+          "ticker_or_identifier": "RTX",
+          "source_page": "3",
+          "source_section": "Defense Primes with Major Space Segments",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Wistron NeWeb",
+          "ticker_or_identifier": "TWSE:6285",
+          "source_page": "3",
+          "source_section": "Ground Equipment & Downstream Telecom Beneficiaries",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "T-Mobile US",
+          "ticker_or_identifier": "TMUS",
+          "source_page": "4",
+          "source_section": "Ground Equipment & Downstream Telecom Beneficiaries",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Verizon",
+          "ticker_or_identifier": "VZ",
+          "source_page": "4",
+          "source_section": "Ground Equipment & Downstream Telecom Beneficiaries",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Kratos Defense",
+          "ticker_or_identifier": "KTOS",
+          "source_page": "4",
+          "source_section": "Ground Equipment & Downstream Telecom Beneficiaries",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "ARK Space Exploration & Innovation ETF",
+          "ticker_or_identifier": "ARKX",
+          "source_page": "4",
+          "source_section": "Space-Adjacent ETFs",
+          "record_type": "fund or ETF",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Procure Space ETF",
+          "ticker_or_identifier": "UFO",
+          "source_page": "4",
+          "source_section": "Space-Adjacent ETFs",
+          "record_type": "fund or ETF",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    },
+    {
+      "benchmark_id": "traditional-banking",
+      "benchmark_name": "Traditional Banking",
+      "source_corpus_version": "authored-source-v0.1",
+      "source_document": "traditional banking companies.pdf",
+      "source_sha256": "9d146f751510f92c3e26e412f25e5036e75809a132f89207c71bef7e8dbb4303",
+      "primary_unique_company_count": 18,
+      "primary_placement_count": 18,
+      "records": [
+        {
+          "company_name": "JPMorgan Chase",
+          "ticker_or_identifier": "JPM",
+          "source_page": "1",
+          "source_section": "Money Center / Global Systemically Important Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Bank of America",
+          "ticker_or_identifier": "BAC",
+          "source_page": "1",
+          "source_section": "Money Center / Global Systemically Important Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Citigroup",
+          "ticker_or_identifier": "C",
+          "source_page": "1",
+          "source_section": "Money Center / Global Systemically Important Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Wells Fargo",
+          "ticker_or_identifier": "WFC",
+          "source_page": "1",
+          "source_section": "Money Center / Global Systemically Important Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Goldman Sachs",
+          "ticker_or_identifier": "GS",
+          "source_page": "1",
+          "source_section": "Investment Banks & Capital Markets",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Morgan Stanley",
+          "ticker_or_identifier": "MS",
+          "source_page": "1",
+          "source_section": "Investment Banks & Capital Markets",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "US Bancorp",
+          "ticker_or_identifier": "USB",
+          "source_page": "2",
+          "source_section": "Regional & Super-Regional Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "PNC Financial Services",
+          "ticker_or_identifier": "PNC",
+          "source_page": "2",
+          "source_section": "Regional & Super-Regional Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Truist Financial",
+          "ticker_or_identifier": "TFC",
+          "source_page": "2",
+          "source_section": "Regional & Super-Regional Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Fifth Third Bancorp",
+          "ticker_or_identifier": "FITB",
+          "source_page": "2",
+          "source_section": "Regional & Super-Regional Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Citizens Financial Group",
+          "ticker_or_identifier": "CFG",
+          "source_page": "2",
+          "source_section": "Regional & Super-Regional Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Regions Financial",
+          "ticker_or_identifier": "RF",
+          "source_page": "2",
+          "source_section": "Regional & Super-Regional Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "M&T Bank",
+          "ticker_or_identifier": "MTB",
+          "source_page": "2",
+          "source_section": "Regional & Super-Regional Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "State Street",
+          "ticker_or_identifier": "STT",
+          "source_page": "2",
+          "source_section": "Custody & Trust Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Bank of New York Mellon",
+          "ticker_or_identifier": "BK",
+          "source_page": "2",
+          "source_section": "Custody & Trust Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Northern Trust",
+          "ticker_or_identifier": "NTRS",
+          "source_page": "2",
+          "source_section": "Custody & Trust Banks",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Capital One Financial",
+          "ticker_or_identifier": "COF",
+          "source_page": "2",
+          "source_section": "Card-Issuing Bank Holding Companies",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "American Express",
+          "ticker_or_identifier": "AXP",
+          "source_page": "3",
+          "source_section": "Card-Issuing Bank Holding Companies",
+          "record_type": "primary company-table constituent",
+          "source_notes": "Explicit company-table constituent in the authored source document.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "SPDR S&P Regional Banking ETF",
+          "ticker_or_identifier": "KRE",
+          "source_page": "2",
+          "source_section": "Regional & Super-Regional Banks",
+          "record_type": "fund or ETF",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "BlackRock",
+          "ticker_or_identifier": "BLK",
+          "source_page": "3",
+          "source_section": "Asset Managers",
+          "record_type": "categories-worth-adding example",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        },
+        {
+          "company_name": "Blackstone",
+          "ticker_or_identifier": "BX",
+          "source_page": "3",
+          "source_section": "Asset Managers",
+          "record_type": "categories-worth-adding example",
+          "source_notes": "Explicit non-primary reference preserved for filtering and future review.",
+          "duplicate_placement": false,
+          "placement_index": 1
+        }
+      ]
+    }
+  ]
+}

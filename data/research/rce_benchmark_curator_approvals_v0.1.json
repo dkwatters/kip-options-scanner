@@ -1,0 +1,45 @@
+{
+  "schema_version": "curator-approvals-v0.1",
+  "approvals": [
+    {
+      "benchmark_id": "ai-data-center-networking-cabling",
+      "matching_key": "ticker:APH",
+      "company_name": "Amphenol",
+      "ticker_or_identifier": "APH",
+      "comparison_outcome": "authored_only",
+      "approved_at": "2026-07-15T13:51:12.966763+00:00"
+    },
+    {
+      "benchmark_id": "ai-data-center-networking-cabling",
+      "matching_key": "ticker:CRDO",
+      "company_name": "Credo Technology",
+      "ticker_or_identifier": "CRDO",
+      "comparison_outcome": "authored_only",
+      "approved_at": "2026-07-15T13:51:35.292241+00:00"
+    },
+    {
+      "benchmark_id": "ai-data-center-networking-cabling",
+      "matching_key": "ticker:CIEN",
+      "company_name": "Ciena",
+      "ticker_or_identifier": "CIEN",
+      "comparison_outcome": "authored_only",
+      "approved_at": "2026-07-15T13:51:52.697070+00:00"
+    },
+    {
+      "benchmark_id": "ai-data-center-networking-cabling",
+      "matching_key": "ticker:GLW",
+      "company_name": "Corning",
+      "ticker_or_identifier": "GLW",
+      "comparison_outcome": "authored_only",
+      "approved_at": "2026-07-15T13:52:19.958279+00:00"
+    },
+    {
+      "benchmark_id": "ai-data-center-networking-cabling",
+      "matching_key": "ticker:ALAB",
+      "company_name": "Astera Labs",
+      "ticker_or_identifier": "ALAB",
+      "comparison_outcome": "authored_only",
+      "approved_at": "2026-07-15T13:52:33.738409+00:00"
+    }
+  ]
+}
