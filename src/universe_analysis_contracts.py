@@ -186,6 +186,118 @@ class UniverseAnalysisSnapshotV1:
         """Return a deterministic JSON-safe structure with stable member ordering."""
         return _json_safe(asdict(self))
 
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "UniverseAnalysisSnapshotV1":
+        """Restore the typed v1 contract without deriving or changing its contents."""
+        if not isinstance(value, dict):
+            raise ValueError("Universe Analysis snapshot payload must be an object.")
+        if value.get("schema_version") != SNAPSHOT_SCHEMA_VERSION:
+            raise ValueError(
+                "Unsupported Universe Analysis snapshot schema_version: "
+                f"{value.get('schema_version')!r}."
+            )
+        try:
+            members = tuple(
+                UniverseAnalysisMemberSnapshotV1(
+                    **{
+                        **member,
+                        "source_references": tuple(member["source_references"]),
+                        "raw_technical_observation": (
+                            RawTechnicalObservationV1(
+                                **{
+                                    **member["raw_technical_observation"],
+                                    "missing_fields": tuple(
+                                        member["raw_technical_observation"]["missing_fields"]
+                                    ),
+                                }
+                            )
+                            if member["raw_technical_observation"] is not None else None
+                        ),
+                        "derived_observation": (
+                            DerivedUniverseAnalysisObservationV1(
+                                **{
+                                    **member["derived_observation"],
+                                    "evidence_ids": tuple(
+                                        member["derived_observation"]["evidence_ids"]
+                                    ),
+                                }
+                            )
+                            if member["derived_observation"] is not None else None
+                        ),
+                        "evidence_references": tuple(
+                            EvidenceReferenceV1(
+                                **{**reference, "field_paths": tuple(reference["field_paths"])}
+                            )
+                            for reference in member["evidence_references"]
+                        ),
+                    }
+                )
+                for member in value["members"]
+            )
+            snapshot = cls(
+                **{
+                    **value,
+                    "status": SnapshotStatus(value["status"]),
+                    "data_freshness": DataFreshness(value["data_freshness"]),
+                    "members": members,
+                    "summary": UniverseAnalysisSummaryV1(**value["summary"]),
+                    "version_manifest": UniverseAnalysisVersionManifestV1(
+                        **value["version_manifest"]
+                    ),
+                    "provenance_references": tuple(value["provenance_references"]),
+                }
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            raise ValueError(f"Invalid {SNAPSHOT_SCHEMA_VERSION} payload: {error}") from error
+        validate_universe_analysis_snapshot_v1(snapshot)
+        return snapshot
+
+
+def validate_universe_analysis_snapshot_v1(snapshot: UniverseAnalysisSnapshotV1) -> None:
+    """Validate persisted-contract invariants without recalculating analysis behavior."""
+    if snapshot.schema_version != SNAPSHOT_SCHEMA_VERSION:
+        raise ValueError(f"Unsupported snapshot schema_version: {snapshot.schema_version!r}.")
+    required = (
+        snapshot.snapshot_id, snapshot.universe_id, snapshot.analysis_run_id,
+        snapshot.membership_digest, snapshot.completed_at, snapshot.built_at,
+        snapshot.version_manifest.technical_analysis_version,
+        snapshot.version_manifest.technical_scoring_version,
+        snapshot.version_manifest.presentation_version,
+    )
+    if not all(required):
+        raise ValueError("Universe Analysis snapshot is missing required identity or version fields.")
+    if snapshot.version_manifest.snapshot_schema_version != snapshot.schema_version:
+        raise ValueError("Snapshot and version-manifest schema versions do not match.")
+    if len(snapshot.members) != snapshot.total_universe_member_count:
+        raise ValueError("Snapshot members do not reconcile to total universe member count.")
+    if snapshot.analyzed_count + snapshot.unavailable_count != snapshot.total_universe_member_count:
+        raise ValueError("Analyzed and unavailable counts do not reconcile to membership.")
+    if snapshot.summary.analyzed_count != snapshot.analyzed_count:
+        raise ValueError("Snapshot and summary analyzed counts do not match.")
+    if snapshot.summary.unavailable_count != snapshot.unavailable_count:
+        raise ValueError("Snapshot and summary unavailable counts do not match.")
+    profile_total = sum((
+        snapshot.summary.strong_count, snapshot.summary.constructive_count,
+        snapshot.summary.mixed_count, snapshot.summary.weak_count,
+    ))
+    if profile_total != snapshot.analyzed_count:
+        raise ValueError("Snapshot profile counts do not reconcile to analyzed count.")
+    orders = tuple(member.membership_order for member in snapshot.members)
+    if orders != tuple(range(1, len(snapshot.members) + 1)):
+        raise ValueError("Snapshot membership order must be contiguous and one-based.")
+    if len({member.member_snapshot_id for member in snapshot.members}) != len(snapshot.members):
+        raise ValueError("Snapshot contains duplicate member snapshot IDs.")
+    analyzed_members = tuple(
+        member for member in snapshot.members if member.analysis_status == "analyzed"
+    )
+    if len(analyzed_members) != snapshot.analyzed_count:
+        raise ValueError("Analyzed member statuses do not reconcile to analyzed count.")
+    for member in analyzed_members:
+        if member.raw_technical_observation is None or member.derived_observation is None:
+            raise ValueError("Analyzed members require raw and derived observations.")
+        if member.derived_observation.rank_denominator != snapshot.analyzed_count:
+            raise ValueError("Member rank denominator does not match analyzed count.")
+
 
 def isoformat_utc(value: datetime) -> str:
     if value.tzinfo is None:

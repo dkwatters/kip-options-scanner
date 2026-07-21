@@ -77,6 +77,8 @@ def start_new_research() -> None:
     st.session_state.pop("active_universe_analysis_handoff", None)
     st.session_state.pop("active_universe_analysis_preflight", None)
     st.session_state.pop("active_universe_analysis_run", None)
+    st.session_state.pop("active_universe_analysis_snapshot_id", None)
+    st.session_state.pop("active_universe_analysis_snapshot_persistence_error", None)
     request_navigation("Research Launchpad")
 
 
@@ -346,6 +348,8 @@ def render_research_universe_builder(*, root: Path = Path("."), analyze_company=
         st.session_state.pop("active_universe_analysis_preflight", None)
         st.session_state.pop("active_universe_analysis_handoff", None)
         st.session_state.pop("active_universe_analysis_run", None)
+        st.session_state.pop("active_universe_analysis_snapshot_id", None)
+        st.session_state.pop("active_universe_analysis_snapshot_persistence_error", None)
         request_navigation("Research Universe")
 
     if not meaningful:

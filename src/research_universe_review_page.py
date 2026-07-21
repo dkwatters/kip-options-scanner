@@ -20,6 +20,12 @@ from src.research_universe_analysis import execute_research_universe_analysis, p
 from src.research_universe_diagnostics import ResearchUniverseDiagnosticStore
 from src.research_repository import research_repository_from_env
 from src.tradier_client import TradierClient
+from src.universe_analysis_snapshot_repository import (
+    universe_analysis_snapshot_repository_from_env,
+)
+from src.universe_analysis_snapshot_service import (
+    persist_completed_universe_analysis_snapshot,
+)
 
 GENERAL_USER_MODE = "general_user"
 CURATOR_MODE = "curator"
@@ -391,6 +397,20 @@ def render_current_research_universe_page(*, analyze_company=None) -> None:
             preflight_state, client=TradierClient(), repository=repository,
         )
         st.session_state.active_universe_analysis_run = analysis_run
+        st.session_state.pop("active_universe_analysis_snapshot_id", None)
+        st.session_state.pop("active_universe_analysis_snapshot_persistence_error", None)
+        try:
+            snapshot = persist_completed_universe_analysis_snapshot(
+                handoff=preflight_state.handoff,
+                run=analysis_run,
+                observation_repository=repository,
+                snapshot_repository=universe_analysis_snapshot_repository_from_env(),
+            )
+            st.session_state.active_universe_analysis_snapshot_id = snapshot.snapshot_id
+        except Exception as error:
+            # The reconciled current run remains valid and displayable.  Only its
+            # durable historical record failed, which must remain explicit.
+            st.session_state.active_universe_analysis_snapshot_persistence_error = str(error)
         ResearchUniverseDiagnosticStore().append(
             "analysis_ledger_finalized",
             request_run_id=str(st.session_state.current_research_universe.provenance.get("request_run_id") or analysis_run.scan_id),

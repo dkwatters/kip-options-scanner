@@ -142,6 +142,14 @@ def render_universe_analysis() -> None:
         f"{run.requested_constituent_count} universe members · {len(run.analyzed_tickers)} analyzed · "
         f"{len(unavailable)} unavailable · Updated {run.timestamp}"
     )
+    persistence_error = st.session_state.get(
+        "active_universe_analysis_snapshot_persistence_error"
+    )
+    if persistence_error:
+        st.warning(
+            "This analysis completed, but its historical snapshot could not be saved. "
+            "The current analysis remains available. Details: " + persistence_error
+        )
     selection_scope = f"{run.universe_id}:v{run.universe_version}:{run.scan_id}"
     active_key = "universe_analysis_active_company"
     active = st.session_state.get(active_key)
@@ -302,6 +310,9 @@ def render_universe_analysis() -> None:
 
     with st.expander("Technical Data & Diagnostics", icon=":material/database:"):
         st.caption(f"Current exact run/scan ID: {run.scan_id}")
+        snapshot_id = st.session_state.get("active_universe_analysis_snapshot_id")
+        if snapshot_id:
+            st.caption(f"Persisted Universe Analysis snapshot ID: {snapshot_id}")
         st.caption(
             "Extension thresholds are experimental presentation-only labels and do not change TAM scores: "
             + str(PRESENTATION_EXTENSION_THRESHOLDS)
