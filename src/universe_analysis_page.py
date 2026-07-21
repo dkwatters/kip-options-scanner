@@ -8,6 +8,16 @@ import streamlit as st
 
 from src.navigation import request_navigation
 from src.research_repository import research_repository_from_env
+from src.universe_analysis_presentation_service import (
+    PresentationAssemblyStatus,
+    build_universe_analysis_presentation,
+)
+from src.universe_analysis_snapshot_repository import (
+    universe_analysis_snapshot_repository_from_env,
+)
+from src.universe_analysis_streamlit_adapter import (
+    build_universe_analysis_streamlit_view_model,
+)
 from src.universe_analysis import (
     PRESENTATION_EXTENSION_THRESHOLDS,
     analysis_explanation,
@@ -110,6 +120,103 @@ def _reset_filters() -> None:
         st.session_state.pop(key, None)
 
 
+def _activate_presentation_member(scope: str, ticker: str) -> None:
+    st.session_state["universe_analysis_active_company"] = {"scope": scope, "ticker": ticker}
+    st.session_state["universe_analysis_active_company_source"] = "presentation"
+
+
+def _render_fact_row(row, *, primary: bool = False) -> None:
+    with st.container(border=True):
+        if row.company_name:
+            st.markdown(f"**{row.company_name}**" + (f" · `{row.ticker}`" if row.ticker else ""))
+        if primary:
+            st.metric(row.label, row.value, border=False)
+        else:
+            st.markdown(f"**{row.label}:** {row.value}")
+        details = []
+        if row.event_type:
+            details.append(row.event_type.replace("_", " "))
+        if row.direction:
+            details.append(row.direction)
+        if row.priority_tier is not None:
+            details.append(f"priority {row.priority_tier}")
+        if details:
+            st.caption(" · ".join(details))
+        if row.evidence_refs:
+            st.caption(f"{len(row.evidence_refs)} evidence reference(s)")
+
+
+def _render_presentation_intelligence(snapshot_id: str, selection_scope: str, ranked) -> None:
+    try:
+        bundle = build_universe_analysis_presentation(
+            snapshot_id, universe_analysis_snapshot_repository_from_env(),
+        )
+    except Exception as error:
+        st.warning("The completed analysis is available, but its intelligence presentation could not be assembled. " + str(error))
+        return
+    if bundle.status == PresentationAssemblyStatus.CURRENT_SNAPSHOT_UNAVAILABLE:
+        st.warning("The completed analysis is available, but its persisted snapshot could not be loaded.")
+        return
+    if bundle.status == PresentationAssemblyStatus.FIRST_SNAPSHOT:
+        st.subheader("Current Read")
+        st.info("This is the first persisted observation for this Research Universe. Current rankings remain available below; interval changes require a prior snapshot.")
+        st.subheader("What Changed")
+        st.caption("No prior snapshot is available for deterministic comparison.")
+        with st.expander("Snapshot / Comparison Context", icon=":material/history:"):
+            st.caption(f"Current snapshot: {bundle.current_snapshot.snapshot_id}")
+            st.caption(f"Analysis run: {bundle.current_snapshot.analysis_run_id}")
+            st.caption("Comparison status: no prior snapshot")
+        return
+
+    view = build_universe_analysis_streamlit_view_model(bundle)
+    ranked_tickers = {row["ticker"] for row in ranked}
+    for section in view.sections:
+        st.subheader(section.title)
+        if section.key == "caveats":
+            if not section.rows:
+                st.caption("No selected caveats.")
+            for row in section.rows:
+                st.warning(row.value)
+        elif section.key in {"leaders", "laggards"}:
+            if not section.rows:
+                st.caption("No eligible members in this section.")
+            for row in section.rows:
+                with st.container(horizontal=True, vertical_alignment="center", border=True):
+                    st.markdown(f"**{row.company_name or 'Unavailable'}**" + (f" · `{row.ticker}`" if row.ticker else ""))
+                    st.caption(row.value)
+                    if row.ticker in ranked_tickers:
+                        st.button("View details", key=f"presentation_{row.presentation_item_id}",
+                                  on_click=_activate_presentation_member,
+                                  args=(selection_scope, row.ticker), icon=":material/open_in_new:")
+        elif section.key == "membership_changes":
+            if not section.rows:
+                st.caption("No selected membership changes.")
+            for row in section.rows:
+                _render_fact_row(row)
+        else:
+            if not section.rows:
+                empty = "No eligible changes for this comparison interval." if section.key == "what_changed" else "No eligible facts in this section."
+                st.caption(empty)
+            for index, row in enumerate(section.rows):
+                _render_fact_row(row, primary=section.key == "current_read" and index == 0)
+                if section.key == "deserves_attention" and row.ticker in ranked_tickers:
+                    st.button("View member details", key=f"attention_{row.presentation_item_id}",
+                              on_click=_activate_presentation_member,
+                              args=(selection_scope, row.ticker), icon=":material/open_in_new:")
+        if section.omitted_item_count:
+            st.caption(f"{section.omitted_item_count} selected item(s) omitted by presentation capacity.")
+
+    with st.expander("Snapshot / Comparison Context", icon=":material/history:"):
+        st.caption(f"Universe: {view.universe_id} · version {view.universe_version}")
+        st.caption(f"Current observation: {view.current_observation_at or 'Unavailable'}")
+        st.caption(f"Baseline observation: {view.baseline_observation_at or 'Unavailable'}")
+        st.caption(f"Comparison: {view.comparison_status.replace('_', ' ')}")
+        st.caption(f"Current snapshot: {view.current_snapshot_id}")
+        st.caption(f"Baseline snapshot: {view.baseline_snapshot_id or 'Unavailable'}")
+        st.caption(f"Analysis run: {view.analysis_run_id}")
+        st.caption(f"Unavailable members: {view.unavailable_count}")
+
+
 def render_universe_analysis() -> None:
     handoff = st.session_state.get("active_universe_analysis_handoff")
     run = st.session_state.get("active_universe_analysis_run")
@@ -183,6 +290,11 @@ def render_universe_analysis() -> None:
     except ValueError as error:
         st.error(str(error))
         return
+    snapshot_id = st.session_state.get("active_universe_analysis_snapshot_id")
+    if snapshot_id:
+        _render_presentation_intelligence(snapshot_id, selection_scope, ranked)
+    elif not persistence_error:
+        st.warning("The completed analysis is available, but no persisted snapshot is selected for intelligence presentation.")
     profiles = summary["profiles"]
     bullish = summary["bullish_trends"]
     with st.container(horizontal=True):
@@ -243,12 +355,15 @@ def render_universe_analysis() -> None:
         if 0 <= selected_index < len(visible):
             active = {"scope": selection_scope, "ticker": visible[selected_index]["ticker"]}
             st.session_state[active_key] = active
+            st.session_state.pop("universe_analysis_active_company_source", None)
     else:
-        st.session_state.pop(active_key, None)
-        active = None
+        if st.session_state.get("universe_analysis_active_company_source") != "presentation":
+            st.session_state.pop(active_key, None)
+            active = None
     visible_tickers = {row["ticker"] for row in visible}
     if active and active.get("ticker") not in visible_tickers:
         st.session_state.pop(active_key, None)
+        st.session_state.pop("universe_analysis_active_company_source", None)
         active = None
 
     if active:
