@@ -27,6 +27,9 @@ from src.research_universe_input import (
     parse_ticker_input,
 )
 from src.research_universe_diagnostics import ResearchUniverseDiagnosticStore, raw_provider_artifact
+from src.research_universe_discovery_context import (
+    build_research_universe_discovery_context_v01,
+)
 
 
 def readable_universe_title(topic_name: str | None, saved_title: str | None, question: str) -> str:
@@ -69,6 +72,11 @@ LAUNCHPAD_WIDGET_KEYS = (
     "universe_builder_topic",
     "universe_builder_saved",
 )
+
+
+def launch_uses_provider_backed_discovery(established_topic_id: str | None) -> bool:
+    """Characterize the current launch branch without invoking either path."""
+    return established_topic_id is None
 
 
 def start_new_research() -> None:
@@ -310,7 +318,9 @@ def render_research_universe_builder(*, root: Path = Path("."), analyze_company=
         unresolved_manual = _manual_records(raw_companies, universe_id, known_records=base_starting)
         provider_error = None
         request_run_id = f"non-live:{universe_id}"
-        if selected_topic:
+        if not launch_uses_provider_backed_discovery(
+            selected_topic.benchmark_id if selected_topic else None
+        ):
             suggestions = _stored_suggestions(service, selected_topic.benchmark_id)
         else:
             try:
@@ -326,6 +336,23 @@ def render_research_universe_builder(*, root: Path = Path("."), analyze_company=
             use_market_data=True,
         )
         starting_records = (*base_starting, *manual_records)
+        predefined_identity = (
+            f"established-topic:{selected_topic.benchmark_id}" if selected_topic
+            else f"compatibility-csv:{saved_path}" if saved_path else None
+        )
+        discovery_context = build_research_universe_discovery_context_v01(
+            research_question=question.strip() or (selected_topic.question if selected_topic else ""),
+            predefined_records=base_starting,
+            manual_records=manual_records,
+            manual_input=(row.ticker for row in parse_ticker_input(raw_companies).entries),
+            predefined_universe_identity=predefined_identity,
+            predefined_universe_name=selected_name or (saved_path.stem if saved_path else None),
+            creation_metadata={
+                "workflow": "research_launchpad",
+                "universe_id": universe_id,
+                "current_discovery_execution": "stored_rce_corpus" if selected_topic else "provider_backed_rce",
+            },
+        )
         universe = ResearchUniverseReviewService().assemble(
             universe_id=universe_id,
             title=readable_universe_title(selected_name, saved_path.stem.replace("_", " ").title() if saved_path else None, question),
@@ -343,6 +370,7 @@ def render_research_universe_builder(*, root: Path = Path("."), analyze_company=
                 "saved_research_source": str(saved_path) if saved_path else None,
                 "provider_error": provider_error,
                 "request_run_id": request_run_id,
+                "discovery_context": discovery_context.to_dict(),
             },
         )
         research_universe_repository_from_env().save(universe)
