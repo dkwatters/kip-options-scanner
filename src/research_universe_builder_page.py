@@ -20,6 +20,7 @@ from src.research_universe import (
     UniverseType,
     source_record,
 )
+from src.research_universe_repository import research_universe_repository_from_env
 from src.research_universe_input import (
     ResearchUniverseInputService,
     configured_research_universe_input_service,
@@ -333,7 +334,7 @@ def render_research_universe_builder(*, root: Path = Path("."), analyze_company=
             rce_suggestions=suggestions,
             established_topic=selected_name,
             provenance={
-                "persistence": "session_only",
+                "persistence": "research_universe_repository",
                 "universe_type": UniverseType.SYSTEM_SEEDED if selected_topic else UniverseType.PRIVATE_USER,
                 "established_topic_id": selected_topic.benchmark_id if selected_topic else None,
                 "source_summary": ", ".join(sources) or "Question only",
@@ -344,6 +345,7 @@ def render_research_universe_builder(*, root: Path = Path("."), analyze_company=
                 "request_run_id": request_run_id,
             },
         )
+        research_universe_repository_from_env().save(universe)
         st.session_state.current_research_universe = universe
         st.session_state.pop("active_universe_analysis_preflight", None)
         st.session_state.pop("active_universe_analysis_handoff", None)

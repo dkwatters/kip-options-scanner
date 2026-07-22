@@ -5,7 +5,7 @@ from hmac import compare_digest
 from math import isfinite
 from numbers import Number
 from pathlib import Path
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 from zoneinfo import ZoneInfo
 
 import altair as alt
@@ -75,6 +75,10 @@ from src.navigation import apply_pending_navigation, request_navigation
 from src.rce_benchmark_explorer_page import render_benchmark_explorer
 from src.research_universe_builder_page import render_research_universe_builder, start_new_research
 from src.research_universe_review_page import render_current_research_universe_page
+from src.research_universe_repository import (
+    recover_universe_from_snapshot,
+    research_universe_repository_from_env,
+)
 from src.research_repository import (
     DATABASE_URL_ENV,
     RESEARCH_REPOSITORY_BACKEND_ENV,
@@ -1536,7 +1540,41 @@ def render_recent_research():
 
 
 def render_saved_research_universes(active_universe_path, active_universe_symbols):
-    """Render available CSV-backed Research Universes without changing persistence."""
+    """Render every durable universe plus legacy CSV and recoverable snapshots."""
+    repository = research_universe_repository_from_env()
+    persisted = repository.list_all()
+    orphaned = repository.list_orphaned_snapshots()
+    persisted_ids = {universe.universe_id for universe in persisted}
+
+    for universe in persisted:
+        with st.container(border=True):
+            st.subheader(universe.title)
+            st.caption(
+                f"{len(universe.approved_membership)} companies · "
+                f"{universe.state.value.replace('_', ' ').title()}"
+            )
+            if st.button(
+                "Open Research Universe", key=f"open_persisted_universe_{universe.universe_id}",
+            ):
+                st.session_state.current_research_universe = repository.get(universe.universe_id)
+                request_navigation("Research Universe")
+
+    for orphan in orphaned:
+        with st.container(border=True):
+            st.subheader(orphan.title)
+            st.caption(f"{orphan.member_count} companies · Recovered analysis available")
+            st.info(
+                "The original editable project record was not persisted. Opening this item "
+                "recovers the exact membership captured by its latest analysis snapshot."
+            )
+            if st.button(
+                "Open Research Universe", key=f"recover_snapshot_universe_{orphan.universe_id}",
+            ):
+                recovered = recover_universe_from_snapshot(orphan.snapshot)
+                repository.save(recovered)
+                st.session_state.current_research_universe = recovered
+                request_navigation("Research Universe")
+
     universe_rows = []
     for universe_path in sorted((ROOT / "data").glob("*.csv")):
         if universe_path.stem.casefold() == "universe_default":
@@ -1546,16 +1584,20 @@ def render_saved_research_universes(active_universe_path, active_universe_symbol
             security_count = len(universe)
         except UniverseError:
             security_count = UNAVAILABLE
+        universe_id = str(uuid5(NAMESPACE_URL, f"kip-options-scanner:{universe_path.resolve()}"))
+        if universe_id in persisted_ids:
+            continue
         universe_rows.append(
             {
                 "Research Universe": universe_path.stem.replace("_", " ").title().removesuffix(" V1"),
                 "Companies": security_count,
                 "Availability": "Available",
                 "_path": universe_path,
+                "_universe_id": universe_id,
             }
         )
 
-    if not universe_rows and not active_universe_symbols:
+    if not persisted and not orphaned and not universe_rows and not active_universe_symbols:
         st.info("Your saved and recent Research Universes will appear here.")
         return
 
@@ -1565,12 +1607,11 @@ def render_saved_research_universes(active_universe_path, active_universe_symbol
                 st.subheader(row["Research Universe"])
                 st.caption(f"{row['Companies']} companies · {row['Availability']}")
                 if st.button("Open Research Universe", key=f"open_compatibility_universe_{index}"):
-                    from uuid import uuid4
                     from src.research_universe import ResearchUniverseReviewService, UniverseType
                     from src.research_universe_builder_page import _saved_records, readable_universe_title
 
-                    universe_id = str(uuid4())
-                    st.session_state.current_research_universe = ResearchUniverseReviewService().assemble(
+                    universe_id = row["_universe_id"]
+                    imported = ResearchUniverseReviewService().assemble(
                         universe_id=universe_id,
                         title=readable_universe_title(None, row["Research Universe"], ""),
                         starting_companies=_saved_records(row["_path"], universe_id),
@@ -1581,6 +1622,8 @@ def render_saved_research_universes(active_universe_path, active_universe_symbol
                             "source_summary": "Compatibility CSV data",
                         },
                     )
+                    repository.save(imported)
+                    st.session_state.current_research_universe = imported
                     request_navigation("Research Universe")
 
     if active_universe_symbols:
@@ -2125,11 +2168,7 @@ def render_home(active_universe_path, active_universe_symbols):
     st.caption("Research Universes are living projects you can return to as your work develops.")
     current_universe = st.session_state.get("current_research_universe")
     if current_universe:
-        with st.container(border=True):
-            st.subheader(current_universe.title)
-            st.caption(f"{len(current_universe.approved_membership)} companies · Current session")
-            if st.button("Open Research Universe", key="home_open_current_universe"):
-                request_navigation("Research Universe")
+        research_universe_repository_from_env().save(current_universe)
     render_saved_research_universes(active_universe_path, active_universe_symbols)
 
 

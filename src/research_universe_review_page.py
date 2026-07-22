@@ -14,7 +14,9 @@ from src.research_universe import (
     IdentityStatus,
     ResearchUniverse,
     ResearchUniverseReviewService,
+    UniverseState,
 )
+from src.research_universe_repository import research_universe_repository_from_env
 from src.research_universe_input import ResearchUniverseInputService, configured_research_universe_input_service
 from src.research_universe_analysis import execute_research_universe_analysis, preflight_research_universe
 from src.research_universe_diagnostics import ResearchUniverseDiagnosticStore
@@ -312,6 +314,10 @@ def render_current_research_universe_page(*, analyze_company=None) -> None:
 
     service = ResearchUniverseReviewService()
 
+    def save_current(universe: ResearchUniverse) -> None:
+        research_universe_repository_from_env().save(universe)
+        st.session_state.current_research_universe = universe
+
     def set_disposition(key: str, disposition: str) -> None:
         st.session_state.pop("active_universe_analysis_preflight", None)
         current = st.session_state.current_research_universe
@@ -319,7 +325,7 @@ def render_current_research_universe_page(*, analyze_company=None) -> None:
             revised = promote_suggested_candidate(
                 current, key, configured_research_universe_input_service(),
             )
-            st.session_state.current_research_universe = revised
+            save_current(revised)
             promoted = next((row for row in revised.candidates if row.normalized_matching_key == key), None)
             ResearchUniverseDiagnosticStore().append(
                 "suggestion_promoted",
@@ -335,9 +341,7 @@ def render_current_research_universe_page(*, analyze_company=None) -> None:
                 },
             )
             return
-        st.session_state.current_research_universe = service.revise(
-            current, dispositions={key: disposition},
-        )
+        save_current(service.revise(current, dispositions={key: disposition}))
 
     def add_manual(raw: str) -> None:
         known_records = tuple(
@@ -353,10 +357,10 @@ def render_current_research_universe_page(*, analyze_company=None) -> None:
             st.warning("Ticker symbols are required. Check: " + ", ".join(parsed.invalid_values))
         if records:
             st.session_state.pop("active_universe_analysis_preflight", None)
-            st.session_state.current_research_universe = service.revise(
+            save_current(service.revise(
                 st.session_state.current_research_universe,
                 additional_starting_companies=records,
-            )
+            ))
             st.session_state.pop(f"current_universe_{universe.universe_id}_v{universe.version}_manual_input", None)
             st.rerun()
         else:
@@ -407,6 +411,13 @@ def render_current_research_universe_page(*, analyze_company=None) -> None:
                 snapshot_repository=universe_analysis_snapshot_repository_from_env(),
             )
             st.session_state.active_universe_analysis_snapshot_id = snapshot.snapshot_id
+            current = st.session_state.current_research_universe
+            save_current(replace(
+                current.with_state(UniverseState.ANALYZED),
+                analysis_references=tuple(dict.fromkeys(
+                    (*current.analysis_references, snapshot.snapshot_id)
+                )),
+            ))
         except Exception as error:
             # The reconciled current run remains valid and displayable.  Only its
             # durable historical record failed, which must remain explicit.
