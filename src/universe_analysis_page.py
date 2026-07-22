@@ -17,7 +17,9 @@ from src.universe_analysis_snapshot_repository import (
     universe_analysis_snapshot_repository_from_env,
 )
 from src.universe_analysis_streamlit_adapter import (
+    build_consolidated_company_comparison_rows,
     build_universe_analysis_streamlit_view_model,
+    filter_consolidated_company_rows,
 )
 from src.universe_analysis import (
     PRESENTATION_EXTENSION_THRESHOLDS,
@@ -117,95 +119,49 @@ def _semantic_color(value: Any) -> str:
 
 
 def _reset_filters() -> None:
-    for key in ("tam_ticker_search", "tam_profiles", "tam_trend_states", "tam_momentum_states", "tam_volatility_states"):
+    for key in ("tam_ticker_search", "tam_profiles", "tam_trend_states", "tam_momentum_states",
+                "tam_volatility_states", "tam_intelligence", "tam_changed", "tam_membership"):
         st.session_state.pop(key, None)
 
 
-def _activate_presentation_member(scope: str, ticker: str) -> None:
-    st.session_state["universe_analysis_active_company"] = {"scope": scope, "ticker": ticker}
-    st.session_state["universe_analysis_active_company_source"] = "presentation"
-
-
-def _render_fact_row(row, *, primary: bool = False) -> None:
-    with st.container(border=True):
-        if row.company_name:
-            st.markdown(f"**{row.company_name}**" + (f" · `{row.ticker}`" if row.ticker else ""))
-        if primary:
-            st.metric(row.label, row.value, border=False)
-        else:
-            st.markdown(f"**{row.label}:** {row.value}")
-        details = []
-        if row.event_type:
-            details.append(row.event_type.replace("_", " "))
-        if row.direction:
-            details.append(row.direction)
-        if row.priority_tier is not None:
-            details.append(f"priority {row.priority_tier}")
-        if details:
-            st.caption(" · ".join(details))
-        if row.evidence_refs:
-            st.caption(f"{len(row.evidence_refs)} evidence reference(s)")
-
-
-def _render_presentation_intelligence(snapshot_id: str, selection_scope: str, ranked) -> None:
+def _render_presentation_intelligence(snapshot_id: str):
+    """Render compact universe context and return row annotations for the workspace."""
     try:
         bundle = build_universe_analysis_presentation(
             snapshot_id, universe_analysis_snapshot_repository_from_env(),
         )
     except Exception as error:
         st.warning("The completed analysis is available, but its intelligence presentation could not be assembled. " + str(error))
-        return
+        return None, False
     if bundle.status == PresentationAssemblyStatus.CURRENT_SNAPSHOT_UNAVAILABLE:
         st.warning("The completed analysis is available, but its persisted snapshot could not be loaded.")
-        return
+        return None, False
     if bundle.status == PresentationAssemblyStatus.FIRST_SNAPSHOT:
         st.subheader("Current Read")
         st.info("This is the first persisted observation for this Research Universe. Current rankings remain available below; interval changes require a prior snapshot.")
-        st.subheader("What Changed")
-        st.caption("No prior snapshot is available for deterministic comparison.")
+        st.caption("Comparison: first observation · No baseline for interval changes")
         with st.expander("Snapshot / Comparison Context", icon=":material/history:"):
             st.caption(f"Current snapshot: {bundle.current_snapshot.snapshot_id}")
             st.caption(f"Analysis run: {bundle.current_snapshot.analysis_run_id}")
             st.caption("Comparison status: no prior snapshot")
-        return
+        return None, True
 
     view = build_universe_analysis_streamlit_view_model(bundle)
-    ranked_tickers = {row["ticker"] for row in ranked}
-    for section in view.sections:
-        st.subheader(section.title)
-        if section.key == "caveats":
-            if not section.rows:
-                st.caption("No selected caveats.")
-            for row in section.rows:
-                st.warning(row.value)
-        elif section.key in {"leaders", "laggards"}:
-            if not section.rows:
-                st.caption("No eligible members in this section.")
-            for row in section.rows:
-                with st.container(horizontal=True, vertical_alignment="center", border=True):
-                    st.markdown(f"**{row.company_name or 'Unavailable'}**" + (f" · `{row.ticker}`" if row.ticker else ""))
-                    st.caption(row.value)
-                    if row.ticker in ranked_tickers:
-                        st.button("View details", key=f"presentation_{row.presentation_item_id}",
-                                  on_click=_activate_presentation_member,
-                                  args=(selection_scope, row.ticker), icon=":material/open_in_new:")
-        elif section.key == "membership_changes":
-            if not section.rows:
-                st.caption("No selected membership changes.")
-            for row in section.rows:
-                _render_fact_row(row)
-        else:
-            if not section.rows:
-                empty = "No eligible changes for this comparison interval." if section.key == "what_changed" else "No eligible facts in this section."
-                st.caption(empty)
-            for index, row in enumerate(section.rows):
-                _render_fact_row(row, primary=section.key == "current_read" and index == 0)
-                if section.key == "deserves_attention" and row.ticker in ranked_tickers:
-                    st.button("View member details", key=f"attention_{row.presentation_item_id}",
-                              on_click=_activate_presentation_member,
-                              args=(selection_scope, row.ticker), icon=":material/open_in_new:")
-        if section.omitted_item_count:
-            st.caption(f"{section.omitted_item_count} selected item(s) omitted by presentation capacity.")
+    st.subheader("Current Read")
+    current_read = view.section("current_read")
+    if current_read.rows:
+        st.write(current_read.rows[0].value)
+    st.caption(
+        f"Comparison: {view.comparison_status.replace('_', ' ')} · "
+        f"Material changes: {view.material_change_count} · "
+        f"Attention candidates: {view.attention_candidate_count} · "
+        f"Membership changes: {view.membership_change_count}"
+    )
+    caveats = view.section("caveats")
+    if caveats.rows:
+        st.markdown("**Important caveats**")
+        for row in caveats.rows:
+            st.warning(row.value)
 
     with st.expander("Snapshot / Comparison Context", icon=":material/history:"):
         st.caption(f"Universe: {view.universe_id} · version {view.universe_version}")
@@ -216,6 +172,7 @@ def _render_presentation_intelligence(snapshot_id: str, selection_scope: str, ra
         st.caption(f"Baseline snapshot: {view.baseline_snapshot_id or 'Unavailable'}")
         st.caption(f"Analysis run: {view.analysis_run_id}")
         st.caption(f"Unavailable members: {view.unavailable_count}")
+    return view, False
 
 
 def render_universe_analysis() -> None:
@@ -299,8 +256,10 @@ def render_universe_analysis() -> None:
         st.error(str(error))
         return
     snapshot_id = st.session_state.get("active_universe_analysis_snapshot_id")
+    intelligence_view = None
+    first_observation = False
     if snapshot_id:
-        _render_presentation_intelligence(snapshot_id, selection_scope, ranked)
+        intelligence_view, first_observation = _render_presentation_intelligence(snapshot_id)
     elif not persistence_error:
         st.warning("The completed analysis is available, but no persisted snapshot is selected for intelligence presentation.")
     profiles = summary["profiles"]
@@ -327,28 +286,50 @@ def render_universe_analysis() -> None:
             st.metric("High volatility", summary["high_volatility"])
 
     st.subheader("Company comparison")
-    st.caption("Legend: green = positive trend evidence · red = negative trend evidence · amber = mixed or extension caution. Text labels carry the meaning.")
+    st.caption("Select one row to view its deterministic detail directly below. Filters subset this ranked order; they never rerank it.")
+    consolidated = build_consolidated_company_comparison_rows(
+        ranked, intelligence_view, first_observation=first_observation,
+    )
     with st.container(horizontal=True):
         search = st.text_input("Search", key="tam_ticker_search", placeholder="Company or ticker")
-        profile_filter = st.multiselect("Profile", sorted({row["technical_profile"] for row in ranked}), key="tam_profiles")
-        trend_filter = st.multiselect("Trend", sorted({row["trend_label"] for row in ranked}), key="tam_trend_states")
-        momentum_filter = st.multiselect("Momentum", sorted({row["momentum_label"] for row in ranked}), key="tam_momentum_states")
-        volatility_filter = st.multiselect("Volatility", sorted({row["volatility_label"] for row in ranked}), key="tam_volatility_states")
+        profile_filter = st.multiselect("Profile", sorted({row.technical_profile for row in consolidated
+                                                           if row.source_row is not None}), key="tam_profiles")
+        intelligence_filter = st.multiselect(
+            "Intelligence", ["Leader", "Laggard", "Attention"], key="tam_intelligence",
+        )
+        membership_filter = st.multiselect(
+            "Membership", ["Added", "Removed"], key="tam_membership",
+        )
+        changed_filter = st.toggle("Changed", key="tam_changed")
+    with st.expander("More current-state filters", expanded=False):
+        with st.container(horizontal=True):
+            trend_filter = st.multiselect("Trend", sorted({row["trend_label"] for row in ranked}), key="tam_trend_states")
+            momentum_filter = st.multiselect("Momentum", sorted({row["momentum_label"] for row in ranked}), key="tam_momentum_states")
+            volatility_filter = st.multiselect("Volatility", sorted({row["volatility_label"] for row in ranked}), key="tam_volatility_states")
     st.button("Reset filters", icon=":material/restart_alt:", on_click=_reset_filters)
     visible = filter_analysis_rows(
         ranked, search=search, profiles=profile_filter, trends=trend_filter,
         momentum=momentum_filter, volatility=volatility_filter,
     )
-    st.caption(f"Showing {len(visible)} of {len(ranked)} analyzed members")
+    current_tickers = {row["ticker"] for row in visible}
+    visible_comparison = tuple(row for row in filter_consolidated_company_rows(
+        consolidated, intelligence=tuple(intelligence_filter), changed=changed_filter,
+        memberships=tuple(membership_filter), profiles=tuple(profile_filter),
+    ) if row.source_row is None or row.ticker in current_tickers)
+    st.caption(f"Showing {len(visible_comparison)} of {len(consolidated)} comparison rows")
     comparison = pd.DataFrame([{
-        "Rank": row["rank"], "Company": row["company_name"], "Ticker": row["ticker"],
-        "Technical Profile": row["technical_profile"], "Trend": row["trend_label"],
-        "Momentum": row["momentum_label"], "Extension / Positioning": row["extension_label"],
-        "Volatility": row["volatility_label"], "Key signal": row["key_signal"], "Status": "Analyzed",
-    } for row in visible])
+        "Rank": row.rank, "Company": row.company, "Ticker": row.ticker,
+        "Technical Profile": row.technical_profile, "Trend": row.trend, "Momentum": row.momentum,
+        "Positioning": row.positioning, "Volatility": row.volatility,
+        "Intelligence": " · ".join(row.intelligence) or "—",
+        "Change": row.change_status + (f" · {row.change_summary}" if row.change_summary else ""),
+        "Membership": row.membership,
+        "Status": row.analysis_status + (f" · {row.comparison_limitation}" if row.comparison_limitation else ""),
+        "References": len(row.evidence_refs),
+    } for row in visible_comparison])
     styled_comparison = comparison.style.map(
         _semantic_color,
-        subset=["Technical Profile", "Trend", "Momentum", "Extension / Positioning"],
+        subset=["Technical Profile", "Trend", "Momentum", "Positioning", "Change"],
     ) if not comparison.empty else comparison
     event = st.dataframe(
         styled_comparison,
@@ -360,18 +341,20 @@ def render_universe_analysis() -> None:
     selected_rows = tuple(event.selection.rows)
     if selected_rows:
         selected_index = selected_rows[-1]
-        if 0 <= selected_index < len(visible):
-            active = {"scope": selection_scope, "ticker": visible[selected_index]["ticker"]}
-            st.session_state[active_key] = active
-            st.session_state.pop("universe_analysis_active_company_source", None)
+        if 0 <= selected_index < len(visible_comparison):
+            selected_comparison = visible_comparison[selected_index]
+            if selected_comparison.source_row is not None:
+                active = {"scope": selection_scope, "ticker": selected_comparison.ticker}
+                st.session_state[active_key] = active
+            else:
+                st.session_state.pop(active_key, None)
+                active = None
     else:
-        if st.session_state.get("universe_analysis_active_company_source") != "presentation":
-            st.session_state.pop(active_key, None)
-            active = None
-    visible_tickers = {row["ticker"] for row in visible}
+        st.session_state.pop(active_key, None)
+        active = None
+    visible_tickers = {row.ticker for row in visible_comparison if row.source_row is not None}
     if active and active.get("ticker") not in visible_tickers:
         st.session_state.pop(active_key, None)
-        st.session_state.pop("universe_analysis_active_company_source", None)
         active = None
 
     if active:
