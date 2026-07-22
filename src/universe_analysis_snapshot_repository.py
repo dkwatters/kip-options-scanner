@@ -125,6 +125,11 @@ class UniverseAnalysisSnapshotRepository(ABC):
     @abstractmethod
     def list_for_universe(self, universe_id: str, universe_version: int | None = None) -> tuple[UniverseAnalysisSnapshotV1, ...]: ...
 
+    @abstractmethod
+    def delete_demo_snapshots(self, universe_id_prefix: str = "demo-") -> int:
+        """Delete only snapshots whose universe identity is positively demo-owned."""
+        ...
+
     def get_latest_for_universe(
         self, universe_id: str, universe_version: int | None = None,
         *, completed_only: bool = True,
@@ -214,6 +219,18 @@ class SQLiteUniverseAnalysisSnapshotRepository(UniverseAnalysisSnapshotRepositor
             rows = connection.execute(statement, tuple(params)).fetchall()
         return tuple(_deserialize(row[0]) for row in rows)
 
+    def delete_demo_snapshots(self, universe_id_prefix: str = "demo-") -> int:
+        if universe_id_prefix != "demo-":
+            raise ValueError("Demo reset requires the exact 'demo-' universe prefix.")
+        self.initialize()
+        with closing(sqlite3.connect(self.database_path)) as connection:
+            cursor = connection.execute(
+                f"DELETE FROM {SNAPSHOT_TABLE} WHERE universe_id LIKE ?",
+                (universe_id_prefix + "%",),
+            )
+            connection.commit()
+            return max(cursor.rowcount, 0)
+
 
 class PostgresUniverseAnalysisSnapshotRepository(UniverseAnalysisSnapshotRepository):
     def __init__(self, database_url: str):
@@ -283,6 +300,20 @@ class PostgresUniverseAnalysisSnapshotRepository(UniverseAnalysisSnapshotReposit
                 cursor.execute(statement, tuple(params))
                 rows = cursor.fetchall()
         return tuple(_deserialize(row[0]) for row in rows)
+
+    def delete_demo_snapshots(self, universe_id_prefix: str = "demo-") -> int:
+        if universe_id_prefix != "demo-":
+            raise ValueError("Demo reset requires the exact 'demo-' universe prefix.")
+        self.initialize()
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"DELETE FROM {SNAPSHOT_TABLE} WHERE universe_id LIKE %s",
+                    (universe_id_prefix + "%",),
+                )
+                deleted = max(cursor.rowcount, 0)
+            connection.commit()
+        return deleted
 
 
 def universe_analysis_snapshot_repository_from_target(

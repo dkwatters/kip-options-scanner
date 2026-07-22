@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from src.navigation import request_navigation
+from src.developer_test_data_streamlit import render_developer_test_data_controls
 from src.research_repository import research_repository_from_env
 from src.universe_analysis_presentation_service import (
     PresentationAssemblyStatus,
@@ -218,6 +219,7 @@ def _render_presentation_intelligence(snapshot_id: str, selection_scope: str, ra
 
 
 def render_universe_analysis() -> None:
+    render_developer_test_data_controls()
     handoff = st.session_state.get("active_universe_analysis_handoff")
     run = st.session_state.get("active_universe_analysis_run")
     if st.button("Back to Research Universe", icon=":material/arrow_back:"):
@@ -263,10 +265,16 @@ def render_universe_analysis() -> None:
     if not isinstance(active, dict) or active.get("scope") != selection_scope:
         active = None
         st.session_state.pop(active_key, None)
+    demo_rows = st.session_state.get("active_universe_analysis_demo_rows")
+    is_demo = str(run.universe_id).startswith("demo-")
     try:
         repository = research_repository_from_env()
-        observations = repository.technical_analysis_observations(
-            tickers=list(run.analyzed_tickers), latest_scan_only=False, scan_id=run.scan_id,
+        observations = (
+            {"rows": tuple(demo_rows), "available_scan_ids": ()}
+            if is_demo and demo_rows is not None else
+            repository.technical_analysis_observations(
+                tickers=list(run.analyzed_tickers), latest_scan_only=False, scan_id=run.scan_id,
+            )
         )
     except Exception as error:
         st.error("The exact Research Universe analysis could not be loaded: " + str(error))
@@ -433,7 +441,8 @@ def render_universe_analysis() -> None:
             + str(PRESENTATION_EXTENSION_THRESHOLDS)
         )
         st.dataframe(pd.DataFrame(raw_rows), hide_index=True)
-        history = repository.technical_analysis_observations(latest_scan_only=False)
+        history = ({"available_scan_ids": ()} if is_demo else
+                   repository.technical_analysis_observations(latest_scan_only=False))
         historical_ids = [item for item in history["available_scan_ids"] if item != run.scan_id]
         if historical_ids:
             st.markdown("**Historical scans (compatibility only)**")
