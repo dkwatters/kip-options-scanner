@@ -1,0 +1,15 @@
+{
+  "schema_version": "rce-enrichment-scenarios-v0.1",
+  "cases": [
+    {"id": "question_only", "question": "Research AI infrastructure omissions", "manual": [], "topic": null},
+    {"id": "manual_anchor", "question": "Research AI infrastructure omissions", "manual": ["NVDA"], "topic": null},
+    {"id": "predefined_topic", "question": "What is missing from AI networking?", "manual": [], "topic": "ai-networking", "predefined": ["NVDA", "ANET"]},
+    {"id": "manual_and_topic", "question": "What suppliers are missing?", "manual": ["NVDA"], "topic": "ai-networking", "predefined": ["NVDA", "ANET"]}
+  ],
+  "contract_checks": [
+    "seed_deduplication", "manual_anchor_sensitivity", "topic_sensitivity",
+    "omission_discovery", "discovery_lens_attribution", "evidence_support",
+    "duplicate_suppression", "thematic_drift_resistance", "multi_lens_support",
+    "no_auto_promotion", "stable_candidate_provenance"
+  ]
+}

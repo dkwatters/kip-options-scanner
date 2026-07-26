@@ -113,6 +113,12 @@ def promote_suggested_candidate(
         (row for row in universe.candidates if row.normalized_matching_key == matching_key),
         None,
     )
+    validation = candidate.rce_metadata.get("candidate_identity_validation", {}) if candidate else {}
+    if (
+        candidate and validation
+        and validation.get("validation_status") not in {"valid", "corrected"}
+    ):
+        return universe
     if candidate is None or not candidate.in_rce_suggestions or not candidate.ticker_or_identifier:
         return review_service.revise(
             universe, dispositions={matching_key: CandidateDisposition.INCLUDED.value},
@@ -128,9 +134,31 @@ def promote_suggested_candidate(
     promoted_records = tuple(
         replace(
             record,
-            company_name=candidate.company_name,
-            original_input=candidate.original_input or candidate.company_name,
-        ) if record.identity_status != IdentityStatus.RESOLVED else record
+            company_name=(
+                candidate.company_name
+                if record.identity_status != IdentityStatus.RESOLVED
+                else record.company_name
+            ),
+            original_input=(
+                candidate.original_input or candidate.company_name
+                if record.identity_status != IdentityStatus.RESOLVED
+                else record.original_input
+            ),
+            metadata={
+                **dict(record.metadata),
+                "membership_provenance": [
+                    *candidate.rce_metadata.get("membership_provenance", []),
+                    {
+                        "source": "promoted_candidate",
+                        "source_identity": candidate.rce_metadata.get("candidate_identity"),
+                        "source_reference": record.source_reference,
+                    },
+                ],
+                "discovery_lenses": candidate.rce_metadata.get("discovery_lenses", []),
+                "evidence_references": candidate.rce_metadata.get("evidence_references", []),
+                "candidate_identity": candidate.rce_metadata.get("candidate_identity"),
+            },
+        )
         for record in promoted_records
     )
     if promoted_records:
@@ -244,11 +272,19 @@ def render_research_universe_review(
         st.subheader("Suggested Companies")
         st.caption("Choose which recommendations belong in your universe.")
         if suggestions:
+            def promotion_eligible(row) -> bool:
+                status = row.rce_metadata.get("identity_validation_status")
+                return status is None or status in {"valid", "corrected"}
+
             event = st.dataframe(
                 pd.DataFrame([{
                     "Company": row.company_name,
                     "Ticker": row.ticker_or_identifier or "Unresolved",
                     "Why it may belong": row.rce_metadata.get("inclusion_rationale") or "Possible fit for this research topic",
+                    "Discovery Lenses": ", ".join(row.rce_metadata.get("discovery_lenses", ())) or "Not provided",
+                    "Related seeds": len(row.rce_metadata.get("related_seed_member_identities", ())),
+                    "Evidence": len(row.rce_metadata.get("evidence_references", ())),
+                    "Identity status": row.rce_metadata.get("identity_validation_status", "unresolved"),
                 } for row in suggestions]),
                 hide_index=True, on_select="rerun", selection_mode="multi-row",
                 key=_suggestion_selection_key(key_prefix, suggestions),
@@ -257,7 +293,10 @@ def render_research_universe_review(
             with st.container(horizontal=True):
                 add_clicked = st.button(
                     "Add Selected", type="primary", icon=":material/add:",
-                    disabled=not selected or on_disposition is None,
+                    disabled=(
+                        not selected or on_disposition is None
+                        or any(not promotion_eligible(row) for row in selected)
+                    ),
                     key=f"{key_prefix}_add_selected",
                 )
                 reject_clicked = st.button(
@@ -277,6 +316,19 @@ def render_research_universe_review(
                 with st.expander("Suggestion details", icon=":material/info:"):
                     st.write(candidate.rce_metadata.get("inclusion_rationale") or "No detailed reason is stored for this suggestion.")
                     st.caption(f"Category or role: {candidate.rce_metadata.get('category') or 'Not provided'}")
+                    st.caption("Discovery Lenses: " + (", ".join(candidate.rce_metadata.get("discovery_lenses", ())) or "Not provided"))
+                    st.caption(f"Related seed companies: {len(candidate.rce_metadata.get('related_seed_member_identities', ())) }")
+                    evidence = candidate.rce_metadata.get("evidence_references", ())
+                    if evidence:
+                        st.write("Evidence/support")
+                        for reference in evidence:
+                            st.caption(str(reference))
+                    validation = candidate.rce_metadata.get("candidate_identity_validation", {})
+                    st.write(f"Identity validation: {validation.get('validation_status', 'unresolved')}")
+                    if validation.get("correction_applied"):
+                        st.caption(validation.get("correction_reason") or "Identity correction applied.")
+                    if validation.get("unresolved_reason"):
+                        st.warning(validation["unresolved_reason"])
         else:
             st.caption("There are no active suggestions to review.")
 

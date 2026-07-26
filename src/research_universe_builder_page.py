@@ -8,11 +8,13 @@ from uuid import uuid4
 import streamlit as st
 
 from src.navigation import request_navigation
+from src.candidate_identity_validation import (
+    CandidateIdentityValidatorV01,
+    MarketDataSecurityEvidenceLookup,
+)
 from src.rce_benchmark_explorer_service import RCEBenchmarkExplorerService
 from src.research_conversation import (
-    ResearchConversationService,
     create_research_conversation_provider,
-    research_conversation_confidence_threshold,
 )
 from src.research_universe import (
     ResearchUniverseReviewService,
@@ -62,7 +64,10 @@ def readable_universe_title(topic_name: str | None, saved_title: str | None, que
     if concise:
         concise = concise[0].upper() + concise[1:]
     return concise or "Untitled Research Universe"
-from src.research_universe_builder import build_free_form_request, parse_anchor_companies
+from src.research_universe_enrichment import (
+    ResearchUniverseEnrichmentRequestV01,
+    ResearchUniverseEnrichmentService,
+)
 from src.universe import UniverseError, load_universe
 
 
@@ -75,8 +80,14 @@ LAUNCHPAD_WIDGET_KEYS = (
 
 
 def launch_uses_provider_backed_discovery(established_topic_id: str | None) -> bool:
-    """Characterize the current launch branch without invoking either path."""
-    return established_topic_id is None
+    """All Launchpad combinations enter context-aware provider enrichment."""
+    return True
+
+
+def suggestions_with_topic_fallback(enriched, stored):
+    """Use stored topic candidates only when enrichment returns no eligible suggestions."""
+    enriched = tuple(enriched)
+    return (enriched, False) if enriched else (tuple(stored), bool(stored))
 
 
 def start_new_research() -> None:
@@ -172,28 +183,30 @@ def _saved_records(path: Path | None, universe_id: str):
     ) for row in rows)
 
 
-def _provider_suggestions(question: str, starting_records, *, universe_id: str, diagnostic_store=None):
-    anchors = parse_anchor_companies(",".join(
-        record.ticker_or_identifier or record.company_name for record in starting_records
-    ))
-    request = build_free_form_request(question, anchors)
+def _provider_suggestions(discovery_context, *, universe_id: str, diagnostic_store=None):
+    enrichment_request = ResearchUniverseEnrichmentRequestV01(discovery_context)
     provider = create_research_conversation_provider()
-    response = ResearchConversationService(
-        provider,
-        confidence_threshold=research_conversation_confidence_threshold(),
-    ).interpret_request(request)
-    candidates = response.structured_response.get("candidate_securities", [])
+    try:
+        from src.tradier_client import TradierClient
+        identity_validator = CandidateIdentityValidatorV01(
+            current_security_lookup=MarketDataSecurityEvidenceLookup(TradierClient())
+        )
+    except Exception:
+        identity_validator = CandidateIdentityValidatorV01()
+    enrichment = ResearchUniverseEnrichmentService(
+        provider, identity_validator=identity_validator,
+    ).enrich(enrichment_request)
+    response = enrichment.provider_response
     records = tuple(source_record(
         {
-            **dict(row),
+            **candidate.to_source_mapping(),
             "rank": index,
             "identity_status": (
-                "resolved" if str(row.get("validation_status") or "").casefold() == "valid"
-                else "unresolved"
+                "resolved" if candidate.identity_validation.promotion_eligible else "unresolved"
             ),
         }, UniverseSource.RCE_GENERATED,
-        source_reference="session:rce-suggestions",
-    ) for index, row in enumerate(candidates, 1) if isinstance(row, dict))
+        source_reference=f"session:rce-enrichment:{candidate.candidate_identity}",
+    ) for index, candidate in enumerate(enrichment.candidates, 1))
     title = response.structured_response.get("suggested_research_universe_name")
     request_run_id = str(uuid4())
     (diagnostic_store or ResearchUniverseDiagnosticStore()).append(
@@ -203,11 +216,8 @@ def _provider_suggestions(question: str, starting_records, *, universe_id: str, 
         universe_version=1,
         payload={
             "request": {
-                "original_question": request.original_question,
-                "prompt_version": request.prompt_version,
-                "request_timestamp": request.request_timestamp,
-                "anchor_companies": request.anchor_companies,
-                "request_origin": request.request_origin,
+                **enrichment_request.to_dict(),
+                "prompt_version": enrichment_request.provider_request().prompt_version,
             },
             "raw_provider_response": raw_provider_artifact(response.raw_response),
             "parsed_candidates": [
@@ -215,6 +225,8 @@ def _provider_suggestions(question: str, starting_records, *, universe_id: str, 
                 for row in records
             ],
             "provider_diagnostics": response.metadata.diagnostics(),
+            "suppressed_seed_duplicates": enrichment.suppressed_seed_duplicates,
+            "enrichment_warnings": enrichment.warnings,
         },
     )
     return records, title, request_run_id
@@ -318,24 +330,6 @@ def render_research_universe_builder(*, root: Path = Path("."), analyze_company=
         unresolved_manual = _manual_records(raw_companies, universe_id, known_records=base_starting)
         provider_error = None
         request_run_id = f"non-live:{universe_id}"
-        if not launch_uses_provider_backed_discovery(
-            selected_topic.benchmark_id if selected_topic else None
-        ):
-            suggestions = _stored_suggestions(service, selected_topic.benchmark_id)
-        else:
-            try:
-                suggestions, _generated_title, request_run_id = _provider_suggestions(
-                    question, (*base_starting, *unresolved_manual), universe_id=universe_id,
-                )
-            except Exception as error:
-                suggestions = ()
-                provider_error = str(error)
-        manual_records = _manual_records(
-            raw_companies, universe_id,
-            known_records=(*base_starting, *suggestions, *known_identities),
-            use_market_data=True,
-        )
-        starting_records = (*base_starting, *manual_records)
         predefined_identity = (
             f"established-topic:{selected_topic.benchmark_id}" if selected_topic
             else f"compatibility-csv:{saved_path}" if saved_path else None
@@ -343,16 +337,30 @@ def render_research_universe_builder(*, root: Path = Path("."), analyze_company=
         discovery_context = build_research_universe_discovery_context_v01(
             research_question=question.strip() or (selected_topic.question if selected_topic else ""),
             predefined_records=base_starting,
-            manual_records=manual_records,
+            manual_records=unresolved_manual,
             manual_input=(row.ticker for row in parse_ticker_input(raw_companies).entries),
             predefined_universe_identity=predefined_identity,
             predefined_universe_name=selected_name or (saved_path.stem if saved_path else None),
-            creation_metadata={
-                "workflow": "research_launchpad",
-                "universe_id": universe_id,
-                "current_discovery_execution": "stored_rce_corpus" if selected_topic else "provider_backed_rce",
-            },
+            creation_metadata={"workflow": "research_launchpad", "universe_id": universe_id},
         )
+        try:
+            suggestions, _generated_title, request_run_id = _provider_suggestions(
+                discovery_context, universe_id=universe_id,
+            )
+        except Exception as error:
+            suggestions = ()
+            provider_error = str(error)
+        fallback_used = False
+        if selected_topic and not suggestions:
+            suggestions, fallback_used = suggestions_with_topic_fallback(
+                suggestions, _stored_suggestions(service, selected_topic.benchmark_id),
+            )
+        manual_records = _manual_records(
+            raw_companies, universe_id,
+            known_records=(*base_starting, *suggestions, *known_identities),
+            use_market_data=True,
+        )
+        starting_records = (*base_starting, *manual_records)
         universe = ResearchUniverseReviewService().assemble(
             universe_id=universe_id,
             title=readable_universe_title(selected_name, saved_path.stem.replace("_", " ").title() if saved_path else None, question),
@@ -371,6 +379,8 @@ def render_research_universe_builder(*, root: Path = Path("."), analyze_company=
                 "provider_error": provider_error,
                 "request_run_id": request_run_id,
                 "discovery_context": discovery_context.to_dict(),
+                "stored_topic_fallback_used": fallback_used,
+                "current_discovery_execution": "context_aware_enrichment",
             },
         )
         research_universe_repository_from_env().save(universe)

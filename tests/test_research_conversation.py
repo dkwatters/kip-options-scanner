@@ -162,6 +162,11 @@ class ResearchConversationTest(unittest.TestCase):
         schema = response_format["schema"]
 
         self.assertEqual(response_format["type"], "json_schema")
+        self.assertEqual(response_format["name"], "rce_response")
+        self.assertEqual(
+            client.responses.create.call_args.kwargs["input"][0]["content"],
+            RCE_SYSTEM_PROMPT,
+        )
         self.assertEqual(
             response.structured_response["provider_verification_marker"],
             LIVE_OPENAI_PROVIDER_VERIFICATION_MARKER,
@@ -912,7 +917,7 @@ class ResearchConversationTest(unittest.TestCase):
 
     def test_openai_prompt_requires_research_universe_methodology(self):
         provider = OpenAIResearchConversationProvider(api_key="test-key")
-        prompt_payload = provider._user_prompt(
+        serialized_prompt = provider._user_prompt(
             ResearchConversationRequest(
                 original_question=(
                     "I want to research networking and interconnect companies "
@@ -920,21 +925,34 @@ class ResearchConversationTest(unittest.TestCase):
                 )
             )
         )
+        prompt_payload = json.loads(serialized_prompt)
 
         self.assertIn("Research Universe construction methodology", RCE_SYSTEM_PROMPT)
         self.assertIn("Construct a dynamic Research Map", RCE_SYSTEM_PROMPT)
         self.assertIn("Optimize candidate selection for ecosystem coverage", RCE_SYSTEM_PROMPT)
         self.assertIn("developer_qa_examples", prompt_payload)
-        self.assertIn(DEVELOPER_QA_EXAMPLES[0]["question"], prompt_payload)
-        self.assertIn("Power companies are largely excluded", prompt_payload)
-        self.assertIn("AI companies solving cancer", prompt_payload)
-        self.assertIn("Retail companies gaining share through AI", prompt_payload)
+        self.assertIn(DEVELOPER_QA_EXAMPLES[0]["question"], serialized_prompt)
+        self.assertIn("Power companies are largely excluded", serialized_prompt)
+        self.assertIn("AI companies solving cancer", serialized_prompt)
+        self.assertIn("Retail companies gaining share through AI", serialized_prompt)
         self.assertIn("Multi-stage RCE artifact workflow", RCE_SYSTEM_PROMPT)
         self.assertIn("research_plan_schema", prompt_payload)
         self.assertIn("universe_review_schema", prompt_payload)
         self.assertIn("benchmark_qa_fixtures", prompt_payload)
-        self.assertNotIn("provider_verification_marker", prompt_payload)
-        self.assertNotIn("LIVE_OPENAI_RCE_RESPONSE", prompt_payload)
+        legacy_candidate_schema = prompt_payload["candidate_security_schema"]
+        self.assertEqual(
+            {
+                "ticker",
+                "company_name",
+                "subdomain",
+                "inclusion_rationale",
+                "category",
+                "confidence",
+            },
+            set(legacy_candidate_schema),
+        )
+        self.assertNotIn("provider_verification_marker", serialized_prompt)
+        self.assertNotIn("LIVE_OPENAI_RCE_RESPONSE", serialized_prompt)
 
     def test_openai_response_parser_handles_malformed_response(self):
         structured_response, warnings, errors = parse_structured_response(

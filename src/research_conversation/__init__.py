@@ -397,6 +397,22 @@ class MockResearchConversationProvider:
             warnings.append("Original question is empty.")
 
         structured_response = _mock_structured_response(question, warnings)
+        if request.prompt_version == "rce-context-aware-universe-enrichment-v0.1":
+            enrichment = request.context.get("enrichment_request", {})
+            seed_members = enrichment.get("seed_members", []) if isinstance(enrichment, dict) else []
+            related_key = next((
+                row.get("matching_key") for row in seed_members
+                if isinstance(row, dict) and row.get("matching_key")
+            ), None)
+            for candidate in structured_response.get("candidate_securities", []):
+                ticker = str(candidate.get("ticker") or "unknown").lower()
+                candidate.update({
+                    "discovery_lenses": ["industry_landscape_peers", "adjacent_beneficiaries"],
+                    "related_seed_matching_keys": [related_key] if related_key else [],
+                    "reason_discovered": candidate.get("inclusion_rationale") or "Deterministic mock enrichment candidate.",
+                    "evidence_references": [f"mock-fixture://rce-enrichment/{ticker}"],
+                    "support": "provider_free_mock_fixture",
+                })
         response = ResearchConversationResponse(
             metadata=ProviderMetadata(
                 provider_name=self.provider_name,

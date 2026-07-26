@@ -114,7 +114,7 @@ def test_context_construction_has_no_provider_boundary(monkeypatch):
 
 @pytest.mark.parametrize(
     ("has_manual", "topic_id", "provider_expected"),
-    ((False, None, True), (True, None, True), (False, "topic:ai", False), (True, "topic:ai", False)),
+    ((False, None, True), (True, None, True), (False, "topic:ai", True), (True, "topic:ai", True)),
 )
 def test_current_abcd_provider_branch_characterization(has_manual, topic_id, provider_expected):
     assert launch_uses_provider_backed_discovery(topic_id) is provider_expected

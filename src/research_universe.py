@@ -345,6 +345,15 @@ class ResearchUniverseReviewService:
                 default = CandidateDisposition.PENDING
             disposition = CandidateDisposition(decisions.get(key, default))
             rce_record = next((item for item in ordered if item.source == UniverseSource.RCE_GENERATED), None)
+            validation_status = (
+                rce_record.metadata.get("identity_validation_status") if rce_record else None
+            )
+            if (
+                in_rce and not in_starting
+                and validation_status in {"unresolved", "rejected"}
+                and disposition == CandidateDisposition.INCLUDED
+            ):
+                disposition = CandidateDisposition.IDENTITY_REVIEW
             rank_value = rce_record.metadata.get("rank") if rce_record else None
             try:
                 rank = int(rank_value) if rank_value is not None else None
@@ -443,7 +452,14 @@ class ResearchUniverseReviewService:
             provenance=universe.provenance,
             established_topic=universe.established_topic,
         )
-        return replace(revised, created_at=universe.created_at)
+        before_membership = {
+            row.normalized_matching_key for row in universe.approved_membership
+        }
+        after_membership = {
+            row.normalized_matching_key for row in revised.approved_membership
+        }
+        next_version = universe.version + 1 if before_membership != after_membership else universe.version
+        return replace(revised, created_at=universe.created_at, version=next_version)
 
     def remove_members(self, universe: ResearchUniverse, matching_keys: Iterable[str]) -> ResearchUniverse:
         """Remove current members without deleting their immutable source evidence."""
