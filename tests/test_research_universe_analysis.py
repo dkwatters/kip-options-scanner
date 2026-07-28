@@ -129,8 +129,8 @@ def test_marvell_mrvl_is_ready_for_the_current_market_data_path():
         universe_id="marvell-test", title="AI networking",
         starting_companies=(source_record(
             {"company_name": "Marvell Technology", "ticker": "MRVL", "identity_status": "resolved"},
-            UniverseSource.RCE_GENERATED,
-            source_reference="session:marvell-test:suggestion-promotion",
+            UniverseSource.USER_ENTERED,
+            source_reference="session:marvell-test:manual",
         ),),
     )
 

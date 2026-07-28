@@ -21,6 +21,9 @@ from src.universe_analysis_snapshot_repository import (
     SnapshotConflictError, SnapshotSchemaError,
 )
 from src.universe_analysis_snapshot_service import persist_completed_universe_analysis_snapshot
+from src.universe_analysis_snapshot_comparison import (
+    Comparability, assess_snapshot_comparability,
+)
 
 
 TICKERS = ("STR", "CON", "MIX", "WEAK", "EXT")
@@ -159,6 +162,19 @@ def test_invalid_and_unknown_schema_are_rejected_before_insert(repository):
         UniverseAnalysisSnapshotV1.from_dict(payload)
 
 
+def test_repository_rejects_duplicate_matching_identity_before_insert(repository):
+    snapshot, _, _, _ = _snapshot()
+    duplicate = replace(
+        snapshot.members[-1],
+        matching_key=snapshot.members[0].matching_key,
+    )
+    conflicting = replace(snapshot, members=(*snapshot.members[:-1], duplicate))
+
+    with pytest.raises(ValueError, match="duplicate member identities"):
+        repository.save(conflicting)
+    assert repository.list_for_universe("durable-universe") == ()
+
+
 def test_corrupt_stored_schema_is_explicit(repository):
     snapshot, _, _, _ = _snapshot()
     repository.initialize()
@@ -217,6 +233,75 @@ def test_completed_lifecycle_builds_and_persists_exactly_once_without_provider_c
     assert observations.calls == 1
     assert snapshots.saved == [result]
     assert result.status == SnapshotStatus.COMPLETED
+
+
+def test_eleven_member_snapshot_round_trip_and_second_run_are_comparison_ready(repository):
+    handoff, run, rows = _sources()
+    extra_members = tuple(ResearchUniverseMemberHandoff(
+        matching_key=f"ticker:X{index}", company_name=f"Extra {index}",
+        ticker_or_identifier=f"X{index}", identity_status=IdentityStatus.RESOLVED,
+        provenance_references=(f"source:X{index}",),
+    ) for index in range(1, 6))
+    members = handoff.ordered_members[:-1] + extra_members + handoff.ordered_members[-1:]
+    extra_ledger = tuple(AnalysisLedgerEntry(
+        member.matching_key, member.company_name, member.ticker_or_identifier,
+        member.identity_status, AnalysisMemberStatus.ANALYZED, "Completed",
+    ) for member in extra_members)
+    all_tickers = TICKERS + tuple(member.ticker_or_identifier for member in extra_members)
+    expanded_handoff = replace(
+        handoff, ordered_members=members, approved_constituents=all_tickers,
+        expected_constituent_count=10, total_member_count=11,
+    )
+    expanded_run = replace(
+        run, requested_constituent_count=11, requested_tickers=all_tickers,
+        analyzed_tickers=all_tickers, ledger=run.ledger[:-1] + extra_ledger + run.ledger[-1:],
+    )
+    extra_rows = tuple(
+        _row("run-a", run.timestamp, member.ticker_or_identifier,
+             .01, .02, .03, .01, .01, 50, .1, "moderate", "constructive", "neutral")
+        for member in extra_members
+    )
+    first = build_universe_analysis_snapshot_v1(
+        expanded_handoff, expanded_run, rows + extra_rows,
+    )
+    repository.save(first)
+    restored = repository.get(first.snapshot_id)
+
+    assert restored is not None
+    assert (restored.total_universe_member_count, restored.analyzed_count,
+            restored.unavailable_count) == (11, 10, 1)
+    assert len({member.matching_key for member in restored.members}) == 11
+    assert [member.matching_key for member in restored.members] == [
+        member.matching_key for member in expanded_handoff.ordered_members
+    ]
+    unavailable = [member for member in restored.members if member.analysis_status != "analyzed"]
+    assert len(unavailable) == 1
+    assert unavailable[0].matching_key not in {
+        member.matching_key for member in restored.members
+        if member.analysis_status == "analyzed"
+    }
+
+    second_run = replace(
+        expanded_run, scan_id="run-b", timestamp="2026-07-21 12:00:00 PM EDT",
+    )
+    second_rows = tuple(
+        {**row, "scan_id": "run-b", "technical_timestamp": second_run.timestamp}
+        for row in rows + extra_rows
+    )
+    second = build_universe_analysis_snapshot_v1(
+        expanded_handoff, second_run, second_rows,
+    )
+    repository.save(second)
+    baseline = repository.get_previous_candidate(
+        expanded_handoff.universe_id, expanded_handoff.universe_version,
+        before_snapshot_id=second.snapshot_id,
+    )
+    comparison = assess_snapshot_comparability(baseline, second)
+    assert baseline == restored
+    assert comparison.comparability == Comparability.FULL
+    assert comparison.stable_matching_keys == tuple(sorted(
+        member.matching_key for member in restored.members
+    ))
 
 
 def test_unreconciled_lifecycle_does_not_persist_false_snapshot():

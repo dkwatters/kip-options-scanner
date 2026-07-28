@@ -22,7 +22,10 @@ from src.candidate_identity_validation import (
 from src.research_conversation import MockResearchConversationProvider
 from src.research_conversation.openai_provider import OpenAIResearchConversationProvider
 from src.research_conversation.openai_provider import parse_structured_response
-from src.research_universe import CandidateDisposition, ResearchUniverseReviewService, UniverseSource, source_record
+from src.research_universe import (
+    CandidateDisposition, IdentityStatus, ResearchUniverseReviewService,
+    UniverseSource, source_record,
+)
 from src.research_universe_discovery_context import build_research_universe_discovery_context_v01
 from src.research_universe_enrichment import (
     ENRICHMENT_PROMPT_VERSION,
@@ -32,6 +35,9 @@ from src.research_universe_enrichment import (
 from src.research_universe_review_page import promote_suggested_candidate
 from src.research_universe_input import ResearchUniverseInputService
 from src.research_universe_builder_page import suggestions_with_topic_fallback
+from src.research_universe_builder_page import _stored_suggestions
+from src.rce_benchmark_explorer_service import RCEBenchmarkExplorerService
+from src.research_universe_review_page import candidate_promotion_eligible
 
 
 NOW = datetime(2026, 7, 22, tzinfo=timezone.utc)
@@ -130,8 +136,21 @@ def test_promotion_preserves_discovery_and_adds_promoted_provenance_and_version(
     )
     member = promoted.approved_membership[0]
     provenance = [item["source"] for record in member.source_records for item in record.metadata.get("membership_provenance", [])]
+    trusted_links = [
+        record.metadata["trusted_promotion_reference"]
+        for record in member.source_records
+        if "trusted_promotion_reference" in record.metadata
+    ]
     assert "rce_discovered" in provenance
     assert "promoted_candidate" in provenance
+    assert len(trusted_links) == 1
+    assert trusted_links[0]["type"] == "research_universe_promotion"
+    assert trusted_links[0]["version"] == 1
+    assert trusted_links[0]["original_source_reference"] == "rce:test"
+    assert trusted_links[0]["candidate_identity"] == enriched.candidate_identity
+    assert trusted_links[0]["promoted_ticker"] == "NVDA"
+    assert len(promoted.candidates) == 1
+    assert member.identity_status == IdentityStatus.RESOLVED
     assert promoted.version == universe.version + 1
 
 
@@ -448,3 +467,22 @@ def test_production_cascade_resolves_current_security_without_fixture_coverage()
 def test_stored_topic_candidates_are_explicit_empty_enrichment_fallback_only():
     assert suggestions_with_topic_fallback(("live",), ("stored",)) == (("live",), False)
     assert suggestions_with_topic_fallback((), ("stored",)) == (("stored",), True)
+
+
+def test_legacy_stored_fallback_needs_review_remains_promotion_ineligible():
+    records = _stored_suggestions(RCEBenchmarkExplorerService(), "fintech")
+    record = next(
+        row for row in records
+        if row.metadata.get("validation_status") == "needs_review"
+        and row.ticker_or_identifier
+    )
+    assert record.metadata["identity_validation_status"] == "unresolved"
+    universe = ResearchUniverseReviewService().assemble(
+        universe_id="stored-fallback", title="Stored fallback",
+        rce_suggestions=(record,),
+    )
+    candidate = universe.candidates[0]
+    assert not candidate_promotion_eligible(candidate)
+    assert promote_suggested_candidate(
+        universe, candidate.normalized_matching_key, ResearchUniverseInputService(),
+    ) is universe

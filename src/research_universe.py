@@ -5,12 +5,18 @@ different matcher, disposition policy, review workflow, or downstream handoff.
 """
 from __future__ import annotations
 
+import json
+from hashlib import sha256
 import re
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Any, Iterable, Mapping, Sequence
+
+from src.candidate_identity_validation import (
+    CANDIDATE_IDENTITY_VALIDATION_SCHEMA_VERSION,
+)
 
 
 class UniverseSource(StrEnum):
@@ -145,6 +151,7 @@ class ResearchUniverse:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provenance", MappingProxyType(dict(self.provenance)))
+        _validate_candidate_partition(self.candidates)
 
     @property
     def approved_membership(self) -> tuple[UniverseCandidate, ...]:
@@ -245,6 +252,685 @@ def normalized_matching_key(company_name: str, ticker_or_identifier: str | None)
     return f"ticker:{tickers[0]}" if tickers else f"name:{_name_key(company_name)}"
 
 
+@dataclass(frozen=True, slots=True)
+class _CanonicalCandidateGroup:
+    canonical_key: str
+    company_name: str
+    ticker_or_identifier: str | None
+    identity_status: IdentityStatus
+    source_records: tuple[UniverseSourceRecord, ...]
+
+
+_TRUSTED_PROMOTION_TYPE = "research_universe_promotion"
+_TRUSTED_PROMOTION_VERSION = 1
+
+
+@dataclass(frozen=True, slots=True)
+class _TrustedPromotionReference:
+    candidate_identity: str
+    original_source_reference: str
+    expected_name_key: str
+    expected_raw_ticker: str | None
+    expected_security_id: str | None
+    promoted_security_id: str | None
+    promoted_ticker: str
+    validation_result: str
+    validation_schema_version: str | None
+    authoritative_source: str | None
+    authoritative_source_reference: str | None
+
+
+def _metadata_json(record: UniverseSourceRecord) -> str:
+    return json.dumps(
+        dict(record.metadata), sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, default=str,
+    )
+
+
+def _source_fingerprint(record: UniverseSourceRecord) -> tuple[str, ...]:
+    return (
+        record.source.value,
+        record.company_name.strip(),
+        record.ticker_or_identifier or "",
+        record.source_reference or "",
+        record.identity_status.value,
+        record.original_input or "",
+        _metadata_json(record),
+    )
+
+
+def _source_order(record: UniverseSourceRecord) -> tuple[Any, ...]:
+    return (
+        record.source == UniverseSource.RCE_GENERATED,
+        record.source.value,
+        record.company_name.casefold(),
+        record.ticker_or_identifier or "",
+        record.original_input or "",
+        record.source_reference or "",
+        _metadata_json(record),
+    )
+
+
+def _logical_source_identity(record: UniverseSourceRecord) -> tuple[str, ...]:
+    """Producer-scoped evidence identity; never a security merge key."""
+    if record.source == UniverseSource.USER_ENTERED and record.source_reference:
+        claims = sorted(_material_ticker_claim(record))
+        input_identity = (
+            f"ticker:{claims[0]}"
+            if len(claims) == 1
+            else f"name:{_name_key(record.company_name)}"
+        )
+        return (
+            "manual",
+            record.source_reference,
+            input_identity,
+            record.identity_status.value,
+            _metadata_json(record),
+        )
+    return ("record", *_source_fingerprint(record))
+
+
+def _deduplicate_source_records(
+    records: Sequence[UniverseSourceRecord],
+) -> tuple[UniverseSourceRecord, ...]:
+    unique = {
+        _logical_source_identity(record): record
+        for record in sorted(records, key=_source_order)
+    }
+    return tuple(unique[key] for key in sorted(unique))
+
+
+def _validation_metadata(record: UniverseSourceRecord) -> Mapping[str, Any]:
+    value = record.metadata.get("candidate_identity_validation")
+    return value if isinstance(value, Mapping) else {}
+
+
+def _validation_status(record: UniverseSourceRecord) -> str | None:
+    validation = _validation_metadata(record)
+    value = validation.get("validation_status") or record.metadata.get(
+        "identity_validation_status"
+    )
+    return str(value) if value else None
+
+
+def _validated_security_id(record: UniverseSourceRecord) -> str | None:
+    validation = _validation_metadata(record)
+    status = _validation_status(record)
+    if record.identity_status != IdentityStatus.RESOLVED and status not in {"valid", "corrected"}:
+        return None
+    value = (
+        validation.get("normalized_security_id")
+        or validation.get("security_id")
+        or record.metadata.get("validated_security_id")
+        or record.metadata.get("security_id")
+    )
+    return str(value).strip() if value else None
+
+
+def _validated_display_ticker(record: UniverseSourceRecord) -> str | None:
+    validation = _validation_metadata(record)
+    status = _validation_status(record)
+    if record.identity_status != IdentityStatus.RESOLVED and status not in {"valid", "corrected"}:
+        return None
+    value = (
+        validation.get("normalized_ticker_or_identifier")
+        or record.ticker_or_identifier
+    )
+    normalized = str(value).strip().upper() if value else ""
+    return normalized or None
+
+
+def _validated_ticker_key(record: UniverseSourceRecord) -> str | None:
+    display = _validated_display_ticker(record)
+    tickers = sorted(_ticker_keys(display))
+    return tickers[0] if len(tickers) == 1 else None
+
+
+def _material_ticker_claim(record: UniverseSourceRecord) -> frozenset[str]:
+    validation = _validation_metadata(record)
+    raw = (
+        record.metadata.get("raw_ticker_or_identifier")
+        or validation.get("raw_ticker_or_identifier")
+        or record.ticker_or_identifier
+    )
+    return _ticker_keys(str(raw) if raw else None)
+
+
+def _select_review_ticker_or_identifier(
+    records: Sequence[UniverseSourceRecord],
+) -> str | None:
+    """Select display evidence without granting canonical identity or merge authority."""
+    validated = {
+        ticker for record in records
+        for ticker in (_validated_display_ticker(record),)
+        if ticker
+    }
+    if len(validated) == 1:
+        return next(iter(validated))
+    if validated:
+        return None
+    raw = {
+        ticker for record in records
+        for ticker in _material_ticker_claim(record)
+    }
+    return next(iter(raw)) if len(raw) == 1 else None
+
+
+def _record_aliases(record: UniverseSourceRecord) -> frozenset[str]:
+    return frozenset(
+        {_name_key(record.company_name), _name_alias_key(record.company_name)} - {""}
+    )
+
+
+def _candidate_identity(record: UniverseSourceRecord) -> str | None:
+    value = record.metadata.get("candidate_identity")
+    return str(value).strip() if value else None
+
+
+def _trusted_promotion_reference(
+    record: UniverseSourceRecord,
+) -> _TrustedPromotionReference | None:
+    value = record.metadata.get("trusted_promotion_reference")
+    if (
+        record.source != UniverseSource.USER_ENTERED
+        or not record.source_reference
+        or not record.source_reference.startswith("session:")
+        or not record.source_reference.endswith(":suggestion-promotion")
+        or not isinstance(value, Mapping)
+        or value.get("type") != _TRUSTED_PROMOTION_TYPE
+        or value.get("version") != _TRUSTED_PROMOTION_VERSION
+        or value.get("workflow") != "validated_manual_resolution"
+    ):
+        return None
+    required = (
+        "candidate_identity", "original_source_reference", "expected_name_key",
+        "promoted_ticker", "validation_result",
+    )
+    if any(not isinstance(value.get(key), str) or not value[key].strip() for key in required):
+        return None
+    validation_result = str(value["validation_result"]).strip()
+    if validation_result not in {"valid", "corrected"}:
+        return None
+    expected_raw = value.get("expected_raw_ticker")
+    expected_security = value.get("expected_security_id")
+    promoted_security = value.get("promoted_security_id")
+    validation_schema = value.get("validation_schema_version")
+    authoritative_source = value.get("authoritative_source")
+    authoritative_reference = value.get("authoritative_source_reference")
+    if expected_raw is not None and not isinstance(expected_raw, str):
+        return None
+    if expected_security is not None and not isinstance(expected_security, str):
+        return None
+    if promoted_security is not None and not isinstance(promoted_security, str):
+        return None
+    if validation_schema is not None and not isinstance(validation_schema, str):
+        return None
+    if authoritative_source is not None and not isinstance(authoritative_source, str):
+        return None
+    if authoritative_reference is not None and not isinstance(authoritative_reference, str):
+        return None
+    return _TrustedPromotionReference(
+        candidate_identity=str(value["candidate_identity"]).strip(),
+        original_source_reference=str(value["original_source_reference"]).strip(),
+        expected_name_key=str(value["expected_name_key"]).strip(),
+        expected_raw_ticker=str(expected_raw).strip().upper() if expected_raw else None,
+        expected_security_id=(
+            str(expected_security).strip() if expected_security else None
+        ),
+        promoted_security_id=str(promoted_security).strip() if promoted_security else None,
+        promoted_ticker=str(value["promoted_ticker"]).strip().upper(),
+        validation_result=validation_result,
+        validation_schema_version=(
+            str(validation_schema).strip() if validation_schema else None
+        ),
+        authoritative_source=(
+            str(authoritative_source).strip() if authoritative_source else None
+        ),
+        authoritative_source_reference=(
+            str(authoritative_reference).strip() if authoritative_reference else None
+        ),
+    )
+
+
+def _trusted_promotion_target(
+    promoted: UniverseSourceRecord,
+    possible_originals: Sequence[UniverseSourceRecord],
+) -> UniverseSourceRecord | None:
+    link = _trusted_promotion_reference(promoted)
+    if link is None:
+        return None
+    matches = [
+        record for record in possible_originals
+        if record.source == UniverseSource.RCE_GENERATED
+        and record.source_reference == link.original_source_reference
+    ]
+    if len(matches) != 1:
+        return None
+    target = matches[0]
+    raw_claims = _material_ticker_claim(target)
+    expected_claims = _ticker_keys(link.expected_raw_ticker)
+    promoted_ticker = _validated_ticker_key(promoted)
+    promoted_security = _validated_security_id(promoted)
+    promoted_status = _validation_status(promoted)
+    if (
+        target.source != UniverseSource.RCE_GENERATED
+        or _candidate_identity(target) != link.candidate_identity
+        or _name_key(target.company_name) != link.expected_name_key
+        or raw_claims != expected_claims
+        or _validated_security_id(target) != link.expected_security_id
+        or promoted_ticker != next(iter(_ticker_keys(link.promoted_ticker)), None)
+        or promoted_security != link.promoted_security_id
+        or promoted_status not in {"valid", "corrected"}
+        or link.validation_result != promoted_status
+    ):
+        return None
+    same_identity = [
+        record for record in possible_originals
+        if record.source == UniverseSource.RCE_GENERATED
+        and _candidate_identity(record) == link.candidate_identity
+    ]
+    if len(same_identity) != 1:
+        return None
+    if raw_claims and link.validation_result != "corrected":
+        if raw_claims != _ticker_keys(link.promoted_ticker):
+            return None
+    if link.validation_result == "corrected":
+        target_validation = _validation_metadata(target)
+        promoted_validation = _validation_metadata(promoted)
+        validation_candidate_id = str(
+            target_validation.get("candidate_id") or ""
+        ).strip()
+        validation_raw_name = str(
+            target_validation.get("raw_company_name") or ""
+        ).strip()
+        validation_raw_claims = _ticker_keys(
+            str(target_validation.get("raw_ticker_or_identifier") or "")
+        )
+        correction_rationale = (
+            target_validation.get("correction_reason")
+            or target_validation.get("resolution_source")
+        )
+        if (
+            target_validation != promoted_validation
+            or _validation_status(target) != "corrected"
+            or target_validation.get("schema_version")
+            != CANDIDATE_IDENTITY_VALIDATION_SCHEMA_VERSION
+            or target_validation.get("correction_applied") is not True
+            or _candidate_identity(promoted) != link.candidate_identity
+            or validation_candidate_id != link.candidate_identity
+            or _name_key(validation_raw_name) != link.expected_name_key
+            or validation_raw_claims != expected_claims
+            or not str(target_validation.get("raw_ticker_or_identifier") or "").strip()
+            or not str(target_validation.get("normalized_ticker_or_identifier") or "").strip()
+            or not str(target_validation.get("authoritative_source") or "").strip()
+            or not str(target_validation.get("source_reference") or "").strip()
+            or not str(correction_rationale or "").strip()
+            or link.validation_schema_version
+            != CANDIDATE_IDENTITY_VALIDATION_SCHEMA_VERSION
+            or link.authoritative_source
+            != str(target_validation.get("authoritative_source")).strip()
+            or link.authoritative_source_reference
+            != str(target_validation.get("source_reference")).strip()
+            or _validated_ticker_key(target) != promoted_ticker
+            or _validated_security_id(target) != promoted_security
+        ):
+            return None
+    return target
+
+
+def trusted_promotion_reference(
+    original: UniverseSourceRecord,
+    promoted: UniverseSourceRecord,
+    *,
+    candidate_identity: str,
+    validation_result: str,
+) -> dict[str, Any]:
+    """Create the versioned reference used only by the validated promotion workflow."""
+    validation = _validation_metadata(original)
+    return {
+        "type": _TRUSTED_PROMOTION_TYPE,
+        "version": _TRUSTED_PROMOTION_VERSION,
+        "workflow": "validated_manual_resolution",
+        "candidate_identity": candidate_identity,
+        "original_source_reference": original.source_reference,
+        "expected_name_key": _name_key(original.company_name),
+        "expected_raw_ticker": (
+            next(iter(_material_ticker_claim(original)))
+            if len(_material_ticker_claim(original)) == 1 else None
+        ),
+        "expected_security_id": _validated_security_id(original),
+        "promoted_security_id": _validated_security_id(promoted),
+        "promoted_ticker": _validated_display_ticker(promoted),
+        "validation_result": validation_result,
+        "validation_schema_version": validation.get("schema_version"),
+        "authoritative_source": validation.get("authoritative_source"),
+        "authoritative_source_reference": validation.get("source_reference"),
+    }
+
+
+def _canonical_record(records: Sequence[UniverseSourceRecord]) -> UniverseSourceRecord:
+    return min(
+        records,
+        key=lambda row: (
+            _validated_security_id(row) is None,
+            _validated_display_ticker(row) is None,
+            row.identity_status != IdentityStatus.RESOLVED,
+            row.company_name.casefold() == (row.ticker_or_identifier or "").casefold(),
+            -len(row.company_name),
+            _source_order(row),
+        ),
+    )
+
+
+def _unresolved_evidence_key(record: UniverseSourceRecord) -> str:
+    digest = sha256(
+        json.dumps(
+            _logical_source_identity(record),
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()[:16]
+    return f"name:{_name_key(record.company_name)}:evidence:{digest}"
+
+
+def _canonical_partition(
+    records: Sequence[UniverseSourceRecord],
+) -> tuple[_CanonicalCandidateGroup, ...]:
+    ordered = _deduplicate_source_records(records)
+    security_groups: dict[str, list[UniverseSourceRecord]] = {}
+    ticker_only: dict[str, list[UniverseSourceRecord]] = {}
+    unresolved: list[UniverseSourceRecord] = []
+    ticker_security_ids: dict[str, set[str]] = {}
+    for record in ordered:
+        security_id = _validated_security_id(record)
+        ticker = _validated_ticker_key(record)
+        if security_id:
+            key = f"security:{security_id}"
+            security_groups.setdefault(key, []).append(record)
+            if ticker:
+                ticker_security_ids.setdefault(ticker, set()).add(security_id)
+        elif ticker:
+            ticker_only.setdefault(ticker, []).append(record)
+        else:
+            unresolved.append(record)
+
+    resolved: dict[str, list[UniverseSourceRecord]] = dict(security_groups)
+    conflicted_keys: set[str] = set()
+    for ticker, records_for_ticker in ticker_only.items():
+        security_ids = ticker_security_ids.get(ticker, set())
+        if len(security_ids) == 1:
+            security_id = next(iter(security_ids))
+            resolved[f"security:{security_id}"].extend(records_for_ticker)
+        else:
+            ticker_key = f"ticker:{ticker}"
+            resolved[ticker_key] = list(records_for_ticker)
+            if len(security_ids) > 1:
+                conflicted_keys.add(ticker_key)
+                conflicted_keys.update(f"security:{security_id}" for security_id in security_ids)
+    for security_ids in ticker_security_ids.values():
+        if len(security_ids) > 1:
+            conflicted_keys.update(f"security:{security_id}" for security_id in security_ids)
+
+    for key, evidence in security_groups.items():
+        validated_tickers = {
+            ticker for record in evidence
+            for ticker in (_validated_ticker_key(record),)
+            if ticker
+        }
+        if len(validated_tickers) > 1:
+            conflicted_keys.add(key)
+
+    resolved_aliases = {
+        key: frozenset(
+            alias
+            for record in group
+            for alias in _record_aliases(record)
+        )
+        for key, group in resolved.items()
+    }
+    explicitly_linked: set[int] = set()
+    linked_targets: dict[int, str] = {}
+    for key, group in resolved.items():
+        for promoted in tuple(group):
+            target = _trusted_promotion_target(promoted, unresolved)
+            if target is None or id(target) in linked_targets:
+                continue
+            linked_targets[id(target)] = key
+            group.append(target)
+            explicitly_linked.add(id(target))
+    unresolved = [
+        record for record in unresolved if id(record) not in explicitly_linked
+    ]
+    remaining: list[UniverseSourceRecord] = []
+    for record in unresolved:
+        eligible: list[str] = []
+        if record.source != UniverseSource.RCE_GENERATED:
+            claims = _material_ticker_claim(record)
+            if not claims:
+                aliases = _record_aliases(record)
+                eligible = [
+                    key for key, group_aliases in resolved_aliases.items()
+                    if aliases.intersection(group_aliases)
+                ]
+        if len(eligible) == 1:
+            resolved[eligible[0]].append(record)
+        else:
+            remaining.append(record)
+
+    unresolved_groups: dict[str, list[UniverseSourceRecord]] = {}
+    for record in remaining:
+        alias = _name_alias_key(record.company_name) or _name_key(record.company_name)
+        claims = _material_ticker_claim(record)
+        group_key = _unresolved_evidence_key(record) if claims else alias
+        unresolved_groups.setdefault(group_key, []).append(record)
+
+    resolved_name_owners: dict[str, set[str]] = {}
+    for key, aliases in resolved_aliases.items():
+        for alias in aliases:
+            resolved_name_owners.setdefault(alias, set()).add(key)
+
+    groups: list[_CanonicalCandidateGroup] = []
+    for key, evidence in resolved.items():
+        records_in_group = tuple(sorted(evidence, key=_source_order))
+        selected = _canonical_record(records_in_group)
+        competing_resolved = set().union(*(
+            resolved_name_owners.get(alias, set())
+            for alias in _record_aliases(selected)
+        )) - {key}
+        validated_tickers = {
+            ticker for record in records_in_group
+            for ticker in (_validated_display_ticker(record),)
+            if ticker
+        }
+        status = (
+            IdentityStatus.AMBIGUOUS
+            if competing_resolved or key in conflicted_keys or len(validated_tickers) > 1
+            else IdentityStatus.RESOLVED
+        )
+        groups.append(_CanonicalCandidateGroup(
+            canonical_key=key,
+            company_name=selected.company_name,
+            ticker_or_identifier=(
+                next(iter(validated_tickers)) if len(validated_tickers) == 1 else None
+            ),
+            identity_status=status,
+            source_records=records_in_group,
+        ))
+    for unresolved_key, evidence in unresolved_groups.items():
+        records_in_group = tuple(sorted(evidence, key=_source_order))
+        selected = _canonical_record(records_in_group)
+        claims = {
+            ticker for record in records_in_group
+            for ticker in _material_ticker_claim(record)
+        }
+        aliases = {
+            alias for record in records_in_group for alias in _record_aliases(record)
+        }
+        conflicts_with_resolved = any(resolved_name_owners.get(alias) for alias in aliases)
+        status = (
+            IdentityStatus.AMBIGUOUS
+            if len(claims) > 1 or conflicts_with_resolved
+            else IdentityStatus.UNRESOLVED
+        )
+        groups.append(_CanonicalCandidateGroup(
+            canonical_key=(
+                unresolved_key
+                if unresolved_key.startswith("name:")
+                else f"name:{_name_key(selected.company_name)}"
+            ),
+            company_name=selected.company_name,
+            ticker_or_identifier=_select_review_ticker_or_identifier(records_in_group),
+            identity_status=status,
+            source_records=records_in_group,
+        ))
+    groups.sort(key=lambda group: group.canonical_key)
+    _validate_canonical_groups(tuple(groups), len(ordered))
+    return tuple(groups)
+
+
+def _validate_canonical_groups(
+    groups: Sequence[_CanonicalCandidateGroup],
+    expected_source_count: int,
+) -> None:
+    keys = tuple(group.canonical_key for group in groups)
+    fingerprints = tuple(
+        _source_fingerprint(record)
+        for group in groups
+        for record in group.source_records
+    )
+    if len(set(keys)) != len(keys):
+        raise ValueError("Canonical candidate identities must be unique.")
+    if len(fingerprints) != expected_source_count or len(set(fingerprints)) != len(fingerprints):
+        raise ValueError("Every source record must belong to exactly one canonical candidate group.")
+
+
+def validate_candidate_partition_integrity(
+    candidates: Sequence[UniverseCandidate],
+) -> None:
+    """Validate a finalized partition without regrouping or repairing evidence."""
+    keys = tuple(candidate.normalized_matching_key for candidate in candidates)
+    owned_ids = tuple(
+        id(record)
+        for candidate in candidates
+        for record in candidate.source_records
+    )
+    fingerprints = tuple(
+        _source_fingerprint(record)
+        for candidate in candidates
+        for record in candidate.source_records
+    )
+    if len(set(keys)) != len(keys):
+        raise ValueError("Research Universe candidates require unique canonical identities.")
+    if len(set(owned_ids)) != len(owned_ids) or len(set(fingerprints)) != len(fingerprints):
+        raise ValueError("Research Universe source evidence cannot belong to multiple candidates.")
+    for candidate in candidates:
+        if not candidate.source_records:
+            raise ValueError("Research Universe candidates require source evidence.")
+        key = candidate.normalized_matching_key
+        security_ids = {
+            security_id for record in candidate.source_records
+            for security_id in (_validated_security_id(record),)
+            if security_id
+        }
+        ticker_keys = {
+            ticker for record in candidate.source_records
+            for ticker in (_validated_ticker_key(record),)
+            if ticker
+        }
+        display_keys = _ticker_keys(candidate.ticker_or_identifier)
+        if key.startswith("security:"):
+            expected = key.removeprefix("security:")
+            if expected not in security_ids:
+                raise ValueError("Security canonical identity lacks matching validated evidence.")
+        elif key.startswith("ticker:"):
+            expected = key.removeprefix("ticker:")
+            if expected not in ticker_keys:
+                raise ValueError("Ticker canonical identity lacks matching validated evidence.")
+        elif key.startswith("name:"):
+            base_name_key = f"name:{_name_key(candidate.company_name)}"
+            ticker_bearing = tuple(
+                record for record in candidate.source_records
+                if _material_ticker_claim(record)
+            )
+            if ticker_bearing:
+                if (
+                    len(candidate.source_records) != 1
+                    or key != _unresolved_evidence_key(candidate.source_records[0])
+                ):
+                    raise ValueError(
+                        "Evidence-disambiguated name identity does not match owned evidence."
+                    )
+            elif key != base_name_key:
+                raise ValueError("Name canonical identity does not match the candidate name.")
+        else:
+            raise ValueError("Research Universe candidate has an unsupported canonical identity.")
+        if candidate.identity_status == IdentityStatus.RESOLVED and not (
+            security_ids or ticker_keys
+        ):
+            raise ValueError("Resolved candidates require a validated canonical security identity.")
+        if (
+            candidate.identity_status == IdentityStatus.RESOLVED
+            and key.startswith("name:")
+        ):
+            raise ValueError("Resolved candidates require a security or ticker canonical identity.")
+        if (
+            candidate.identity_status == IdentityStatus.UNRESOLVED
+            and not key.startswith("name:")
+        ):
+            raise ValueError("Unresolved candidates require a name canonical identity.")
+        if candidate.identity_status == IdentityStatus.RESOLVED:
+            if len(display_keys) != 1 or not display_keys.issubset(ticker_keys):
+                raise ValueError("Resolved display ticker lacks matching validated evidence.")
+        elif candidate.identity_status == IdentityStatus.AMBIGUOUS:
+            raw_claims = {
+                claim for record in candidate.source_records
+                for claim in _material_ticker_claim(record)
+            }
+            if key.startswith("security:"):
+                expected_security = key.removeprefix("security:")
+                if security_ids != {expected_security}:
+                    raise ValueError("Ambiguous security identity has contradictory evidence.")
+                if len(ticker_keys) > 1 and candidate.ticker_or_identifier is not None:
+                    raise ValueError("Ambiguous ticker conflict cannot select a display ticker.")
+                if display_keys and not display_keys.issubset(ticker_keys):
+                    raise ValueError("Ambiguous display ticker lacks matching validated evidence.")
+            elif key.startswith("ticker:"):
+                expected_ticker = key.removeprefix("ticker:")
+                if security_ids or display_keys not in (frozenset(), frozenset({expected_ticker})):
+                    raise ValueError("Ambiguous ticker identity has contradictory evidence.")
+            elif security_ids or ticker_keys:
+                raise ValueError("Ambiguous name identity cannot contain validated security evidence.")
+            elif display_keys and (
+                len(raw_claims) != 1 or not display_keys.issubset(raw_claims)
+            ):
+                raise ValueError("Ambiguous raw display ticker contradicts owned evidence.")
+        elif candidate.ticker_or_identifier and display_keys.intersection(ticker_keys):
+            if key.startswith("name:"):
+                raise ValueError("Unresolved display ticker cannot represent validated identity.")
+        expected_starting = any(
+            record.source != UniverseSource.RCE_GENERATED
+            for record in candidate.source_records
+        )
+        expected_rce = any(
+            record.source == UniverseSource.RCE_GENERATED
+            for record in candidate.source_records
+        )
+        if candidate.in_starting_companies != expected_starting:
+            raise ValueError("Starting-company flag does not match owned source evidence.")
+        if candidate.in_rce_suggestions != expected_rce:
+            raise ValueError("RCE flag does not match owned source evidence.")
+        for record in candidate.source_records:
+            if "trusted_promotion_reference" not in record.metadata:
+                continue
+            target = _trusted_promotion_target(record, candidate.source_records)
+            if target is None:
+                raise ValueError("Promotion state lacks trusted exact-source evidence.")
+
+
+def _validate_candidate_partition(candidates: Sequence[UniverseCandidate]) -> None:
+    validate_candidate_partition_integrity(candidates)
+
+
 def source_record(
     row: Mapping[str, Any],
     source: UniverseSource,
@@ -299,47 +985,17 @@ class ResearchUniverseReviewService:
         notes = dict(comments or {})
         starting = tuple(starting_companies)
         rce = tuple(rce_suggestions)
-
-        starting_by_name = self._by_name(starting)
-        rce_by_name = self._by_name(rce)
-        starting_by_ticker = self._by_ticker(starting)
-        rce_by_ticker = self._by_ticker(rce)
-        visited: set[int] = set()
+        groups = _canonical_partition((*starting, *rce))
         candidates: list[UniverseCandidate] = []
 
-        for record in (*starting, *rce):
-            if id(record) in visited:
-                continue
-            ticker_keys = _ticker_keys(record.ticker_or_identifier)
-            name_key = _name_key(record.company_name)
-            ticker_matches = {
-                item for ticker in ticker_keys
-                for item in (*starting_by_ticker.get(ticker, ()), *rce_by_ticker.get(ticker, ()))
-            }
-            alias_key = _name_alias_key(record.company_name)
-            name_matches = set((*starting_by_name.get(name_key, ()), *rce_by_name.get(name_key, ())))
-            if alias_key:
-                name_matches.update((*starting_by_name.get(alias_key, ()), *rce_by_name.get(alias_key, ())))
-            conflict = bool(ticker_keys and (name_matches - ticker_matches))
-            matches = ticker_matches if ticker_keys else name_matches
-            if not matches:
-                matches = {record}
-            visited.update(id(item) for item in matches)
-            ordered = tuple(item for item in (*starting, *rce) if item in matches)
+        for group in groups:
+            ordered = group.source_records
             in_starting = any(item in starting for item in ordered)
             in_rce = any(item in rce for item in ordered)
-            resolved_records = tuple(item for item in ordered if item.identity_status == IdentityStatus.RESOLVED)
-            selected = next((item for item in resolved_records if item.ticker_or_identifier), None)
-            selected = selected or next((item for item in ordered if item.ticker_or_identifier), ordered[0])
-            identity_status = (
-                IdentityStatus.AMBIGUOUS if conflict
-                else IdentityStatus.RESOLVED if resolved_records
-                else IdentityStatus.UNRESOLVED
-            )
-            key = normalized_matching_key(selected.company_name, selected.ticker_or_identifier)
+            key = group.canonical_key
             if in_starting:
                 default = CandidateDisposition.INCLUDED
-            elif conflict or len({normalized_matching_key(item.company_name, item.ticker_or_identifier) for item in ordered}) > 1:
+            elif group.identity_status == IdentityStatus.AMBIGUOUS:
                 default = CandidateDisposition.IDENTITY_REVIEW
             else:
                 default = CandidateDisposition.PENDING
@@ -361,9 +1017,9 @@ class ResearchUniverseReviewService:
                 rank = None
             candidates.append(UniverseCandidate(
                 normalized_matching_key=key,
-                company_name=selected.company_name,
-                ticker_or_identifier=selected.ticker_or_identifier,
-                identity_status=identity_status,
+                company_name=group.company_name,
+                ticker_or_identifier=group.ticker_or_identifier,
+                identity_status=group.identity_status,
                 original_input=next((item.original_input for item in ordered if item.original_input), None),
                 in_starting_companies=in_starting,
                 in_rce_suggestions=in_rce,
@@ -426,18 +1082,16 @@ class ResearchUniverseReviewService:
             for candidate in universe.candidates
             if candidate.disposition != CandidateDisposition.INCLUDED or not candidate.in_starting_companies
         }
-        # Explicit additions confirm membership, including a previously rejected
-        # suggestion. Identity matching and membership disposition are separate.
-        for record in additional_starting_companies:
-            ticker_keys = _ticker_keys(record.ticker_or_identifier)
-            name_keys = {_name_key(record.company_name), _name_alias_key(record.company_name)} - {""}
-            for candidate in universe.candidates:
-                if (
-                    ticker_keys.intersection(_ticker_keys(candidate.ticker_or_identifier))
-                    or _name_key(candidate.company_name) in name_keys
-                    or _name_alias_key(candidate.company_name) in name_keys
-                ):
-                    decisions.pop(candidate.normalized_matching_key, None)
+        # Explicit additions reset only the finalized group that owns their evidence.
+        added_fingerprints = {
+            _source_fingerprint(record) for record in additional_starting_companies
+        }
+        for group in _canonical_partition((*starting, *suggestions)):
+            if any(
+                _source_fingerprint(record) in added_fingerprints
+                for record in group.source_records
+            ):
+                decisions.pop(group.canonical_key, None)
         decisions.update(dispositions or {})
         revised = self.assemble(
             universe_id=universe.universe_id,
@@ -506,19 +1160,3 @@ class ResearchUniverseReviewService:
             dispositions=decisions,
             provenance={"adapter": "existing_curator_workflow"},
         )
-
-    @staticmethod
-    def _by_name(records: Sequence[UniverseSourceRecord]) -> dict[str, tuple[UniverseSourceRecord, ...]]:
-        grouped: dict[str, list[UniverseSourceRecord]] = {}
-        for row in records:
-            for key in {_name_key(row.company_name), _name_alias_key(row.company_name)} - {""}:
-                grouped.setdefault(key, []).append(row)
-        return {key: tuple(value) for key, value in grouped.items()}
-
-    @staticmethod
-    def _by_ticker(records: Sequence[UniverseSourceRecord]) -> dict[str, tuple[UniverseSourceRecord, ...]]:
-        grouped: dict[str, list[UniverseSourceRecord]] = {}
-        for row in records:
-            for ticker in _ticker_keys(row.ticker_or_identifier):
-                grouped.setdefault(ticker, []).append(row)
-        return {key: tuple(value) for key, value in grouped.items()}

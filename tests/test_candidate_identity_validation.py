@@ -1,4 +1,5 @@
 import json
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -22,6 +23,7 @@ from src.research_universe_enrichment import (
 )
 from src.research_universe_input import ResearchUniverseInputService
 from src.research_universe_review_page import promote_suggested_candidate
+from src.research_universe_repository import SQLiteResearchUniverseRepository
 
 
 NOW = datetime(2026, 7, 22, tzinfo=timezone.utc)
@@ -117,7 +119,39 @@ def test_safe_correction_preserves_raw_candidate_and_can_be_promoted():
         universe, universe.candidates[0].normalized_matching_key,
         ResearchUniverseInputService(),
     )
-    assert promoted.approved_membership[0].ticker_or_identifier == "JBL"
+    member = promoted.approved_membership[0]
+    links = [
+        record.metadata["trusted_promotion_reference"]
+        for record in member.source_records
+        if "trusted_promotion_reference" in record.metadata
+    ]
+    assert len(promoted.candidates) == 1
+    assert member.ticker_or_identifier == "JBL"
+    assert len(links) == 1
+    assert links[0]["original_source_reference"] == "fixture://rce/candidate"
+    assert links[0]["candidate_identity"] == candidate.candidate_identity
+    assert links[0]["expected_raw_ticker"] == "JBLU"
+    assert links[0]["promoted_ticker"] == "JBL"
+    assert links[0]["validation_result"] == "corrected"
+
+    with tempfile.TemporaryDirectory() as directory:
+        repository = SQLiteResearchUniverseRepository(Path(directory) / "jabil.sqlite")
+        repository.save(promoted)
+        restored = repository.get(promoted.universe_id)
+    restored_link = next(
+        record.metadata["trusted_promotion_reference"]
+        for record in restored.candidates[0].source_records
+        if "trusted_promotion_reference" in record.metadata
+    )
+    assert restored_link == links[0]
+    revised = ResearchUniverseReviewService().revise(restored)
+    assert [
+        (row.normalized_matching_key, row.identity_status, row.ticker_or_identifier)
+        for row in revised.candidates
+    ] == [
+        (row.normalized_matching_key, row.identity_status, row.ticker_or_identifier)
+        for row in restored.candidates
+    ]
 
 
 @pytest.mark.parametrize(

@@ -22,11 +22,13 @@ from src.research_universe import (
     IdentityStatus,
     ResearchUniverse,
     ResearchUniverseReviewService,
+    UniverseCandidate,
     UniverseSource,
     UniverseSourceRecord,
     UniverseState,
     UniverseType,
     source_record,
+    validate_candidate_partition_integrity,
 )
 from src.universe_analysis_contracts import UniverseAnalysisSnapshotV1
 
@@ -98,6 +100,7 @@ class SQLiteResearchUniverseRepository(ResearchUniverseRepository):
             connection.commit()
 
     def save(self, universe: ResearchUniverse) -> ResearchUniverse:
+        validate_candidate_partition_integrity(universe.candidates)
         self.initialize()
         payload = _serialize(universe)
         values = (
@@ -180,6 +183,7 @@ class PostgresResearchUniverseRepository(ResearchUniverseRepository):
             connection.commit()
 
     def save(self, universe: ResearchUniverse) -> ResearchUniverse:
+        validate_candidate_partition_integrity(universe.candidates)
         self.initialize()
         values = (
             universe.universe_id, universe.version, universe.title, universe.state.value,
@@ -342,32 +346,39 @@ def _serialize(universe: ResearchUniverse) -> str:
 
 def _deserialize(payload: str) -> ResearchUniverse:
     value = json.loads(payload)
-    starting: list[UniverseSourceRecord] = []
-    suggestions: list[UniverseSourceRecord] = []
-    dispositions: dict[str, CandidateDisposition] = {}
-    comments: dict[str, str] = {}
-    for candidate in value["candidates"]:
-        records = tuple(_source_from_dict(item) for item in candidate["source_records"])
-        starting.extend(row for row in records if row.source != UniverseSource.RCE_GENERATED)
-        suggestions.extend(row for row in records if row.source == UniverseSource.RCE_GENERATED)
-        dispositions[candidate["normalized_matching_key"]] = CandidateDisposition(candidate["disposition"])
-        if candidate.get("comment"):
-            comments[candidate["normalized_matching_key"]] = candidate["comment"]
-    universe = ResearchUniverseReviewService().assemble(
+    candidates = tuple(
+        UniverseCandidate(
+            normalized_matching_key=candidate["normalized_matching_key"],
+            company_name=candidate["company_name"],
+            ticker_or_identifier=candidate.get("ticker_or_identifier"),
+            identity_status=IdentityStatus(candidate["identity_status"]),
+            original_input=candidate.get("original_input"),
+            in_starting_companies=bool(candidate["in_starting_companies"]),
+            in_rce_suggestions=bool(candidate["in_rce_suggestions"]),
+            source_records=tuple(
+                _source_from_dict(item) for item in candidate["source_records"]
+            ),
+            disposition=CandidateDisposition(candidate["disposition"]),
+            inclusion_origin=candidate.get("inclusion_origin"),
+            rejection_reason=candidate.get("rejection_reason"),
+            comment=candidate.get("comment"),
+            rce_rank=candidate.get("rce_rank"),
+            rce_metadata=candidate.get("rce_metadata", {}),
+        )
+        for candidate in value["candidates"]
+    )
+    return ResearchUniverse(
         universe_id=value["universe_id"], title=value["title"],
         research_question=value.get("research_question", ""),
-        starting_companies=starting, rce_suggestions=suggestions,
-        dispositions=dispositions, comments=comments,
-        owner_reference=value.get("owner_reference"), version=int(value["version"]),
-        state=UniverseState(value["state"]), provenance=value.get("provenance", {}),
-        established_topic=value.get("established_topic"),
-    )
-    return replace(
-        universe, created_at=_parse_datetime(value["created_at"]),
+        state=UniverseState(value["state"]), version=int(value["version"]),
+        candidates=candidates, created_at=_parse_datetime(value["created_at"]),
         updated_at=_parse_datetime(value["updated_at"]),
+        owner_reference=value.get("owner_reference"),
         visibility=value.get("visibility"),
         universe_type=UniverseType(value.get("universe_type", UniverseType.PRIVATE_USER)),
+        provenance=value.get("provenance", {}),
         analysis_references=tuple(value.get("analysis_references", ())),
+        established_topic=value.get("established_topic"),
     )
 
 

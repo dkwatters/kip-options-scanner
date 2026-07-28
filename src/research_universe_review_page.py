@@ -15,6 +15,7 @@ from src.research_universe import (
     ResearchUniverse,
     ResearchUniverseReviewService,
     UniverseState,
+    trusted_promotion_reference,
 )
 from src.research_universe_repository import research_universe_repository_from_env
 from src.research_universe_input import ResearchUniverseInputService, configured_research_universe_input_service
@@ -102,6 +103,28 @@ def _invalidate_suggestion_selection(key_prefix: str) -> None:
     st.session_state[generation_key] = st.session_state.get(generation_key, 0) + 1
 
 
+def candidate_identity_validation_status(candidate) -> str | None:
+    """Read new validation metadata while preserving legacy RCE compatibility."""
+    metadata = candidate.rce_metadata
+    validation = metadata.get("candidate_identity_validation", {})
+    status = (
+        validation.get("validation_status")
+        if isinstance(validation, dict) else None
+    )
+    status = status or metadata.get("identity_validation_status")
+    if status:
+        return str(status)
+    legacy = metadata.get("validation_status")
+    if legacy:
+        return "valid" if legacy == "valid" else "unresolved"
+    return None
+
+
+def candidate_promotion_eligible(candidate) -> bool:
+    status = candidate_identity_validation_status(candidate)
+    return status is None or status in {"valid", "corrected"}
+
+
 def promote_suggested_candidate(
     universe: ResearchUniverse,
     matching_key: str,
@@ -113,11 +136,7 @@ def promote_suggested_candidate(
         (row for row in universe.candidates if row.normalized_matching_key == matching_key),
         None,
     )
-    validation = candidate.rce_metadata.get("candidate_identity_validation", {}) if candidate else {}
-    if (
-        candidate and validation
-        and validation.get("validation_status") not in {"valid", "corrected"}
-    ):
+    if candidate and not candidate_promotion_eligible(candidate):
         return universe
     if candidate is None or not candidate.in_rce_suggestions or not candidate.ticker_or_identifier:
         return review_service.revise(
@@ -130,6 +149,16 @@ def promote_suggested_candidate(
         candidate.ticker_or_identifier,
         source_reference=f"session:{universe.universe_id}:suggestion-promotion",
         known_records=known_records,
+    )
+    candidate_identity = candidate.rce_metadata.get("candidate_identity")
+    promotion_validation_result = (
+        candidate_identity_validation_status(candidate) or "valid"
+    )
+    original_records = tuple(
+        record for record in candidate.source_records
+        if record.source.value == "rce_generated"
+        and record.metadata.get("candidate_identity") == candidate_identity
+        and record.source_reference
     )
     promoted_records = tuple(
         replace(
@@ -146,6 +175,14 @@ def promote_suggested_candidate(
             ),
             metadata={
                 **dict(record.metadata),
+                "identity_validation_status": (
+                    promotion_validation_result
+                    if record.identity_status == IdentityStatus.RESOLVED
+                    else "unresolved"
+                ),
+                "candidate_identity_validation": candidate.rce_metadata.get(
+                    "candidate_identity_validation", {}
+                ),
                 "membership_provenance": [
                     *candidate.rce_metadata.get("membership_provenance", []),
                     {
@@ -157,6 +194,27 @@ def promote_suggested_candidate(
                 "discovery_lenses": candidate.rce_metadata.get("discovery_lenses", []),
                 "evidence_references": candidate.rce_metadata.get("evidence_references", []),
                 "candidate_identity": candidate.rce_metadata.get("candidate_identity"),
+                **(
+                    {
+                        "trusted_promotion_reference": trusted_promotion_reference(
+                            original_records[0],
+                            replace(
+                                record,
+                                metadata={
+                                    **dict(record.metadata),
+                                    "identity_validation_status": (
+                                        promotion_validation_result
+                                    ),
+                                },
+                            ),
+                            candidate_identity=str(candidate_identity),
+                            validation_result=promotion_validation_result,
+                        )
+                    }
+                    if len(original_records) == 1
+                    and candidate.rce_metadata.get("candidate_identity")
+                    else {}
+                ),
             },
         )
         for record in promoted_records
@@ -272,10 +330,6 @@ def render_research_universe_review(
         st.subheader("Suggested Companies")
         st.caption("Choose which recommendations belong in your universe.")
         if suggestions:
-            def promotion_eligible(row) -> bool:
-                status = row.rce_metadata.get("identity_validation_status")
-                return status is None or status in {"valid", "corrected"}
-
             event = st.dataframe(
                 pd.DataFrame([{
                     "Company": row.company_name,
@@ -284,7 +338,10 @@ def render_research_universe_review(
                     "Discovery Lenses": ", ".join(row.rce_metadata.get("discovery_lenses", ())) or "Not provided",
                     "Related seeds": len(row.rce_metadata.get("related_seed_member_identities", ())),
                     "Evidence": len(row.rce_metadata.get("evidence_references", ())),
-                    "Identity status": row.rce_metadata.get("identity_validation_status", "unresolved"),
+                    "Identity status": candidate_identity_validation_status(row) or "unresolved",
+                    "Duplicate status": str(
+                        row.rce_metadata.get("duplicate_status") or "not reported"
+                    ).replace("_", " ").capitalize(),
                 } for row in suggestions]),
                 hide_index=True, on_select="rerun", selection_mode="multi-row",
                 key=_suggestion_selection_key(key_prefix, suggestions),
@@ -295,7 +352,7 @@ def render_research_universe_review(
                     "Add Selected", type="primary", icon=":material/add:",
                     disabled=(
                         not selected or on_disposition is None
-                        or any(not promotion_eligible(row) for row in selected)
+                        or any(not candidate_promotion_eligible(row) for row in selected)
                     ),
                     key=f"{key_prefix}_add_selected",
                 )
@@ -324,7 +381,27 @@ def render_research_universe_review(
                         for reference in evidence:
                             st.caption(str(reference))
                     validation = candidate.rce_metadata.get("candidate_identity_validation", {})
-                    st.write(f"Identity validation: {validation.get('validation_status', 'unresolved')}")
+                    raw_name = candidate.rce_metadata.get("raw_company_name")
+                    raw_ticker = candidate.rce_metadata.get("raw_ticker_or_identifier")
+                    if raw_name or raw_ticker:
+                        st.caption(
+                            f"Raw identity: {raw_name or 'Not provided'} / "
+                            f"{raw_ticker or 'No ticker'}"
+                        )
+                        st.caption(
+                            f"Validated identity: {candidate.company_name} / "
+                            f"{candidate.ticker_or_identifier or 'Unresolved'}"
+                        )
+                    st.caption(
+                        "Duplicate status: "
+                        + str(candidate.rce_metadata.get("duplicate_status") or "not reported")
+                        .replace("_", " ")
+                        .capitalize()
+                    )
+                    st.write(
+                        "Identity validation: "
+                        + (candidate_identity_validation_status(candidate) or "unresolved")
+                    )
                     if validation.get("correction_applied"):
                         st.caption(validation.get("correction_reason") or "Identity correction applied.")
                     if validation.get("unresolved_reason"):

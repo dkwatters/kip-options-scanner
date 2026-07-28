@@ -287,6 +287,8 @@ def validate_universe_analysis_snapshot_v1(snapshot: UniverseAnalysisSnapshotV1)
         raise ValueError("Snapshot membership order must be contiguous and one-based.")
     if len({member.member_snapshot_id for member in snapshot.members}) != len(snapshot.members):
         raise ValueError("Snapshot contains duplicate member snapshot IDs.")
+    if len({member.matching_key for member in snapshot.members}) != len(snapshot.members):
+        raise ValueError("Snapshot contains duplicate member identities.")
     analyzed_members = tuple(
         member for member in snapshot.members if member.analysis_status == "analyzed"
     )

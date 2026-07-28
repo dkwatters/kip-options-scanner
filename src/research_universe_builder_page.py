@@ -146,6 +146,9 @@ def _stored_suggestions(service: RCEBenchmarkExplorerService, topic_id: str):
             "rank": row.returned_rank,
             "category": row.returned_category,
             "validation_status": row.validation_status,
+            "identity_validation_status": (
+                "valid" if row.validation_status == "valid" else "unresolved"
+            ),
             "identity_status": "resolved" if row.validation_status == "valid" else "unresolved",
         },
         UniverseSource.RCE_GENERATED,

@@ -423,6 +423,43 @@ if st.button("Start new"):
         source = Path("src/research_universe_review_page.py").read_text(encoding="utf-8")
         self.assertIn('key_prefix=f"current_universe_{universe.universe_id}_v{universe.version}"', source)
 
+    def test_suggestion_details_show_raw_validated_and_duplicate_identity(self):
+        app = AppTest.from_string(r'''
+import streamlit as st
+from src.research_universe import ResearchUniverseReviewService, UniverseSource, source_record
+from src.research_universe_review_page import _suggestion_selection_key, render_research_universe_review
+
+universe = ResearchUniverseReviewService().assemble(
+    universe_id="identity-details", title="Identity details",
+    rce_suggestions=(source_record({
+        "company_name": "Jabil Inc.",
+        "ticker": "JBL",
+        "raw_company_name": "Jabil Inc.",
+        "raw_ticker_or_identifier": "JBLU",
+        "identity_validation_status": "corrected",
+        "candidate_identity_validation": {
+            "validation_status": "corrected",
+            "correction_applied": True,
+            "correction_reason": "Authoritative correction.",
+        },
+        "duplicate_status": "not_in_seed_universe",
+        "identity_status": "resolved",
+    }, UniverseSource.RCE_GENERATED),),
+)
+pending = universe.candidates
+if st.session_state.get("select_details"):
+    st.session_state[_suggestion_selection_key("identity_details", pending)] = {
+        "selection": {"rows": [0]}
+    }
+render_research_universe_review(universe, key_prefix="identity_details")
+''').run()
+        app.session_state["select_details"] = True
+        app.run()
+        captions = " ".join(row.value for row in app.caption)
+        self.assertIn("Raw identity: Jabil Inc. / JBLU", captions)
+        self.assertIn("Validated identity: Jabil Inc. / JBL", captions)
+        self.assertIn("Duplicate status: Not in seed universe", captions)
+
 
 if __name__ == "__main__":
     unittest.main()

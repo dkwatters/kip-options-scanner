@@ -97,8 +97,13 @@ class ResearchUniverseInputTest(unittest.TestCase):
                 return {"quotes": {"quote": {"symbol": symbol, "description": "Zscaler Inc."}}}
 
         suggestion = source_record(
-            {"company_name": "Zscaler", "ticker": "ZS", "identity_status": "unresolved"},
+            {
+                "company_name": "Zscaler", "ticker": "ZS",
+                "identity_status": "unresolved",
+                "candidate_identity": "candidate:zscaler",
+            },
             UniverseSource.RCE_GENERATED,
+            source_reference="session:rce-enrichment:candidate:zscaler",
         )
         universe = ResearchUniverseReviewService().assemble(
             universe_id="u", title="U", rce_suggestions=(suggestion,),
@@ -111,6 +116,48 @@ class ResearchUniverseInputTest(unittest.TestCase):
         member = promoted.approved_membership[0]
         self.assertEqual((member.company_name, member.ticker_or_identifier), ("Zscaler Inc.", "ZS"))
         self.assertEqual(member.identity_status, IdentityStatus.RESOLVED)
+        self.assertEqual(len(member.source_records), 2)
+        self.assertEqual(
+            {row.metadata.get("candidate_identity") for row in member.source_records},
+            {"candidate:zscaler"},
+        )
+
+    def test_source_less_unresolved_suggestion_cannot_receive_trusted_promotion(self):
+        class Lookup:
+            def get_quote(self, symbol):
+                return {
+                    "quotes": {
+                        "quote": {
+                            "symbol": symbol,
+                            "description": "Zscaler Inc.",
+                        }
+                    }
+                }
+
+        suggestion = source_record(
+            {
+                "company_name": "Zscaler", "ticker": "ZS",
+                "identity_status": "unresolved",
+                "candidate_identity": "candidate:zscaler",
+            },
+            UniverseSource.RCE_GENERATED,
+        )
+        universe = ResearchUniverseReviewService().assemble(
+            universe_id="legacy-source-less", title="Source-less",
+            rce_suggestions=(suggestion,),
+        )
+
+        promoted = promote_suggested_candidate(
+            universe, universe.candidates[0].normalized_matching_key,
+            ResearchUniverseInputService(Lookup()),
+        )
+
+        self.assertEqual(len(promoted.candidates), 2)
+        self.assertFalse(any(
+            "trusted_promotion_reference" in record.metadata
+            for candidate in promoted.candidates
+            for record in candidate.source_records
+        ))
 
     def test_promoted_fabricated_suggestion_remains_unresolved_with_diagnostics(self):
         class Lookup:
