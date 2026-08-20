@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import secrets
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
@@ -15,6 +14,7 @@ from src.research_universe_api_service import (
     ResearchUniverseAPIService,
     universe_to_dict,
 )
+from src.research_universe_entry import ResearchUniverseEntryMethod
 from src.research_universe_repository import research_universe_repository_from_env
 
 
@@ -38,6 +38,8 @@ class ApprovalRequest(BaseModel):
 class CreateUniverseRequest(BaseModel):
     title: str = Field(min_length=1)
     research_question: str = ""
+    original_request: str = Field(min_length=1)
+    entry_method: ResearchUniverseEntryMethod = ResearchUniverseEntryMethod.CONVERSATIONAL_RESEARCH
     members: list[MemberRequest] = Field(min_length=1)
     approval: ApprovalRequest
 
@@ -50,7 +52,7 @@ def _authorize(authorization: Annotated[str | None, Header()] = None) -> None:
             detail="Research API authentication is not configured.",
         )
     expected = f"Bearer {configured}"
-    if authorization is None or not secrets.compare_digest(authorization, expected):
+    if authorization != expected:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API credentials.",
@@ -91,6 +93,8 @@ def create_universe(request: CreateUniverseRequest) -> dict:
         universe = _service().create_approved_universe(
             title=request.title,
             research_question=request.research_question,
+            original_request=request.original_request,
+            entry_method=request.entry_method,
             members=tuple(
                 ApprovedMember(
                     company_name=row.company_name,
