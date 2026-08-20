@@ -10,7 +10,9 @@ from src.research_universe_api_service import (
     ResearchUniverseAPIError,
     ResearchUniverseAPIService,
     membership_digest,
+    universe_to_dict,
 )
+from src.research_universe_entry import ResearchUniverseEntryMethod
 from src.research_universe_repository import ResearchUniverseRepository
 
 
@@ -46,6 +48,17 @@ def approval_for(members):
     )
 
 
+def create_kwargs(members):
+    return {
+        "title": "Approved API Universe",
+        "research_question": "Which companies matter?",
+        "original_request": "Please research hidden bottlenecks.",
+        "entry_method": ResearchUniverseEntryMethod.CONVERSATIONAL_RESEARCH,
+        "members": members,
+        "approval": approval_for(members),
+    }
+
+
 def test_membership_digest_is_order_and_content_bound():
     first = (ApprovedMember("Alpha"), ApprovedMember("Beta"))
     reversed_members = tuple(reversed(first))
@@ -54,17 +67,14 @@ def test_membership_digest_is_order_and_content_bound():
     assert membership_digest(first) != membership_digest(changed)
 
 
-def test_create_persists_exact_approved_membership_without_network_resolution():
+def test_create_persists_exact_approved_membership_and_entry_provenance_without_network_resolution():
     repository = MemoryRepository()
     service = ResearchUniverseAPIService(repository)
     members = (ApprovedMember("Alpha Research Co"), ApprovedMember("Beta Systems"))
 
     universe = service.create_approved_universe(
         universe_id="api-test-universe",
-        title="Approved API Universe",
-        research_question="Which companies matter?",
-        members=members,
-        approval=approval_for(members),
+        **create_kwargs(members),
     )
 
     assert universe.state.value == "approved"
@@ -74,6 +84,9 @@ def test_create_persists_exact_approved_membership_without_network_resolution():
     ]
     assert repository.get("api-test-universe") is universe
     assert universe.provenance["approval"]["membership_digest"] == membership_digest(members)
+    assert universe.provenance["entry_method"] == "conversational_research"
+    assert universe.provenance["original_request"] == "Please research hidden bottlenecks."
+    assert universe_to_dict(universe)["entry_method"] == "conversational_research"
 
 
 def test_create_rejects_mutated_membership_after_approval():
@@ -81,14 +94,11 @@ def test_create_rejects_mutated_membership_after_approval():
     service = ResearchUniverseAPIService(repository)
     approved = (ApprovedMember("Alpha"),)
     mutated = (ApprovedMember("Alpha"), ApprovedMember("Beta"))
+    kwargs = create_kwargs(mutated)
+    kwargs["approval"] = approval_for(approved)
 
     with pytest.raises(ResearchUniverseAPIError, match="membership digest"):
-        service.create_approved_universe(
-            title="Mutated",
-            research_question="",
-            members=mutated,
-            approval=approval_for(approved),
-        )
+        service.create_approved_universe(**kwargs)
     assert repository.list_all() == ()
 
 
@@ -104,11 +114,19 @@ def test_create_rejects_non_explicit_approval_mechanism():
         membership_digest=approval.membership_digest,
         source_reference=approval.source_reference,
     )
+    kwargs = create_kwargs(members)
+    kwargs["approval"] = invalid
 
     with pytest.raises(ResearchUniverseAPIError, match="approval mechanism"):
-        service.create_approved_universe(
-            title="No implicit approval",
-            research_question="",
-            members=members,
-            approval=invalid,
-        )
+        service.create_approved_universe(**kwargs)
+
+
+def test_create_requires_original_request_for_conversational_provenance():
+    repository = MemoryRepository()
+    service = ResearchUniverseAPIService(repository)
+    members = (ApprovedMember("Alpha"),)
+    kwargs = create_kwargs(members)
+    kwargs["original_request"] = "   "
+
+    with pytest.raises(ResearchUniverseAPIError, match="original_request"):
+        service.create_approved_universe(**kwargs)
