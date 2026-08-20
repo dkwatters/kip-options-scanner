@@ -5,7 +5,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable
 from uuid import uuid4
 
 from src.research_universe import (
@@ -15,6 +15,11 @@ from src.research_universe import (
     UniverseState,
     UniverseType,
     source_record,
+)
+from src.research_universe_entry import (
+    ResearchUniverseEntryMethod,
+    entry_method_provenance,
+    research_universe_entry_method,
 )
 from src.research_universe_input import configured_research_universe_input_service
 from src.research_universe_repository import ResearchUniverseRepository
@@ -61,6 +66,7 @@ def universe_to_dict(universe: ResearchUniverse) -> dict[str, Any]:
         "universe_id": universe.universe_id,
         "title": universe.title,
         "research_question": universe.research_question,
+        "entry_method": research_universe_entry_method(universe.provenance).value,
         "state": universe.state.value,
         "version": universe.version,
         "created_at": universe.created_at.isoformat(),
@@ -96,6 +102,8 @@ class ResearchUniverseAPIService:
         *,
         title: str,
         research_question: str,
+        original_request: str,
+        entry_method: ResearchUniverseEntryMethod,
         members: Iterable[ApprovedMember],
         approval: ApprovalEnvelope,
         universe_id: str | None = None,
@@ -103,6 +111,8 @@ class ResearchUniverseAPIService:
         approved_members = tuple(members)
         if not title.strip():
             raise ResearchUniverseAPIError("title is required")
+        if not original_request.strip():
+            raise ResearchUniverseAPIError("original_request is required")
         if not approved_members:
             raise ResearchUniverseAPIError("at least one approved member is required")
         if approval.mechanism != "explicit_conversation_confirmation":
@@ -142,7 +152,6 @@ class ResearchUniverseAPIService:
             ticker = normalized["ticker_or_identifier"]
             resolved = resolved_by_ticker.get(ticker or "")
             if resolved is not None:
-                # Preserve the caller's approved display name while retaining validated identity evidence.
                 records.append(source_record(
                     {
                         "company_name": normalized["company_name"] or resolved.company_name,
@@ -177,6 +186,14 @@ class ResearchUniverseAPIService:
                 "persistence": "research_universe_repository",
                 "universe_type": UniverseType.PRIVATE_USER,
                 "creation_workflow": "research_universe_api_v0.1",
+                **entry_method_provenance(
+                    entry_method,
+                    original_request=original_request,
+                    source_metadata={
+                        "approval_source_reference": approval.source_reference,
+                        "conversation_reference": approval.conversation_reference,
+                    },
+                ),
                 "approval": {
                     "actor": approval.actor,
                     "mechanism": approval.mechanism,
