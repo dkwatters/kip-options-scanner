@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
@@ -49,7 +50,7 @@ def _authorize(authorization: Annotated[str | None, Header()] = None) -> None:
             detail="Research API authentication is not configured.",
         )
     expected = f"Bearer {configured}"
-    if authorization != expected:
+    if authorization is None or not secrets.compare_digest(authorization, expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API credentials.",
