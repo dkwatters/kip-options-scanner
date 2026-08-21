@@ -45,9 +45,31 @@ Security Research and Opportunity Research sidebar views show metadata only;
 analytical explorers are organized in the main workspace. If
 `APP_PASSWORD` is unset, the app runs without a password prompt.
 
+## Research Universe API v0.1
+
+The optional FastAPI service exposes a deliberately narrow interoperability boundary over the same Research Universe repository used by the Streamlit application. It does not expose trading, brokerage, RCE generation, analysis execution, or arbitrary database operations.
+
+Run locally with:
+
+```bash
+uvicorn api:app --host 0.0.0.0 --port 8000
+```
+
+For a separate Render Web Service use:
+
+```bash
+uvicorn api:app --host 0.0.0.0 --port $PORT
+```
+
+Configure `RESEARCH_REPOSITORY_BACKEND=postgres`, the same `DATABASE_URL` used by the application, and a long random `RESEARCH_API_KEY`. Protected requests must send `Authorization: Bearer <RESEARCH_API_KEY>`. `GET /health` is intentionally unauthenticated for service health checks.
+
+The v0.1 surface is limited to `GET /health`, `GET /api/v1/universes`, `GET /api/v1/universes/{universe_id}`, and `POST /api/v1/universes`. Creation requires an explicit approval envelope with `mechanism=explicit_conversation_confirmation`. The approval contains a SHA-256 membership digest computed over the exact ordered list of normalized `{company_name, ticker_or_identifier}` members. The server recomputes that digest before persistence and refuses creation when membership changed after approval. It also refuses creation if canonicalization changes approved membership cardinality.
+
 ## Architecture
 
 - `app.py`: quote view, metadata-only Research sidebar, Security Analysis Explorer, Opportunity Discovery, Option Chain Explorer, and Option Analysis Explorer. Opportunity Discovery evaluates a Research Universe by Calls/Puts and configurable DTE range before selecting the highest-quality passing contract or highest-quality true near miss, then renders a selectable ranking table that reuses the Contract Detail Summary. The opportunity workspace retrieves expirations, presents Opportunity Analysis, passing contracts, true near misses, and diagnostic option analytics for the selected Calls/Puts type.
+- `api.py`: authenticated Research Universe API v0.1 transport boundary.
+- `src/research_universe_api_service.py`: approval binding, canonical creation orchestration, repository reads, and API projection without direct SQL access.
 - `src/contract_scoring.py`: reusable, configuration-driven quality-score helper. Its default Delta Fit, Spread, Open Interest, and Volume weights total 100 and can later be exposed as user-editable settings.
 - `src/tradier_client.py`: read-only market-data GET client.
 - `src/universe.py`: validated CSV-backed Research Universe loading.
