@@ -14,6 +14,8 @@ from typing import Any, Iterable
 
 TAM_MODEL_NAME = "Technical Analysis Model"
 TAM_MODEL_VERSION = "v0.1"
+TECHNICAL_ANALYSIS_VERSION = "technical-analysis-v0.1"
+TECHNICAL_SCORING_VERSION = "technical-setup-score-v0.1"
 SMA_NEAR_THRESHOLD = 0.01
 
 

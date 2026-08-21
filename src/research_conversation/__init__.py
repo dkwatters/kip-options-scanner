@@ -87,6 +87,9 @@ class ResearchConversationRequest:
     prompt_version: str = DEFAULT_RCE_PROMPT_VERSION
     request_timestamp: datetime = field(default_factory=utc_now)
     context: dict[str, Any] = field(default_factory=dict)
+    anchor_companies: tuple[str, ...] = ()
+    breadth_preference: str | None = None
+    request_origin: str = "unspecified"
 
 
 @dataclass(frozen=True)
@@ -211,6 +214,11 @@ class ResearchConversationService:
             original_question=original_question.strip(),
             context=context or {},
         )
+        return self.interpret_request(request)
+
+    def interpret_request(
+        self, request: ResearchConversationRequest
+    ) -> ResearchConversationResponse:
         selected_provider_name = getattr(self.provider, "provider_name", "unknown")
         selected_model_name = getattr(self.provider, "model_name", "unknown")
         try:
@@ -389,6 +397,22 @@ class MockResearchConversationProvider:
             warnings.append("Original question is empty.")
 
         structured_response = _mock_structured_response(question, warnings)
+        if request.prompt_version == "rce-context-aware-universe-enrichment-v0.1":
+            enrichment = request.context.get("enrichment_request", {})
+            seed_members = enrichment.get("seed_members", []) if isinstance(enrichment, dict) else []
+            related_key = next((
+                row.get("matching_key") for row in seed_members
+                if isinstance(row, dict) and row.get("matching_key")
+            ), None)
+            for candidate in structured_response.get("candidate_securities", []):
+                ticker = str(candidate.get("ticker") or "unknown").lower()
+                candidate.update({
+                    "discovery_lenses": ["industry_landscape_peers", "adjacent_beneficiaries"],
+                    "related_seed_matching_keys": [related_key] if related_key else [],
+                    "reason_discovered": candidate.get("inclusion_rationale") or "Deterministic mock enrichment candidate.",
+                    "evidence_references": [f"mock-fixture://rce-enrichment/{ticker}"],
+                    "support": "provider_free_mock_fixture",
+                })
         response = ResearchConversationResponse(
             metadata=ProviderMetadata(
                 provider_name=self.provider_name,

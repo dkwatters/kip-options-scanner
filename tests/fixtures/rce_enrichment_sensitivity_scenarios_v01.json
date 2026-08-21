@@ -1,0 +1,39 @@
+{
+  "schema_version": "rce-enrichment-sensitivity-scenarios-v0.1",
+  "fixture_family": "matched_context_sensitivity",
+  "base_question": "What publicly traded suppliers are missing from an AI networking research universe?",
+  "cases": [
+    {
+      "id": "sensitivity_a_question_only",
+      "sensitivity_variant": "question_only",
+      "question": "What publicly traded suppliers are missing from an AI networking research universe?",
+      "manual": [],
+      "topic": null
+    },
+    {
+      "id": "sensitivity_b_manual_anchor",
+      "sensitivity_variant": "manual_anchor",
+      "question": "What publicly traded suppliers are missing from an AI networking research universe?",
+      "manual": ["NVDA"],
+      "topic": null
+    },
+    {
+      "id": "sensitivity_c_predefined_topic",
+      "sensitivity_variant": "predefined_topic",
+      "question": "What publicly traded suppliers are missing from an AI networking research universe?",
+      "manual": [],
+      "topic": "ai-networking",
+      "topic_name": "AI Networking",
+      "predefined": ["NVDA", "ANET"]
+    },
+    {
+      "id": "sensitivity_d_manual_and_topic",
+      "sensitivity_variant": "manual_and_topic",
+      "question": "What publicly traded suppliers are missing from an AI networking research universe?",
+      "manual": ["NVDA"],
+      "topic": "ai-networking",
+      "topic_name": "AI Networking",
+      "predefined": ["NVDA", "ANET"]
+    }
+  ]
+}

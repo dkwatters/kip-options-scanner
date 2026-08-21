@@ -37,6 +37,61 @@ OPENAI_RCE_RESPONSE_FORMAT = {
     },
 }
 
+OPENAI_RCE_ENRICHMENT_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "name": "rce_enrichment_response",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "candidate_securities": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "ticker": {"type": ["string", "null"]},
+                        "company_name": {"type": "string"},
+                        "discovery_lenses": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "direct_competitors",
+                                    "industry_landscape_peers",
+                                    "value_chain_relationships",
+                                    "adjacent_beneficiaries",
+                                    "substitution_disruption_threats",
+                                    "cross_seed_dependencies",
+                                ],
+                            },
+                        },
+                        "related_seed_matching_keys": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "reason_discovered": {"type": "string"},
+                        "evidence_references": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": [
+                        "ticker",
+                        "company_name",
+                        "discovery_lenses",
+                        "related_seed_matching_keys",
+                        "reason_discovered",
+                        "evidence_references",
+                    ],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "required": ["candidate_securities"],
+        "additionalProperties": False,
+    },
+}
+
 RCE_SYSTEM_PROMPT = """You are the Research Conversation Engine for an investment research platform.
 
 Your job is NOT to recommend investments.
@@ -78,6 +133,22 @@ You must not perform option analysis.
 You must not replace SAM/OAM/OD.
 You must help classify the user's intent and suggest a research path.
 
+Return structured JSON only."""
+
+RCE_CONTEXT_AWARE_ENRICHMENT_PROMPT_VERSION = "rce-context-aware-universe-enrichment-v0.1"
+RCE_CONTEXT_AWARE_ENRICHMENT_SYSTEM_PROMPT = RCE_SYSTEM_PROMPT + """
+
+Context-aware Research Universe enrichment behavior:
+- The supplied seed universe is authoritative known context, not a list to regenerate.
+- Find material omissions that add coverage to the already-known universe.
+- Research through the supplied Discovery Lenses; they are directions, not quotas.
+- Suppress every known seed member from candidate output.
+- Prefer publicly traded candidates supported by public company disclosures, filings, or reputable public industry sources.
+- Do not assume access to paywalled research.
+- Avoid weak thematic adjacency and explain the material coverage added.
+- Each candidate must return discovery_lenses, related_seed_matching_keys, reason_discovered, and evidence_references.
+- Evidence references must identify actual public sources; do not fabricate evidence.
+- Candidates are pending suggestions only and must never be described as approved membership.
 Return structured JSON only."""
 
 REQUIRED_STRUCTURED_FIELDS = (
@@ -209,10 +280,12 @@ class OpenAIResearchConversationProvider:
         api_key: str | None = None,
         model_name: str | None = None,
         client: Any | None = None,
+        max_output_tokens: int | None = None,
     ):
         self.api_key = api_key
         self.model_name = model_name or DEFAULT_RCE_OPENAI_MODEL
         self.client = client
+        self.max_output_tokens = max_output_tokens
 
     def interpret(
         self, request: ResearchConversationRequest
@@ -223,13 +296,26 @@ class OpenAIResearchConversationProvider:
         response_timestamp = None
         try:
             client = self.client or self._build_client()
-            raw_response = client.responses.create(
-                model=self.model_name,
-                input=[
-                    {"role": "system", "content": RCE_SYSTEM_PROMPT},
+            response_arguments = {
+                "model": self.model_name,
+                "input": [
+                    {"role": "system", "content": (
+                        RCE_CONTEXT_AWARE_ENRICHMENT_SYSTEM_PROMPT
+                        if request.prompt_version == RCE_CONTEXT_AWARE_ENRICHMENT_PROMPT_VERSION
+                        else RCE_SYSTEM_PROMPT
+                    )},
                     {"role": "user", "content": self._user_prompt(request)},
                 ],
-                text={"format": OPENAI_RCE_RESPONSE_FORMAT},
+                "text": {"format": (
+                    OPENAI_RCE_ENRICHMENT_RESPONSE_FORMAT
+                    if request.prompt_version == RCE_CONTEXT_AWARE_ENRICHMENT_PROMPT_VERSION
+                    else OPENAI_RCE_RESPONSE_FORMAT
+                )},
+            }
+            if self.max_output_tokens is not None:
+                response_arguments["max_output_tokens"] = self.max_output_tokens
+            raw_response = client.responses.create(
+                **response_arguments,
             )
             response_timestamp = utc_now()
             if raw_response is None:
@@ -245,7 +331,12 @@ class OpenAIResearchConversationProvider:
                 )
             response_text = self._response_text(raw_response)
             structured_response, warnings, errors = parse_structured_response(
-                response_text, request.original_question
+                response_text,
+                request.original_question,
+                enrichment=(
+                    request.prompt_version
+                    == RCE_CONTEXT_AWARE_ENRICHMENT_PROMPT_VERSION
+                ),
             )
             if not errors:
                 structured_response["provider_verification_marker"] = (
@@ -336,8 +427,7 @@ class OpenAIResearchConversationProvider:
         return with_rce_diagnostics(response)
 
     def _user_prompt(self, request: ResearchConversationRequest) -> str:
-        return json.dumps(
-            {
+        payload = {
                 "prompt_version": request.prompt_version or DEFAULT_RCE_PROMPT_VERSION,
                 "original_question": request.original_question,
                 "required_fields": REQUIRED_STRUCTURED_FIELDS,
@@ -451,9 +541,51 @@ class OpenAIResearchConversationProvider:
                     "Do not create or imply a final research universe.",
                 ],
                 "developer_qa_examples": DEVELOPER_QA_EXAMPLES,
-                "benchmark_qa_fixtures": BENCHMARK_QA_FIXTURES,
             }
-        )
+        if request.prompt_version == RCE_CONTEXT_AWARE_ENRICHMENT_PROMPT_VERSION:
+            payload = {
+                "prompt_version": request.prompt_version,
+                "original_question": request.original_question,
+                "candidate_security_schema": {
+                    "ticker": "string or null",
+                    "company_name": "string",
+                    "discovery_lenses": ["Discovery Lens identifier"],
+                    "related_seed_matching_keys": [
+                        "matching key from supplied seed_members"
+                    ],
+                    "reason_discovered": "concise material omission rationale",
+                    "evidence_references": ["public source title or URL"],
+                },
+                "required_fields": ["candidate_securities"],
+            }
+            payload["enrichment_request"] = request.context.get("enrichment_request", {})
+            payload["response_policy"] = [
+                "Treat seed_members as known and exclude them from candidate_securities.",
+                "Find material omissions using the active Discovery Lenses without per-lens quotas.",
+                "Return only evidence-supported public-company suggestions.",
+                "Preserve multiple supported discovery_lenses on a candidate.",
+                "Return related_seed_matching_keys only from the supplied seed members.",
+                "Every candidate is pending; never approve or promote a candidate.",
+            ]
+        if request.request_origin == "general_user":
+            if request.anchor_companies:
+                payload["anchor_companies"] = list(request.anchor_companies)
+                payload["anchor_company_guidance"] = [
+                    "These are user-supplied starting points; consider them, but do not blindly include them.",
+                    "Discover relevant public companies beyond the supplied anchors.",
+                    "Do not let the candidate universe collapse into a list made mainly of anchors.",
+                    "When possible, return anchor_company_review records with supplied_value, normalized_company_name, normalized_ticker, disposition (included, not_included, or unresolved), and an explanation only when supported.",
+                ]
+                payload["anchor_company_review_schema"] = [{
+                    "supplied_value": "string",
+                    "normalized_company_name": "string or null",
+                    "normalized_ticker": "string or null",
+                    "disposition": "included, not_included, or unresolved",
+                    "explanation": "string or null; do not fabricate",
+                }]
+        else:
+            payload["benchmark_qa_fixtures"] = BENCHMARK_QA_FIXTURES
+        return json.dumps(payload)
 
     @staticmethod
     def _response_text(raw_response: Any) -> str:
@@ -466,7 +598,10 @@ class OpenAIResearchConversationProvider:
 
 
 def parse_structured_response(
-    response_text: str, original_question: str
+    response_text: str,
+    original_question: str,
+    *,
+    enrichment: bool = False,
 ) -> tuple[dict[str, Any], list[str], list[str]]:
     warnings: list[str] = []
     errors: list[str] = []
@@ -486,6 +621,22 @@ def parse_structured_response(
         errors.append("OpenAI response JSON root must be an object.")
         structured_response["warnings"] = errors.copy()
         return structured_response, warnings, errors
+
+    if enrichment:
+        candidates = parsed.get("candidate_securities")
+        if not isinstance(candidates, list):
+            return (
+                {"candidate_securities": []},
+                ["candidate_securities was not a list."],
+                [],
+            )
+        return {
+            "candidate_securities": [
+                _normalize_enrichment_candidate(candidate)
+                for candidate in candidates
+                if isinstance(candidate, dict)
+            ]
+        }, warnings, errors
 
     structured_response = empty_research_conversation_structure(original_question)
     structured_response.update(parsed)
@@ -600,6 +751,20 @@ def _normalize_candidate_security(candidate: dict[str, Any]) -> dict[str, Any]:
         "subdomain": subdomain,
         "category": candidate.get("category") or subdomain,
         "confidence": _normalize_confidence(candidate.get("confidence")),
+    }
+
+
+def _normalize_enrichment_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
+    """Preserve the canonical enrichment fields for strict downstream validation."""
+    return {
+        "ticker": candidate.get("ticker"),
+        "company_name": candidate.get("company_name") or "",
+        "discovery_lenses": _as_list(candidate.get("discovery_lenses")),
+        "related_seed_matching_keys": _as_list(
+            candidate.get("related_seed_matching_keys")
+        ),
+        "reason_discovered": candidate.get("reason_discovered") or "",
+        "evidence_references": _as_list(candidate.get("evidence_references")),
     }
 
 

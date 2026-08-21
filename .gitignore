@@ -8,3 +8,4 @@ data/research/rce_benchmarks.sqlite
 .venv/
 .pytest_cache/
 data/research/*.sqlite
+logs/

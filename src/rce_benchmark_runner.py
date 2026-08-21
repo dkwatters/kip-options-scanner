@@ -65,7 +65,12 @@ def _usage(raw_response: Any) -> dict[str, int]:
     }
 
 
-def create_provider(name: str, model: str | None = None, env: dict[str, str] | None = None) -> Any:
+def create_provider(
+    name: str,
+    model: str | None = None,
+    env: dict[str, str] | None = None,
+    max_output_tokens: int | None = None,
+) -> Any:
     environment = env if env is not None else os.environ
     normalized = name.strip().casefold()
     if normalized == "mock":
@@ -76,7 +81,11 @@ def create_provider(name: str, model: str | None = None, env: dict[str, str] | N
         api_key = environment.get("OPENAI_API_KEY")
         if not api_key:
             raise BenchmarkProviderError("OPENAI_API_KEY is required for an OpenAI benchmark run; mock fallback is forbidden.")
-        return OpenAIResearchConversationProvider(api_key=api_key, model_name=model or DEFAULT_RCE_OPENAI_MODEL)
+        return OpenAIResearchConversationProvider(
+            api_key=api_key,
+            model_name=model or DEFAULT_RCE_OPENAI_MODEL,
+            max_output_tokens=max_output_tokens,
+        )
     raise BenchmarkProviderError(f"Unsupported RCE benchmark provider: {name}. Expected openai or mock.")
 
 

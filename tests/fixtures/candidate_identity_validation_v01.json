@@ -1,0 +1,127 @@
+{
+  "schema_version": "candidate-identity-validation-fixtures-v0.1",
+  "as_of": "2026-07-22T00:00:00+00:00",
+  "evidence": [
+    {
+      "company_name": "Cohu, Inc.",
+      "ticker_or_identifier": "COHU",
+      "authoritative_source": "Cohu investor relations",
+      "source_reference": "https://ir.cohu.com/stock-information/",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "current"
+    },
+    {
+      "company_name": "Coherent Corp.",
+      "ticker_or_identifier": "COHR",
+      "authoritative_source": "Coherent investor relations",
+      "source_reference": "https://investors.coherent.com/",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "current"
+    },
+    {
+      "company_name": "Jabil Inc.",
+      "ticker_or_identifier": "JBL",
+      "authoritative_source": "Jabil investor relations",
+      "source_reference": "https://investors.jabil.com/stock-information/",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "current"
+    },
+    {
+      "company_name": "JetBlue Airways Corporation",
+      "ticker_or_identifier": "JBLU",
+      "authoritative_source": "JetBlue investor relations",
+      "source_reference": "https://investor.jetblue.com/",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "current"
+    },
+    {
+      "company_name": "Viavi Solutions Inc.",
+      "ticker_or_identifier": "VIAV",
+      "authoritative_source": "Viavi SEC Form 8-K",
+      "source_reference": "https://www.sec.gov/Archives/edgar/data/912093/000119312515271022/d22689d8k.htm",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "renamed",
+      "aliases": ["Viavi Solutions", "JDS Uniphase Corporation"],
+      "former_tickers": ["JDSU"],
+      "notes": "JDS Uniphase changed its name to Viavi Solutions and began trading as VIAV in August 2015."
+    },
+    {
+      "company_name": "Xilinx, Inc.",
+      "ticker_or_identifier": "XLNX",
+      "authoritative_source": "AMD acquisition announcement",
+      "source_reference": "https://ir.amd.com/news-events/press-releases/detail/1044/amd-completes-acquisition-of-xilinx",
+      "public_trading_status": "not_independently_traded",
+      "current_listing_status": "acquired",
+      "aliases": ["Xilinx"],
+      "notes": "AMD completed its acquisition of Xilinx on February 14, 2022."
+    },
+    {
+      "company_name": "IQE plc",
+      "ticker_or_identifier": "IQE",
+      "authoritative_source": "London Stock Exchange issuer page",
+      "source_reference": "https://www.londonstockexchange.com/stock/IQE/iqe-plc/company-page",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "current"
+    },
+    {
+      "company_name": "Inteliquent, Inc.",
+      "ticker_or_identifier": "IQNT",
+      "authoritative_source": "Inteliquent SEC merger filing",
+      "source_reference": "https://www.sec.gov/Archives/edgar/data/1119807/000119312517040178/d309186d8k.htm",
+      "public_trading_status": "not_independently_traded",
+      "current_listing_status": "acquired",
+      "notes": "Inteliquent was acquired in February 2017."
+    },
+    {
+      "company_name": "Marvell Technology, Inc.",
+      "ticker_or_identifier": "MRVL",
+      "authoritative_source": "Marvell investor relations",
+      "source_reference": "https://investor.marvell.com/stock-information/default.aspx",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "current"
+    },
+    {
+      "company_name": "Broadcom Inc.",
+      "ticker_or_identifier": "AVGO",
+      "authoritative_source": "Broadcom investor relations",
+      "source_reference": "https://investors.broadcom.com/",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "current"
+    },
+    {
+      "company_name": "Advanced Micro Devices, Inc.",
+      "ticker_or_identifier": "AMD",
+      "authoritative_source": "AMD investor relations",
+      "source_reference": "https://ir.amd.com/stock-data/quote-and-chart",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "current"
+    },
+    {
+      "company_name": "Example Holdings plc",
+      "ticker_or_identifier": "EXA",
+      "authoritative_source": "Fixture exchange A register",
+      "source_reference": "fixture://exchange-a/example-holdings",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "current"
+    },
+    {
+      "company_name": "Example Holdings Ltd.",
+      "ticker_or_identifier": "EXB",
+      "authoritative_source": "Fixture exchange B register",
+      "source_reference": "fixture://exchange-b/example-holdings",
+      "public_trading_status": "publicly_tradable",
+      "current_listing_status": "current"
+    }
+  ],
+  "cases": [
+    {"id": "valid_match", "company_name": "Marvell Technology, Inc.", "ticker": "MRVL", "expected_status": "valid"},
+    {"id": "wrong_ticker_cohu", "company_name": "Cohu, Inc.", "ticker": "COHR", "expected_status": "corrected", "expected_ticker": "COHU"},
+    {"id": "wrong_ticker_jabil", "company_name": "Jabil Inc.", "ticker": "JBLU", "expected_status": "corrected", "expected_ticker": "JBL"},
+    {"id": "stale_predecessor", "company_name": "Viavi Solutions", "ticker": "JDSU", "expected_status": "corrected", "expected_ticker": "VIAV"},
+    {"id": "acquired_non_independent", "company_name": "Xilinx", "ticker": "XLNX", "expected_status": "rejected"},
+    {"id": "wrong_ticker_iqe", "company_name": "IQE plc", "ticker": "IQNT", "expected_status": "corrected", "expected_ticker": "IQE"},
+    {"id": "ambiguous_company", "company_name": "Example Holdings", "ticker": "WRONG", "expected_status": "unresolved"},
+    {"id": "unresolved_foreign_listing", "company_name": "Unverified Foreign Issuer plc", "ticker": "UFI.L", "expected_status": "unresolved"},
+    {"id": "valid_current_ticker", "company_name": "Broadcom Inc.", "ticker": "AVGO", "expected_status": "valid"}
+  ]
+}

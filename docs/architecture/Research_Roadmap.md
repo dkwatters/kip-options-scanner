@@ -499,6 +499,15 @@ Status: Planned
 - Opportunity Concentration Index.
 - Model Drift Detection.
 
+### Deferred product and audit workstreams
+
+- Research-question matching to established research topics, with explicit synthesis that does not silently change user intent.
+- RCE candidate-quality benchmarking and refinement, including candidate coverage and omission analysis.
+- Verbatim AI audit persistence linking the exact prompt and exact response to the originating run and provenance record.
+- Longitudinal Research Universe intelligence covering technical and ranking changes, material news and events, earnings and guidance, catalysts, and membership additions or removals worth reviewing.
+- Persistent Research Universe history and versioning beyond session-scoped working state.
+- More meaningful universe-level visualization, potentially comparing trend strength with extension or entry positioning instead of simple count bars.
+
 ### Phase 5 - Outcome Research
 
 Status: Planned
