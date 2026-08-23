@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -126,7 +127,7 @@ class ResearchUniverseAPIService:
         if approved_at.tzinfo is None:
             raise ResearchUniverseAPIError("approved_at must include a timezone")
         expected_digest = membership_digest(approved_members)
-        if not hashlib.compare_digest(expected_digest, approval.membership_digest.lower()):
+        if not hmac.compare_digest(expected_digest, approval.membership_digest.lower()):
             raise ResearchUniverseAPIError("membership digest does not match approved membership")
 
         created_id = universe_id or str(uuid4())
