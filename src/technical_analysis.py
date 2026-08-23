@@ -78,6 +78,7 @@ def technical_analysis_rows_for_symbols(
     scan_id: str | None,
     technical_timestamp: str,
     end_date: date,
+    current_date: date | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     """Fetch history and return repository-ready TAM rows plus per-symbol errors."""
     rows: list[dict[str, Any]] = []
@@ -93,12 +94,22 @@ def technical_analysis_rows_for_symbols(
                 start=start_date.isoformat(),
                 end=end_date.isoformat(),
             )
-            closes = closing_prices_from_history_payload(payload)
+            live_run = end_date == (current_date or date.today())
+            # For historical replay, an end-date daily close may have occurred
+            # after an intraday as-of timestamp. Use completed prior-day bars.
+            history_cutoff = end_date if live_run else end_date - timedelta(days=1)
+            closes = closing_prices_from_history_payload(
+                payload, through_date=history_cutoff
+            )
+            if not closes:
+                raise ValueError("No dated closing prices were available on or before end_date.")
             quote_price = None
-            try:
-                quote_price = last_price_from_quote_payload(client.get_quote(normalized))
-            except Exception:
-                quote_price = None
+            # A live quote is point-in-time safe only for a run dated today.
+            if live_run:
+                try:
+                    quote_price = last_price_from_quote_payload(client.get_quote(normalized))
+                except Exception:
+                    quote_price = None
             observation = characterize_technical_condition(
                 normalized,
                 closes,
@@ -112,21 +123,41 @@ def technical_analysis_rows_for_symbols(
     return rows, errors
 
 
-def closing_prices_from_history_payload(payload: dict[str, Any]) -> list[float]:
+def dated_closing_prices_from_history_payload(
+    payload: dict[str, Any], *, through_date: date | None = None
+) -> list[tuple[date, float]]:
+    """Return sorted, dated closes, rejecting observations after the cutoff."""
     history = payload.get("history", {}) if isinstance(payload, dict) else {}
     days = history.get("day") if isinstance(history, dict) else None
     if isinstance(days, dict):
         days = [days]
     if not isinstance(days, list):
         return []
-    closes: list[float] = []
+    closes_by_date: dict[date, float] = {}
     for day in days:
         if not isinstance(day, dict):
             continue
+        try:
+            trading_date = date.fromisoformat(str(day.get("date") or ""))
+        except ValueError:
+            continue
         close = _number_or_none(day.get("close"))
-        if close is not None and close > 0:
-            closes.append(close)
-    return closes
+        if close is not None and close > 0 and (
+            through_date is None or trading_date <= through_date
+        ):
+            closes_by_date[trading_date] = close
+    return sorted(closes_by_date.items())
+
+
+def closing_prices_from_history_payload(
+    payload: dict[str, Any], *, through_date: date | None = None
+) -> list[float]:
+    return [
+        close
+        for _trading_date, close in dated_closing_prices_from_history_payload(
+            payload, through_date=through_date
+        )
+    ]
 
 
 def last_price_from_quote_payload(payload: dict[str, Any]) -> float | None:

@@ -33,6 +33,31 @@ def render_model_lab() -> None:
         rows = [{"Horizon (trading days)": horizon, **metrics} for horizon, metrics in scorecard["horizons"].items()]
         st.subheader("Forward outcome statistics")
         st.dataframe(pd.DataFrame(rows), hide_index=True, column_config={"coverage": st.column_config.NumberColumn("Coverage", format="percent"), "directional_hit_rate": st.column_config.NumberColumn("Directional hit rate", format="percent"), "average_forward_return": st.column_config.NumberColumn("Average return", format="percent"), "median_forward_return": st.column_config.NumberColumn("Median return", format="percent")})
+        if outcomes:
+            st.subheader("Outcome ledger")
+            st.dataframe(
+                pd.DataFrame(
+                    [
+                        {
+                            "Signal ID": outcome.signal_id,
+                            "Horizon": outcome.horizon_trading_days,
+                            "Status": outcome.status.value,
+                            "Start date": outcome.start_date,
+                            "End date": outcome.end_date,
+                            "Start price": outcome.start_price,
+                            "End price": outcome.end_price,
+                            "Forward return": outcome.absolute_return,
+                            "Directional correctness": outcome.directional_correct,
+                            "Error": outcome.error,
+                        }
+                        for outcome in outcomes
+                    ]
+                ),
+                hide_index=True,
+                column_config={
+                    "Forward return": st.column_config.NumberColumn(format="percent")
+                },
+            )
     else:
         st.info("Signals exist, but no forward outcomes have been evaluated yet.")
     st.subheader("Signal ledger")

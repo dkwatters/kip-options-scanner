@@ -1,7 +1,7 @@
 import os
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -18,7 +18,14 @@ class FakeTamClient:
 
     def get_price_history(self, symbol, start=None, end=None):
         self.history_symbols.append(symbol)
-        closes = [{"close": 100 + index} for index in range(220)]
+        end_day = date.fromisoformat(end)
+        closes = [
+            {
+                "date": (end_day - timedelta(days=219 - index)).isoformat(),
+                "close": 100 + index,
+            }
+            for index in range(220)
+        ]
         return {"history": {"day": closes}}
 
     def get_quote(self, symbol):
@@ -57,7 +64,7 @@ class TechnicalScanTest(unittest.TestCase):
         self.assertGreater(result["row_counts"]["technical_characterization"], 0)
         self.assertEqual(result["technical_error_count"], 0)
         self.assertEqual(client.option_chain_calls, [])
-        self.assertEqual(len(client.history_symbols), len(client.quote_symbols))
+        self.assertEqual(client.quote_symbols, [])
 
     def test_scheduled_tam_scan_skips_closed_market_before_client_calls(self):
         client = FakeTamClient()

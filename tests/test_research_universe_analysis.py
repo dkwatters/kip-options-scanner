@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from src.research_universe import ResearchUniverseReviewService, UniverseSource, source_record
@@ -18,7 +18,14 @@ class FakeMarketData:
         self.history_requests.append(symbol)
         if symbol in self.unavailable:
             return {"history": {"day": []}}
-        return {"history": {"day": [{"close": 100 + index / 10} for index in range(260)]}}
+        end_day = date.fromisoformat(kwargs["end"])
+        return {"history": {"day": [
+            {
+                "date": (end_day - timedelta(days=259 - index)).isoformat(),
+                "close": 100 + index / 10,
+            }
+            for index in range(260)
+        ]}}
 
     def get_quote(self, symbol):
         return {"quotes": {"quote": {"symbol": symbol, "last": 125}}}

@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import closing
-from dataclasses import asdict
 from pathlib import Path
 from typing import Iterable
 
@@ -70,7 +69,9 @@ class SignalRepository:
             return psycopg.connect(self.target.database_url)
         path = Path(self.target.sqlite_path or DEFAULT_RESEARCH_DB_PATH)
         path.parent.mkdir(parents=True, exist_ok=True)
-        return sqlite3.connect(path)
+        connection = sqlite3.connect(path)
+        connection.execute("PRAGMA foreign_keys = ON")
+        return connection
 
     def initialize(self) -> None:
         with closing(self._connect()) as connection:
@@ -84,20 +85,32 @@ class SignalRepository:
 
     def save_signal(self, signal: Signal) -> bool:
         """Append a signal, accepting an identical retry but rejecting mutation."""
+        return self.save_signals((signal,))[0]
+
+    def save_signals(self, signals: Iterable[Signal]) -> tuple[bool, ...]:
+        """Persist a batch atomically; any conflict rolls back every new row."""
         self.initialize()
-        values = _signal_values(signal)
         placeholder = "%s" if self.target.backend == REPOSITORY_BACKEND_POSTGRES else "?"
         with closing(self._connect()) as connection:
             cursor = connection.cursor()
-            cursor.execute(f"SELECT {', '.join(SIGNAL_COLUMNS)} FROM research_signals WHERE signal_id = {placeholder}", (signal.signal_id,))
-            existing = cursor.fetchone()
-            if existing is not None:
-                if tuple(existing) != values:
-                    raise HistoricalSignalConflict(f"Signal {signal.signal_id} already exists with different immutable content.")
-                return False
-            cursor.execute(f"INSERT INTO research_signals ({', '.join(SIGNAL_COLUMNS)}) VALUES ({', '.join([placeholder] * len(values))})", values)
-            connection.commit()
-        return True
+            inserted: list[bool] = []
+            try:
+                for signal in signals:
+                    values = _signal_values(signal)
+                    cursor.execute(f"SELECT {', '.join(SIGNAL_COLUMNS)} FROM research_signals WHERE signal_id = {placeholder}", (signal.signal_id,))
+                    existing = cursor.fetchone()
+                    if existing is not None:
+                        if tuple(existing) != values:
+                            raise HistoricalSignalConflict(f"Signal {signal.signal_id} already exists with different immutable content.")
+                        inserted.append(False)
+                        continue
+                    cursor.execute(f"INSERT INTO research_signals ({', '.join(SIGNAL_COLUMNS)}) VALUES ({', '.join([placeholder] * len(values))})", values)
+                    inserted.append(True)
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+        return tuple(inserted)
 
     def list_signals(self, *, ticker: str | None = None, model_id: str | None = None, model_version: str | None = None, as_of_start: str | None = None, as_of_end: str | None = None) -> tuple[Signal, ...]:
         self.initialize()

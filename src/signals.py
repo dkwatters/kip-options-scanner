@@ -61,6 +61,14 @@ class Signal:
 
 
 TAM_SETUP_SIGNAL_MODEL_ID = "technical-setup-score"
+TAM_SETUP_SIGNAL_MODEL_VERSION = "technical-setup-signal-v0.1.1"
+TREND_SIGNAL_MAPPING = {
+    "bullish_alignment": (SignalDirection.BULLISH, 1.0),
+    "constructive": (SignalDirection.BULLISH, 0.5),
+    "mixed": (SignalDirection.NEUTRAL, 0.0),
+    "deteriorating": (SignalDirection.BEARISH, -0.5),
+    "bearish_alignment": (SignalDirection.BEARISH, -1.0),
+}
 
 
 def technical_setup_signal(row: Mapping[str, Any], *, created_at: str | None = None) -> Signal:
@@ -69,7 +77,7 @@ def technical_setup_signal(row: Mapping[str, Any], *, created_at: str | None = N
     as_of = str(row.get("technical_timestamp") or "").strip()
     score = technical_setup_score(dict(row))
     source_ref = str(row.get("scan_id") or "").strip()
-    identity = f"{TAM_SETUP_SIGNAL_MODEL_ID}|{TECHNICAL_SCORING_VERSION}|{ticker}|{as_of}|{source_ref}"
+    identity = f"{TAM_SETUP_SIGNAL_MODEL_ID}|{TAM_SETUP_SIGNAL_MODEL_VERSION}|{ticker}|{as_of}|{source_ref}"
     signal_id = str(uuid5(NAMESPACE_URL, identity))
     evidence_refs = (f"technical_characterization:{source_ref}:{ticker}",) if source_ref else ()
     components = {
@@ -80,23 +88,27 @@ def technical_setup_signal(row: Mapping[str, Any], *, created_at: str | None = N
             "macd_line", "macd_signal", "macd_histogram", "volatility_state",
         )
     }
-    if score is None:
+    trend_state = str(row.get("trend_state") or "").strip().lower()
+    if score is None or trend_state not in TREND_SIGNAL_MAPPING:
         direction, conviction = SignalDirection.ABSTAIN, 0.0
-        reasoning = "The existing technical setup score had insufficient inputs."
+        reasoning = "The existing TAM inputs did not support a directional trend conclusion."
     else:
-        conviction = round((score - 50.0) / 50.0, 3)
-        direction = (
-            SignalDirection.BULLISH if conviction > 0
-            else SignalDirection.BEARISH if conviction < 0
-            else SignalDirection.NEUTRAL
+        direction, conviction = TREND_SIGNAL_MAPPING[trend_state]
+        reasoning = (
+            f"Existing TAM trend state: {trend_state}; deterministic technical "
+            f"setup score: {score:.1f}/100."
         )
-        reasoning = f"Existing deterministic technical setup score: {score:.1f}/100."
     return Signal(
         signal_id=signal_id, ticker=ticker, as_of=as_of,
-        model_id=TAM_SETUP_SIGNAL_MODEL_ID, model_version=TECHNICAL_SCORING_VERSION,
+        model_id=TAM_SETUP_SIGNAL_MODEL_ID, model_version=TAM_SETUP_SIGNAL_MODEL_VERSION,
         direction=direction, conviction=conviction, confidence=None,
         reasoning=reasoning, components=components,
-        metadata={"source_scan_id": source_ref, "source_score": score},
+        metadata={
+            "source_scan_id": source_ref,
+            "source_score": score,
+            "source_scoring_version": TECHNICAL_SCORING_VERSION,
+            "source_trend_state": trend_state,
+        },
         evidence_refs=evidence_refs,
         # The source observation timestamp makes retries byte-for-byte idempotent.
         created_at=created_at or as_of,

@@ -1357,9 +1357,24 @@ def archive_current_opportunity_scan(
         study_protocol=study_protocol,
     )
     signal_repository = signal_repository_from_env()
-    for technical_row in technical_rows:
-        signal_repository.save_signal(technical_setup_signal(technical_row))
+    try:
+        signal_repository.save_signals(
+            technical_setup_signal(technical_row) for technical_row in technical_rows
+        )
+    except Exception as error:
+        raise ScanSignalPersistenceError(counts, error) from error
     return counts
+
+
+class ScanSignalPersistenceError(RuntimeError):
+    """The scan committed, while the atomic Signal batch did not commit."""
+
+    def __init__(self, scan_counts, cause):
+        self.scan_counts = scan_counts
+        super().__init__(
+            "Scan archived successfully, but no new Signals from its atomic batch "
+            f"were persisted: {cause}"
+        )
 
 
 def render_sidebar_metric(label, value):
@@ -2562,6 +2577,10 @@ def render_opportunity_discovery_workflow(
                     discovery_symbols,
                     DEFAULT_STUDY_PROTOCOL.metadata(run_mode=RUN_MODE_MANUAL_UI),
                 )
+            except ScanSignalPersistenceError as error:
+                st.session_state.opportunity_archive_counts = error.scan_counts
+                st.session_state.opportunity_archive_error = str(error)
+                st.session_state.opportunity_archived_scan_id = scan_id
             except Exception as error:
                 st.session_state.opportunity_archive_counts = None
                 st.session_state.opportunity_archive_error = str(error)

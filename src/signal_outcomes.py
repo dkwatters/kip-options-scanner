@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 from typing import Iterable, Protocol
 
 from src.signals import Signal, SignalDirection
+from src.market_calendar import is_us_equity_trading_day
 
 DEFAULT_HORIZONS = (5, 20, 60)
 
@@ -63,16 +64,29 @@ def evaluate_signal_outcome(
     stamp = evaluated_at or datetime.now(timezone.utc).isoformat()
     try:
         as_of_date = date.fromisoformat(signal.as_of[:10])
-        rows = sorted({row.trading_date: row for row in observations}.values(), key=lambda row: row.trading_date)
-        rows = [row for row in rows if row.trading_date >= as_of_date]
-        if not rows:
-            return SignalOutcome(signal.signal_id, horizon, OutcomeStatus.MISSING_DATA, error="No starting observation on or after signal as-of date.", evaluated_at=stamp)
-        start = rows[0]
-        end_index = horizon
-        if len(rows) <= end_index:
-            status = OutcomeStatus.NOT_YET_ELIGIBLE if through_date is not None and rows[-1].trading_date >= through_date else OutcomeStatus.MISSING_DATA
-            return SignalOutcome(signal.signal_id, horizon, status, start_date=start.trading_date.isoformat(), start_price=start.close, error="Insufficient subsequent trading-day observations.", evaluated_at=stamp)
-        end = rows[end_index]
+        rows_by_date: dict[date, PriceObservation] = {}
+        for row in observations:
+            if row.trading_date in rows_by_date:
+                raise ValueError(f"Duplicate price observation for {row.trading_date.isoformat()}.")
+            if is_us_equity_trading_day(row.trading_date):
+                rows_by_date[row.trading_date] = row
+        expected_start = _trading_day_on_or_after(as_of_date)
+        start = rows_by_date.get(expected_start)
+        if start is None:
+            status = (
+                OutcomeStatus.NOT_YET_ELIGIBLE
+                if through_date is not None and expected_start > through_date
+                else OutcomeStatus.MISSING_DATA
+            )
+            return SignalOutcome(signal.signal_id, horizon, status, error=f"Missing required starting session observation for {expected_start.isoformat()}.", evaluated_at=stamp)
+        required_dates = _trading_session_dates(expected_start, horizon)
+        expected_end = required_dates[-1]
+        if through_date is not None and expected_end > through_date:
+            return SignalOutcome(signal.signal_id, horizon, OutcomeStatus.NOT_YET_ELIGIBLE, start_date=start.trading_date.isoformat(), start_price=start.close, error=f"Horizon matures on {expected_end.isoformat()}.", evaluated_at=stamp)
+        missing_dates = [session for session in required_dates if session not in rows_by_date]
+        if missing_dates:
+            return SignalOutcome(signal.signal_id, horizon, OutcomeStatus.MISSING_DATA, start_date=start.trading_date.isoformat(), start_price=start.close, error="Missing required trading-session observations: " + ", ".join(session.isoformat() for session in missing_dates), evaluated_at=stamp)
+        end = rows_by_date[expected_end]
         result = (end.close / start.close) - 1.0
         correctness = None
         if signal.direction is SignalDirection.BULLISH:
@@ -86,6 +100,22 @@ def evaluate_signal_outcome(
         )
     except Exception as error:
         return SignalOutcome(signal.signal_id, horizon, OutcomeStatus.ERROR, error=str(error), evaluated_at=stamp)
+
+
+def _trading_day_on_or_after(day: date) -> date:
+    while not is_us_equity_trading_day(day):
+        day += timedelta(days=1)
+    return day
+
+
+def _trading_session_dates(start: date, horizon: int) -> tuple[date, ...]:
+    sessions = [start]
+    candidate = start
+    while len(sessions) <= horizon:
+        candidate += timedelta(days=1)
+        if is_us_equity_trading_day(candidate):
+            sessions.append(candidate)
+    return tuple(sessions)
 
 
 def evaluate_signal_horizons(signal: Signal, observations: Iterable[PriceObservation], horizons: Iterable[int] = DEFAULT_HORIZONS, **kwargs) -> tuple[SignalOutcome, ...]:
