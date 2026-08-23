@@ -72,6 +72,7 @@ from src.quality_diagnostics import (
     status_distribution,
 )
 from src.navigation import apply_pending_navigation, request_navigation
+from src.model_lab_page import render_model_lab
 from src.rce_benchmark_explorer_page import render_benchmark_explorer
 from src.research_universe_builder_page import render_research_universe_builder, start_new_research
 from src.research_universe_review_page import render_current_research_universe_page
@@ -85,6 +86,8 @@ from src.research_repository import (
     research_repository_from_env,
     research_repository_target_from_env,
 )
+from src.signal_repository import signal_repository_from_env
+from src.signals import technical_setup_signal
 from src.research_conversation import (
     ResearchConversationService,
     create_research_conversation_provider,
@@ -1339,7 +1342,7 @@ def archive_current_opportunity_scan(
     )
     rule_rows = rule_evaluation_export_rows(evaluated_rows, scan_id)
     repository = research_repository_from_env()
-    return repository.archive_opportunity_scan(
+    counts = repository.archive_opportunity_scan(
         scan_id=scan_id,
         scan_timestamp=scan_timestamp,
         universe_name=universe_name,
@@ -1353,6 +1356,10 @@ def archive_current_opportunity_scan(
         technical_rows=technical_rows,
         study_protocol=study_protocol,
     )
+    signal_repository = signal_repository_from_env()
+    for technical_row in technical_rows:
+        signal_repository.save_signal(technical_setup_signal(technical_row))
+    return counts
 
 
 def render_sidebar_metric(label, value):
@@ -3481,6 +3488,7 @@ def main():
         "Company Analysis",
         "Opportunities",
         "History",
+        "Model Lab",
         "Administration",
     ]
     with st.sidebar:
@@ -3548,6 +3556,8 @@ def main():
             render_quality_engine_diagnostics_workflow()
     elif selected_page == "History":
         render_research_repository_page()
+    elif selected_page == "Model Lab":
+        render_model_lab()
     elif selected_page == "Research Launchpad":
         render_research_universe_builder(root=ROOT, analyze_company=launch_benchmark_company_analysis)
     elif selected_page == "Research Universe":
