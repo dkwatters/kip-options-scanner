@@ -6,6 +6,8 @@ The foundation extends the existing append-oriented Research Repository pattern 
 
 The first producer reuses the existing deterministic Technical Analysis Model setup score (`technical-setup-score-v0.1`) without changing its calculation. Direction comes only from the TAM's existing directional `trend_state`: `bullish_alignment` / `constructive` map to positive conviction, `mixed` maps to neutral, and `deteriorating` / `bearish_alignment` map to negative conviction. Missing or unsupported trend evidence produces `abstain`. The adapter is versioned separately as `technical-setup-signal-v0.1.1`, preserving the original v0.1 adapter history rather than reinterpreting persisted Signals. Confidence remains absent because the source model does not estimate it.
 
+Signal production is attached to the shared technical-observation application boundary rather than to an option-contract or page-specific workflow. Universe Analysis, Opportunity Discovery, and script-driven TAM/research scans archive successfully generated observations before deriving and atomically persisting the corresponding Signal batch from the same repository target.
+
 ## Integrity boundaries
 
 - A signal contains only information available at its `as_of` timestamp.

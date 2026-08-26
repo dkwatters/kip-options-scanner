@@ -28,6 +28,7 @@ from src.universe_analysis import (
     filter_analysis_rows,
     ranked_analysis_rows,
 )
+from src.signal_status_ui import render_signal_persistence_failure
 
 
 def _count_rows(rows: list[dict[str, Any]], field: str) -> list[dict[str, Any]]:
@@ -216,6 +217,9 @@ def render_universe_analysis() -> None:
             "This analysis completed, but its historical snapshot could not be saved. "
             "The current analysis remains available. Details: " + persistence_error
         )
+    signal_persistence_error = getattr(run, "signal_persistence_error", None)
+    if signal_persistence_error:
+        render_signal_persistence_failure(signal_persistence_error)
     selection_scope = f"{run.universe_id}:v{run.universe_version}:{run.scan_id}"
     active_key = "universe_analysis_active_company"
     active = st.session_state.get(active_key)

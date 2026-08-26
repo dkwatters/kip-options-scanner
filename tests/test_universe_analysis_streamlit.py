@@ -173,6 +173,18 @@ def test_population_charts_are_in_optional_collapsed_distribution_section():
     assert any("Technical Profile Distribution" in item.value for item in app.markdown)
 
 
+def test_archived_analysis_surfaces_derived_signal_persistence_failure():
+    app = AppTest.from_string(APP).run()
+    app.session_state["active_universe_analysis_run"].signal_persistence_error = (
+        "HistoricalSignalConflict: immutable content"
+    )
+    app.run()
+    assert any(
+        "Analysis archived, but derived Signals were not persisted." in warning.value
+        for warning in app.warning
+    )
+
+
 def test_investor_copy_omits_removed_implementation_language():
     source = open("src/universe_analysis_page.py", encoding="utf-8").read()
     assert "presentation rules" not in source

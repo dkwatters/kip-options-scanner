@@ -18,7 +18,7 @@ def render_model_lab() -> None:
         st.error("Model Lab is unavailable: " + str(error))
         return
     if not all_signals:
-        st.info("No signals have been recorded yet. Future Technical Analysis Model scans will add versioned signals here.")
+        st.info("No signals have been recorded yet. Signals will appear here after supported analytical models generate and persist research observations.")
         return
     identities = sorted({(signal.model_id, signal.model_version) for signal in all_signals})
     selected = st.selectbox("Model and version", identities, format_func=lambda value: f"{value[0]} · {value[1]}")

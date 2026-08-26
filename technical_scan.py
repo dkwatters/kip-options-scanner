@@ -24,6 +24,8 @@ from src.study_protocol import (
     RunMode,
 )
 from src.technical_analysis import technical_analysis_rows_for_symbols
+from src.signal_repository import SignalRepository
+from src.technical_observation_service import archive_technical_observations_and_signals
 from src.tradier_client import TradierClient
 from src.universe import load_universe
 
@@ -92,13 +94,15 @@ def run_tam_technical_scan(
         technical_timestamp=formatted_timestamp,
         end_date=timestamp.date(),
     )
-    row_counts = repository.archive_technical_observations(
-        scan_id=scan_id,
-        technical_rows=technical_rows,
-        study_protocol=protocol.metadata(
-            scheduled_time_label=scheduled_time_label,
-            run_mode=run_mode,
+    persistence = archive_technical_observations_and_signals(
+        technical_rows,
+        archive_observations=lambda rows: repository.archive_technical_observations(
+            scan_id=scan_id, technical_rows=rows,
+            study_protocol=protocol.metadata(
+                scheduled_time_label=scheduled_time_label, run_mode=run_mode,
+            ),
         ),
+        signal_repository=SignalRepository(repository_target),
     )
 
     return {
@@ -106,7 +110,8 @@ def run_tam_technical_scan(
         "technical_timestamp": formatted_timestamp,
         "database_path": repository_target.display_location,
         "repository_backend": repository_target.backend,
-        "row_counts": row_counts,
+        "row_counts": persistence.archive_result,
+        "signal_persistence_error": persistence.signal_persistence_error,
         "technical_error_count": len(technical_errors),
         "run_mode": run_mode,
         "scheduled_time_label": scheduled_time_label,
@@ -219,6 +224,8 @@ def main() -> None:
         f"{result['row_counts'].get('technical_characterization', 0)}"
     )
     print(f"technical error count: {result['technical_error_count']}")
+    if result["signal_persistence_error"]:
+        print("Analysis archived, but derived Signals were not persisted: " + result["signal_persistence_error"])
     print(f"database path: {result['database_path']}")
 
 

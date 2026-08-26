@@ -21,7 +21,7 @@ from src.research_universe_repository import research_universe_repository_from_e
 from src.research_universe_input import ResearchUniverseInputService, configured_research_universe_input_service
 from src.research_universe_analysis import execute_research_universe_analysis, preflight_research_universe
 from src.research_universe_diagnostics import ResearchUniverseDiagnosticStore
-from src.research_repository import research_repository_from_env
+from src.technical_observation_service import configured_technical_observation_repositories
 from src.tradier_client import TradierClient
 from src.universe_analysis_snapshot_repository import (
     universe_analysis_snapshot_repository_from_env,
@@ -524,10 +524,11 @@ def render_current_research_universe_page(*, analyze_company=None) -> None:
             st.session_state.pop("active_universe_analysis_preflight", None)
             st.error("Research Universe membership changed. Run Analyze Universe again to validate the current membership.")
             return
-        repository = research_repository_from_env()
+        repository, signal_repository = configured_technical_observation_repositories()
         repository.initialize()
         analysis_run = execute_research_universe_analysis(
             preflight_state, client=TradierClient(), repository=repository,
+            signal_repository=signal_repository,
         )
         st.session_state.active_universe_analysis_run = analysis_run
         st.session_state.pop("active_universe_analysis_snapshot_id", None)

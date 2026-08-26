@@ -7,6 +7,8 @@ from src.research_universe_analysis import (
     execute_research_universe_analysis,
     preflight_research_universe,
 )
+from src.signal_repository import SignalRepository
+from src.research_repository import ResearchRepositoryTarget, REPOSITORY_BACKEND_SQLITE
 
 
 class FakeMarketData:
@@ -38,6 +40,16 @@ class FakeRepository:
     def archive_technical_observations(self, **kwargs):
         self.archives.append(kwargs)
         return {"technical_characterization": len(kwargs["technical_rows"])}
+
+
+class FakeSignalRepository:
+    def __init__(self):
+        self.signals = []
+
+    def save_signals(self, signals):
+        batch = tuple(signals)
+        self.signals.extend(batch)
+        return tuple(True for _ in batch)
 
 
 def _universe(symbols):
@@ -75,7 +87,7 @@ def test_execution_creates_new_exact_run_and_reconciled_ledger():
     preflight = preflight_research_universe(_universe(symbols).downstream_handoff(), client)
     repository = FakeRepository()
     run = execute_research_universe_analysis(
-        preflight, client=client, repository=repository,
+        preflight, client=client, repository=repository, signal_repository=FakeSignalRepository(),
         now=datetime(2026, 7, 20, 12, 0, tzinfo=ZoneInfo("America/New_York")),
     )
 
@@ -106,7 +118,7 @@ def test_new_research_runs_are_isolated_and_never_reuse_scan_or_membership():
     now = datetime(2026, 7, 20, 12, 0, tzinfo=ZoneInfo("America/New_York"))
     run_a = execute_research_universe_analysis(
         preflight_research_universe(_universe(("CRWD",)).downstream_handoff(), client),
-        client=client, repository=repository, now=now,
+        client=client, repository=repository, signal_repository=FakeSignalRepository(), now=now,
     )
     universe_b = ResearchUniverseReviewService().assemble(
         universe_id="universe-b", title="B",
@@ -117,7 +129,7 @@ def test_new_research_runs_are_isolated_and_never_reuse_scan_or_membership():
     )
     run_b = execute_research_universe_analysis(
         preflight_research_universe(universe_b.downstream_handoff(), client),
-        client=client, repository=repository, now=now,
+        client=client, repository=repository, signal_repository=FakeSignalRepository(), now=now,
     )
     assert run_a.scan_id != run_b.scan_id
     assert run_a.requested_tickers == ("CRWD",)

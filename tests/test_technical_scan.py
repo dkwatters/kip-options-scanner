@@ -8,6 +8,8 @@ from zoneinfo import ZoneInfo
 
 from src.study_protocol import RUN_MODE_RESEARCH_SCRIPT, RUN_MODE_SCHEDULED
 from technical_scan import run_tam_technical_scan
+from src.research_repository import ResearchRepositoryTarget, REPOSITORY_BACKEND_SQLITE
+from src.signal_repository import SignalRepository
 
 
 class FakeTamClient:
@@ -57,6 +59,9 @@ class TechnicalScanTest(unittest.TestCase):
                         2026, 7, 6, 16, 30, tzinfo=ZoneInfo("America/New_York")
                     ),
                 )
+            signals = SignalRepository(ResearchRepositoryTarget(
+                REPOSITORY_BACKEND_SQLITE, sqlite_path=Path(database_path)
+            )).list_signals()
 
         self.assertFalse(result["skipped"])
         self.assertEqual(result["row_counts"]["opportunity_scans"], 0)
@@ -65,6 +70,8 @@ class TechnicalScanTest(unittest.TestCase):
         self.assertEqual(result["technical_error_count"], 0)
         self.assertEqual(client.option_chain_calls, [])
         self.assertEqual(client.quote_symbols, [])
+        self.assertGreater(len(signals), 0)
+        self.assertTrue(all(row.model_version == "technical-setup-signal-v0.1.1" for row in signals))
 
     def test_scheduled_tam_scan_skips_closed_market_before_client_calls(self):
         client = FakeTamClient()

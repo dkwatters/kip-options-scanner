@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from src.research_universe import IdentityStatus, ResearchUniverseHandoff
 from src.study_protocol import RUN_MODE_MANUAL_UI, TAM_STUDY_PROTOCOL
 from src.technical_analysis import closing_prices_from_history_payload, technical_analysis_rows_for_symbols
+from src.technical_observation_service import archive_technical_observations_and_signals
 
 
 EASTERN_TIME = ZoneInfo("America/New_York")
@@ -67,6 +68,7 @@ class ResearchUniverseAnalysisRun:
     timestamp: str
     scan_id: str
     ledger: tuple[AnalysisLedgerEntry, ...]
+    signal_persistence_error: str | None = None
 
 
 def preflight_research_universe(handoff: ResearchUniverseHandoff, client: Any) -> ResearchUniversePreflight:
@@ -96,7 +98,7 @@ def preflight_research_universe(handoff: ResearchUniverseHandoff, client: Any) -
     return ResearchUniversePreflight(handoff, tuple(ledger))
 
 
-def execute_research_universe_analysis(preflight: ResearchUniversePreflight, *, client: Any, repository: Any, now: datetime | None = None) -> ResearchUniverseAnalysisRun:
+def execute_research_universe_analysis(preflight: ResearchUniversePreflight, *, client: Any, repository: Any, signal_repository: Any, now: datetime | None = None) -> ResearchUniverseAnalysisRun:
     """Create and archive a new TAM run for exactly the preflight-ready tickers."""
     timestamp = now or datetime.now(EASTERN_TIME)
     if timestamp.tzinfo is None:
@@ -116,7 +118,14 @@ def execute_research_universe_analysis(preflight: ResearchUniversePreflight, *, 
             final.append(AnalysisLedgerEntry(entry.matching_key, entry.company_name, entry.ticker_or_identifier, entry.identity_status, AnalysisMemberStatus.ANALYZED, "Technical characterization completed."))
         else:
             final.append(AnalysisLedgerEntry(entry.matching_key, entry.company_name, entry.ticker_or_identifier, entry.identity_status, AnalysisMemberStatus.TECHNICAL_FAILURE, errors.get(symbol, "Technical characterization produced no result.")))
-    repository.archive_technical_observations(scan_id=scan_id, technical_rows=rows, study_protocol=TAM_STUDY_PROTOCOL.metadata(scheduled_time_label=None, run_mode=RUN_MODE_MANUAL_UI))
+    persistence = archive_technical_observations_and_signals(
+        rows,
+        archive_observations=lambda persisted_rows: repository.archive_technical_observations(
+            scan_id=scan_id, technical_rows=persisted_rows,
+            study_protocol=TAM_STUDY_PROTOCOL.metadata(scheduled_time_label=None, run_mode=RUN_MODE_MANUAL_UI),
+        ),
+        signal_repository=signal_repository,
+    )
     if len(final) != preflight.handoff.total_member_count:
         raise ValueError("Analysis ledger does not reconcile to Research Universe membership.")
     return ResearchUniverseAnalysisRun(
@@ -127,5 +136,5 @@ def execute_research_universe_analysis(preflight: ResearchUniversePreflight, *, 
             entry.ticker_or_identifier or entry.company_name
             for entry in final if entry.status != AnalysisMemberStatus.ANALYZED
         ),
-        formatted, scan_id, tuple(final),
+        formatted, scan_id, tuple(final), persistence.signal_persistence_error,
     )
