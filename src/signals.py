@@ -16,6 +16,12 @@ class SignalDirection(str, Enum):
     NEUTRAL = "neutral"
     BEARISH = "bearish"
     ABSTAIN = "abstain"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class SignalFamily(str, Enum):
+    DIRECTIONAL = "directional"
+    VOLATILITY = "volatility"
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +39,8 @@ class Signal:
     metadata: Mapping[str, Any] = field(default_factory=dict)
     evidence_refs: tuple[str, ...] = ()
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    # Appended after every v0.1 field to preserve positional construction compatibility.
+    signal_family: SignalFamily = SignalFamily.DIRECTIONAL
 
     def __post_init__(self) -> None:
         for name in ("signal_id", "ticker", "as_of", "model_id", "model_version", "created_at"):
@@ -40,10 +48,19 @@ class Signal:
                 raise ValueError(f"{name} is required")
         object.__setattr__(self, "ticker", self.ticker.strip().upper())
         try:
+            family = SignalFamily(self.signal_family)
+        except ValueError as error:
+            raise ValueError(f"Unsupported signal family: {self.signal_family}") from error
+        object.__setattr__(self, "signal_family", family)
+        try:
             direction = SignalDirection(self.direction)
         except ValueError as error:
             raise ValueError(f"Unsupported signal direction: {self.direction}") from error
         object.__setattr__(self, "direction", direction)
+        if family is SignalFamily.DIRECTIONAL and direction is SignalDirection.NOT_APPLICABLE:
+            raise ValueError("directional signals require directional semantics")
+        if family is SignalFamily.VOLATILITY and direction is not SignalDirection.NOT_APPLICABLE:
+            raise ValueError("volatility signals require direction not_applicable")
         if not isfinite(self.conviction) or not -1.0 <= self.conviction <= 1.0:
             raise ValueError("conviction must be finite and between -1.0 and 1.0")
         if direction is SignalDirection.ABSTAIN and self.conviction != 0.0:
@@ -54,6 +71,8 @@ class Signal:
             raise ValueError("bullish signals require positive conviction")
         if direction is SignalDirection.BEARISH and self.conviction >= 0.0:
             raise ValueError("bearish signals require negative conviction")
+        if direction is SignalDirection.NOT_APPLICABLE and self.conviction != 0.0:
+            raise ValueError("not-applicable direction signals must use zero conviction")
         if self.confidence is not None and (
             not isfinite(self.confidence) or not 0.0 <= self.confidence <= 1.0
         ):
@@ -62,6 +81,8 @@ class Signal:
 
 TAM_SETUP_SIGNAL_MODEL_ID = "technical-setup-score"
 TAM_SETUP_SIGNAL_MODEL_VERSION = "technical-setup-signal-v0.1.1"
+VOLATILITY_SMOKE_MODEL_ID = "volatility-family-smoke"
+VOLATILITY_SMOKE_MODEL_VERSION = "0.1"
 TREND_SIGNAL_MAPPING = {
     "bullish_alignment": (SignalDirection.BULLISH, 1.0),
     "constructive": (SignalDirection.BULLISH, 0.5),
@@ -111,5 +132,45 @@ def technical_setup_signal(row: Mapping[str, Any], *, created_at: str | None = N
         },
         evidence_refs=evidence_refs,
         # The source observation timestamp makes retries byte-for-byte idempotent.
+        created_at=created_at or as_of,
+    )
+
+
+def volatility_family_smoke_signal(
+    row: Mapping[str, Any], *, created_at: str | None = None
+) -> Signal:
+    """Prove non-directional plumbing using an existing dated TAM observation.
+
+    This experimental architecture-validation producer makes no forecast and no
+    claim of predictive value. It deliberately performs no live-data lookup.
+    """
+    ticker = str(row.get("ticker") or "").strip().upper()
+    as_of = str(row.get("technical_timestamp") or "").strip()
+    source_ref = str(row.get("scan_id") or "").strip()
+    volatility_state = str(row.get("volatility_state") or "").strip().lower()
+    if not ticker or not as_of or not volatility_state:
+        raise ValueError("ticker, technical_timestamp, and volatility_state are required")
+    identity = (
+        f"{VOLATILITY_SMOKE_MODEL_ID}|{VOLATILITY_SMOKE_MODEL_VERSION}|"
+        f"{ticker}|{as_of}|{source_ref}"
+    )
+    return Signal(
+        signal_id=str(uuid5(NAMESPACE_URL, identity)),
+        ticker=ticker,
+        as_of=as_of,
+        model_id=VOLATILITY_SMOKE_MODEL_ID,
+        model_version=VOLATILITY_SMOKE_MODEL_VERSION,
+        direction=SignalDirection.NOT_APPLICABLE,
+        conviction=0.0,
+        confidence=None,
+        reasoning=(
+            "Architecture-validation observation of the existing point-in-time "
+            f"TAM volatility state: {volatility_state}. No forecast is asserted."
+        ),
+        signal_family=SignalFamily.VOLATILITY,
+        components={"volatility_state": volatility_state},
+        metadata={"source_scan_id": source_ref, "experimental": True},
+        evidence_refs=(f"technical_characterization:{source_ref}:{ticker}",)
+        if source_ref else (),
         created_at=created_at or as_of,
     )

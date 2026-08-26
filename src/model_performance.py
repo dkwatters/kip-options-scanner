@@ -5,14 +5,15 @@ from collections import Counter, defaultdict
 from statistics import mean, median
 from typing import Iterable
 
-from src.signal_outcomes import DEFAULT_HORIZONS, OutcomeStatus, SignalOutcome
-from src.signals import Signal
+from src.signal_outcomes import DEFAULT_HORIZONS, OutcomeFamily, OutcomeStatus, SignalOutcome
+from src.signals import Signal, SignalFamily
 
 
 def model_performance_scorecard(signals: Iterable[Signal], outcomes: Iterable[SignalOutcome], *, model_id: str, model_version: str, horizons: Iterable[int] = DEFAULT_HORIZONS) -> dict:
-    selected = [s for s in signals if s.model_id == model_id and s.model_version == model_version]
+    """Return the unchanged v0.1 directional/return scorecard only."""
+    selected = [s for s in signals if s.model_id == model_id and s.model_version == model_version and s.signal_family is SignalFamily.DIRECTIONAL]
     signal_ids = {s.signal_id for s in selected}
-    selected_outcomes = [o for o in outcomes if o.signal_id in signal_ids]
+    selected_outcomes = [o for o in outcomes if o.signal_id in signal_ids and o.outcome_family is OutcomeFamily.RETURN]
     directions = Counter(s.direction.value for s in selected)
     by_horizon = defaultdict(dict)
     for outcome in selected_outcomes:
@@ -42,8 +43,14 @@ def model_performance_scorecard(signals: Iterable[Signal], outcomes: Iterable[Si
         }
     return {
         "model_id": model_id, "model_version": model_version,
+        "signal_family": SignalFamily.DIRECTIONAL.value,
         "signal_count": len(selected),
         "direction_counts": {direction: directions.get(direction, 0) for direction in ("bullish", "neutral", "bearish", "abstain")},
         "horizons": horizon_results,
         "disclaimer": "Descriptive research evidence only; not investment advice.",
     }
+
+
+def signal_family_summary(signals: Iterable[Signal]) -> dict[str, int]:
+    counts = Counter(signal.signal_family.value for signal in signals)
+    return {family.value: counts.get(family.value, 0) for family in SignalFamily}
