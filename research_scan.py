@@ -31,6 +31,8 @@ from src.study_protocol import (
     RunMode,
 )
 from src.technical_analysis import technical_analysis_rows_for_symbols
+from src.signal_repository import SignalRepository
+from src.technical_observation_service import archive_technical_observations_and_signals
 from src.tradier_client import TradierClient
 from src.universe import load_universe
 
@@ -111,22 +113,20 @@ def run_default_research_scan(
         universe_symbols,
     )
     rule_rows = rule_evaluation_export_rows(evaluated_rows, scan_id)
-    row_counts = repository.archive_opportunity_scan(
-        scan_id=scan_id,
-        scan_timestamp=formatted_scan_timestamp,
-        universe_name=protocol.study_name,
-        option_type=protocol.option_type,
-        dte_min=protocol.dte_min,
-        dte_max=protocol.dte_max,
-        evaluation_profile=evaluation_profile_export_fields(),
-        evaluated_contract_rows=evaluated_rows,
-        contract_export_rows=contract_rows,
-        rule_export_rows=rule_rows,
-        technical_rows=technical_rows,
-        study_protocol=protocol.metadata(
-            scheduled_time_label=scheduled_time_label,
-            run_mode=run_mode,
+    persistence = archive_technical_observations_and_signals(
+        technical_rows,
+        archive_observations=lambda rows: repository.archive_opportunity_scan(
+            scan_id=scan_id, scan_timestamp=formatted_scan_timestamp,
+            universe_name=protocol.study_name, option_type=protocol.option_type,
+            dte_min=protocol.dte_min, dte_max=protocol.dte_max,
+            evaluation_profile=evaluation_profile_export_fields(),
+            evaluated_contract_rows=evaluated_rows, contract_export_rows=contract_rows,
+            rule_export_rows=rule_rows, technical_rows=rows,
+            study_protocol=protocol.metadata(
+                scheduled_time_label=scheduled_time_label, run_mode=run_mode,
+            ),
         ),
+        signal_repository=SignalRepository(repository_target),
     )
     summary = discovery_diagnostic_summary(evaluated_rows)
     return {
@@ -138,7 +138,8 @@ def run_default_research_scan(
         "rejected_count": summary["Rejected Count"],
         "database_path": repository_target.display_location,
         "repository_backend": repository_target.backend,
-        "row_counts": row_counts,
+        "row_counts": persistence.archive_result,
+        "signal_persistence_error": persistence.signal_persistence_error,
         "discovery_error_count": len(discovery_errors),
         "technical_error_count": len(technical_errors),
         "run_mode": run_mode,
@@ -248,6 +249,8 @@ def main() -> None:
     print(f"rejected count: {result['rejected_count']}")
     print(f"technical characterization rows: {result['row_counts'].get('technical_characterization', 0)}")
     print(f"technical error count: {result['technical_error_count']}")
+    if result["signal_persistence_error"]:
+        print("Analysis archived, but derived Signals were not persisted: " + result["signal_persistence_error"])
     print(f"database path: {result['database_path']}")
 
 

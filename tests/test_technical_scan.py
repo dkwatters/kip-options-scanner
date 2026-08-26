@@ -1,13 +1,15 @@
 import os
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from src.study_protocol import RUN_MODE_RESEARCH_SCRIPT, RUN_MODE_SCHEDULED
 from technical_scan import run_tam_technical_scan
+from src.research_repository import ResearchRepositoryTarget, REPOSITORY_BACKEND_SQLITE
+from src.signal_repository import SignalRepository
 
 
 class FakeTamClient:
@@ -18,7 +20,14 @@ class FakeTamClient:
 
     def get_price_history(self, symbol, start=None, end=None):
         self.history_symbols.append(symbol)
-        closes = [{"close": 100 + index} for index in range(220)]
+        end_day = date.fromisoformat(end)
+        closes = [
+            {
+                "date": (end_day - timedelta(days=219 - index)).isoformat(),
+                "close": 100 + index,
+            }
+            for index in range(220)
+        ]
         return {"history": {"day": closes}}
 
     def get_quote(self, symbol):
@@ -50,6 +59,9 @@ class TechnicalScanTest(unittest.TestCase):
                         2026, 7, 6, 16, 30, tzinfo=ZoneInfo("America/New_York")
                     ),
                 )
+            signals = SignalRepository(ResearchRepositoryTarget(
+                REPOSITORY_BACKEND_SQLITE, sqlite_path=Path(database_path)
+            )).list_signals()
 
         self.assertFalse(result["skipped"])
         self.assertEqual(result["row_counts"]["opportunity_scans"], 0)
@@ -57,7 +69,9 @@ class TechnicalScanTest(unittest.TestCase):
         self.assertGreater(result["row_counts"]["technical_characterization"], 0)
         self.assertEqual(result["technical_error_count"], 0)
         self.assertEqual(client.option_chain_calls, [])
-        self.assertEqual(len(client.history_symbols), len(client.quote_symbols))
+        self.assertEqual(client.quote_symbols, [])
+        self.assertGreater(len(signals), 0)
+        self.assertTrue(all(row.model_version == "technical-setup-signal-v0.1.1" for row in signals))
 
     def test_scheduled_tam_scan_skips_closed_market_before_client_calls(self):
         client = FakeTamClient()

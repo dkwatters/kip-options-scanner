@@ -72,6 +72,7 @@ from src.quality_diagnostics import (
     status_distribution,
 )
 from src.navigation import apply_pending_navigation, request_navigation
+from src.model_lab_page import render_model_lab
 from src.rce_benchmark_explorer_page import render_benchmark_explorer
 from src.research_universe_builder_page import render_research_universe_builder, start_new_research
 from src.research_universe_review_page import render_current_research_universe_page
@@ -85,6 +86,11 @@ from src.research_repository import (
     research_repository_from_env,
     research_repository_target_from_env,
 )
+from src.technical_observation_service import (
+    archive_technical_observations_and_signals,
+    configured_technical_observation_repositories,
+)
+from src.signal_status_ui import render_signal_persistence_failure
 from src.research_conversation import (
     ResearchConversationService,
     create_research_conversation_provider,
@@ -1320,16 +1326,18 @@ def archive_current_opportunity_scan(
     """Persist completed scans for future model validation and longitudinal analysis."""
     technical_rows = []
     if active_universe_symbols:
-        try:
-            technical_rows, _technical_errors = technical_analysis_rows_for_symbols(
-                TradierClient(),
-                active_universe_symbols,
-                scan_id=scan_id,
-                technical_timestamp=scan_timestamp,
-                end_date=datetime.now(EASTERN_TIME).date(),
-            )
-        except Exception:
-            technical_rows = []
+        technical_rows, technical_errors = technical_analysis_rows_for_symbols(
+            TradierClient(),
+            active_universe_symbols,
+            scan_id=scan_id,
+            technical_timestamp=scan_timestamp,
+            end_date=datetime.now(EASTERN_TIME).date(),
+        )
+        if not technical_rows:
+            details = "; ".join(
+                f"{ticker}: {message}" for ticker, message in technical_errors.items()
+            ) or "No technical observations were produced."
+            raise RuntimeError("Required technical analysis did not produce any observations. " + details)
     contract_rows = evaluated_contract_export_rows(
         evaluated_rows,
         scan_id,
@@ -1338,20 +1346,18 @@ def archive_current_opportunity_scan(
         active_universe_symbols,
     )
     rule_rows = rule_evaluation_export_rows(evaluated_rows, scan_id)
-    repository = research_repository_from_env()
-    return repository.archive_opportunity_scan(
-        scan_id=scan_id,
-        scan_timestamp=scan_timestamp,
-        universe_name=universe_name,
-        option_type=option_type,
-        dte_min=dte_min,
-        dte_max=dte_max,
-        evaluation_profile=evaluation_profile_export_fields(),
-        evaluated_contract_rows=evaluated_rows,
-        contract_export_rows=contract_rows,
-        rule_export_rows=rule_rows,
-        technical_rows=technical_rows,
-        study_protocol=study_protocol,
+    repository, signal_repository = configured_technical_observation_repositories()
+    return archive_technical_observations_and_signals(
+        technical_rows,
+        archive_observations=lambda persisted_rows: repository.archive_opportunity_scan(
+            scan_id=scan_id, scan_timestamp=scan_timestamp, universe_name=universe_name,
+            option_type=option_type, dte_min=dte_min, dte_max=dte_max,
+            evaluation_profile=evaluation_profile_export_fields(),
+            evaluated_contract_rows=evaluated_rows, contract_export_rows=contract_rows,
+            rule_export_rows=rule_rows, technical_rows=persisted_rows,
+            study_protocol=study_protocol,
+        ),
+        signal_repository=signal_repository,
     )
 
 
@@ -2559,8 +2565,8 @@ def render_opportunity_discovery_workflow(
                 st.session_state.opportunity_archive_counts = None
                 st.session_state.opportunity_archive_error = str(error)
             else:
-                st.session_state.opportunity_archive_counts = archive_counts
-                st.session_state.opportunity_archive_error = None
+                st.session_state.opportunity_archive_counts = archive_counts.archive_result
+                st.session_state.opportunity_archive_error = archive_counts.signal_persistence_error
                 st.session_state.opportunity_archived_scan_id = scan_id
 
     opportunity_rows = st.session_state.get("opportunity_rows", [])
@@ -2572,6 +2578,12 @@ def render_opportunity_discovery_workflow(
         opportunity_watchlist == discovery_symbols
         and opportunity_settings == discovery_settings
     )
+    archive_error = st.session_state.get("opportunity_archive_error")
+    if archive_error and current_opportunity_context:
+        if st.session_state.get("opportunity_archive_counts") is not None:
+            render_signal_persistence_failure(archive_error)
+        else:
+            st.error("Analysis could not be archived. Details: " + archive_error)
     if opportunity_rows and current_opportunity_context:
         opportunity_selection = st.dataframe(
             format_opportunity_table(opportunity_rows),
@@ -3481,6 +3493,7 @@ def main():
         "Company Analysis",
         "Opportunities",
         "History",
+        "Model Lab",
         "Administration",
     ]
     with st.sidebar:
@@ -3548,6 +3561,8 @@ def main():
             render_quality_engine_diagnostics_workflow()
     elif selected_page == "History":
         render_research_repository_page()
+    elif selected_page == "Model Lab":
+        render_model_lab()
     elif selected_page == "Research Launchpad":
         render_research_universe_builder(root=ROOT, analyze_company=launch_benchmark_company_analysis)
     elif selected_page == "Research Universe":
