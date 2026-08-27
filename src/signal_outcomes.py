@@ -1,12 +1,12 @@
 """Point-in-time-safe forward outcome evaluation, separate from signal generation."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum
-from typing import Iterable, Protocol
+from typing import Any, Iterable, Mapping, Protocol
 
-from src.signals import Signal, SignalDirection
+from src.signals import Signal, SignalDirection, SignalFamily
 from src.market_calendar import is_us_equity_trading_day
 
 DEFAULT_HORIZONS = (5, 20, 60)
@@ -17,6 +17,11 @@ class OutcomeStatus(str, Enum):
     MISSING_DATA = "missing_data"
     NOT_YET_ELIGIBLE = "not_yet_eligible"
     ERROR = "error"
+
+
+class OutcomeFamily(str, Enum):
+    RETURN = "return"
+    VOLATILITY = "volatility"
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +47,35 @@ class SignalOutcome:
     directional_correct: bool | None = None
     error: str | None = None
     evaluated_at: str = ""
+    outcome_family: OutcomeFamily = OutcomeFamily.RETURN
+    components: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        try:
+            family = OutcomeFamily(self.outcome_family)
+        except ValueError as error:
+            raise ValueError(f"Unsupported outcome family: {self.outcome_family}") from error
+        object.__setattr__(self, "outcome_family", family)
+        if family is OutcomeFamily.VOLATILITY and self.directional_correct is not None:
+            raise ValueError("volatility outcomes cannot have directional correctness")
+
+
+SIGNAL_OUTCOME_COMPATIBILITY = {
+    SignalFamily.DIRECTIONAL: OutcomeFamily.RETURN,
+    SignalFamily.VOLATILITY: OutcomeFamily.VOLATILITY,
+}
+
+
+def compatible_outcome_family(signal: Signal) -> OutcomeFamily:
+    return SIGNAL_OUTCOME_COMPATIBILITY[signal.signal_family]
+
+
+def validate_signal_outcome_compatibility(signal: Signal, outcome: SignalOutcome) -> None:
+    expected = compatible_outcome_family(signal)
+    if outcome.outcome_family is not expected:
+        raise ValueError(
+            f"{signal.signal_family.value} signals require {expected.value} outcomes"
+        )
 
 
 class HistoricalPriceProvider(Protocol):
@@ -59,6 +93,8 @@ def evaluate_signal_outcome(
     evaluated_at: str | None = None,
 ) -> SignalOutcome:
     """Use the first close on/after as-of and the Nth subsequent trading close."""
+    if signal.signal_family is not SignalFamily.DIRECTIONAL:
+        raise ValueError("return outcome evaluation requires a directional signal")
     if horizon <= 0:
         raise ValueError("horizon must be a positive trading-day count")
     stamp = evaluated_at or datetime.now(timezone.utc).isoformat()
@@ -129,6 +165,10 @@ def evaluate_persisted_signal(repository, signal_id: str, price_provider: Histor
     if not matches:
         raise LookupError(f"Unknown signal_id: {signal_id}")
     signal = matches[0]
+    if compatible_outcome_family(signal) is not OutcomeFamily.RETURN:
+        raise ValueError(
+            f"{signal.signal_family.value} signals are not compatible with return outcome evaluation"
+        )
     observations = tuple(price_provider.daily_closes(signal.ticker, on_or_after=date.fromisoformat(signal.as_of[:10])))
     outcomes = evaluate_signal_horizons(signal, observations, horizons=horizons, **kwargs)
     repository.save_outcomes(outcomes)
