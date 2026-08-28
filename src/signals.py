@@ -83,6 +83,8 @@ TAM_SETUP_SIGNAL_MODEL_ID = "technical-setup-score"
 TAM_SETUP_SIGNAL_MODEL_VERSION = "technical-setup-signal-v0.1.1"
 VOLATILITY_SMOKE_MODEL_ID = "volatility-family-smoke"
 VOLATILITY_SMOKE_MODEL_VERSION = "0.1"
+VOLATILITY_CONTEXT_MODEL_ID = "volatility-context"
+VOLATILITY_CONTEXT_MODEL_VERSION = "volatility-context-v0.1"
 TREND_SIGNAL_MAPPING = {
     "bullish_alignment": (SignalDirection.BULLISH, 1.0),
     "constructive": (SignalDirection.BULLISH, 0.5),
@@ -155,22 +157,40 @@ def volatility_family_smoke_signal(
         f"{ticker}|{as_of}|{source_ref}"
     )
     return Signal(
-        signal_id=str(uuid5(NAMESPACE_URL, identity)),
-        ticker=ticker,
-        as_of=as_of,
-        model_id=VOLATILITY_SMOKE_MODEL_ID,
-        model_version=VOLATILITY_SMOKE_MODEL_VERSION,
-        direction=SignalDirection.NOT_APPLICABLE,
-        conviction=0.0,
-        confidence=None,
-        reasoning=(
-            "Architecture-validation observation of the existing point-in-time "
-            f"TAM volatility state: {volatility_state}. No forecast is asserted."
-        ),
+        signal_id=str(uuid5(NAMESPACE_URL, identity)), ticker=ticker, as_of=as_of,
+        model_id=VOLATILITY_SMOKE_MODEL_ID, model_version=VOLATILITY_SMOKE_MODEL_VERSION,
+        direction=SignalDirection.NOT_APPLICABLE, conviction=0.0, confidence=None,
+        reasoning=("Architecture-validation observation of the existing point-in-time "
+                   f"TAM volatility state: {volatility_state}. No forecast is asserted."),
         signal_family=SignalFamily.VOLATILITY,
         components={"volatility_state": volatility_state},
         metadata={"source_scan_id": source_ref, "experimental": True},
-        evidence_refs=(f"technical_characterization:{source_ref}:{ticker}",)
-        if source_ref else (),
+        evidence_refs=(f"technical_characterization:{source_ref}:{ticker}",) if source_ref else (),
+        created_at=created_at or as_of,
+    )
+
+
+def volatility_context_signal(row: Mapping[str, Any], *, created_at: str | None = None) -> Signal:
+    """Create the production volatility-family Signal from dated history context."""
+    ticker = str(row.get("ticker") or "").strip().upper()
+    as_of = str(row.get("technical_timestamp") or "").strip()
+    source_ref = str(row.get("scan_id") or "").strip()
+    payload = row.get("_volatility_context")
+    if not ticker or not as_of or not isinstance(payload, Mapping):
+        raise ValueError("ticker, technical_timestamp, and volatility context are required")
+    components = dict(payload.get("components") or {})
+    metadata = dict(payload.get("metadata") or {})
+    metadata["source_scan_id"] = source_ref
+    identity = f"{VOLATILITY_CONTEXT_MODEL_ID}|{VOLATILITY_CONTEXT_MODEL_VERSION}|{ticker}|{as_of}|{source_ref}"
+    regime = metadata.get("regime") or "unavailable"
+    trend = metadata.get("volatility_trend") or "unavailable"
+    return Signal(
+        signal_id=str(uuid5(NAMESPACE_URL, identity)), ticker=ticker, as_of=as_of,
+        model_id=VOLATILITY_CONTEXT_MODEL_ID, model_version=VOLATILITY_CONTEXT_MODEL_VERSION,
+        signal_family=SignalFamily.VOLATILITY, direction=SignalDirection.NOT_APPLICABLE,
+        conviction=0.0, confidence=None,
+        reasoning=f"Deterministic volatility context: regime {regime}; trend {trend}.",
+        components=components, metadata=metadata,
+        evidence_refs=(f"technical_characterization:{source_ref}:{ticker}",) if source_ref else (),
         created_at=created_at or as_of,
     )

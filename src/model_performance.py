@@ -54,3 +54,30 @@ def model_performance_scorecard(signals: Iterable[Signal], outcomes: Iterable[Si
 def signal_family_summary(signals: Iterable[Signal]) -> dict[str, int]:
     counts = Counter(signal.signal_family.value for signal in signals)
     return {family.value: counts.get(family.value, 0) for family in SignalFamily}
+
+
+def volatility_performance_scorecard(signals: Iterable[Signal], outcomes: Iterable[SignalOutcome]) -> dict:
+    selected = [signal for signal in signals if signal.signal_family is SignalFamily.VOLATILITY]
+    signal_ids = {signal.signal_id for signal in selected}
+    regimes = Counter(str(signal.metadata.get("regime") or "unavailable") for signal in selected)
+    trends = Counter(str(signal.metadata.get("volatility_trend") or "unavailable") for signal in selected)
+    by_horizon = defaultdict(list)
+    by_regime = defaultdict(list)
+    for outcome in outcomes:
+        if outcome.signal_id not in signal_ids or outcome.outcome_family is not OutcomeFamily.VOLATILITY:
+            continue
+        by_horizon[outcome.horizon_trading_days].append(outcome)
+        if outcome.status is OutcomeStatus.EVALUATED and isinstance(outcome.components.get("realized_volatility"), (int, float)):
+            by_regime[(outcome.horizon_trading_days, str(outcome.components.get("starting_regime") or "unavailable"))].append(float(outcome.components["realized_volatility"]))
+    horizons = {}
+    for horizon in sorted(set(DEFAULT_HORIZONS) | set(by_horizon)):
+        rows = by_horizon[horizon]
+        values = [float(row.components["realized_volatility"]) for row in rows if row.status is OutcomeStatus.EVALUATED and isinstance(row.components.get("realized_volatility"), (int, float))]
+        horizons[horizon] = {"evaluated_count": len(values), "signal_count": len(selected),
+                             "coverage": len(values) / len(selected) if selected else 0.0,
+                             "average_realized_volatility": mean(values) if values else None,
+                             "median_realized_volatility": median(values) if values else None}
+    return {"signal_count": len(selected), "regime_counts": dict(regimes), "trend_counts": dict(trends),
+            "horizons": horizons,
+            "by_regime": {f"{horizon}d · {regime}": {"sample_count": len(values), "average_realized_volatility": mean(values), "median_realized_volatility": median(values)} for (horizon, regime), values in sorted(by_regime.items())},
+            "disclaimer": "Descriptive research evidence only; no directional accuracy is asserted."}

@@ -169,8 +169,8 @@ def test_historical_replay_ignores_current_quote_and_future_history():
         quote_calls = 0
         def get_price_history(self, symbol, start=None, end=None):
             first = date(2025, 1, 1)
-            days = [{"date": (first + timedelta(days=index)).isoformat(), "close": 100 + index} for index in range(230)]
-            days.append({"date": "2026-08-01", "close": 9999})
+            days = [{"date": (first + timedelta(days=index)).isoformat(), "high": 101 + index, "low": 99 + index, "close": 100 + index} for index in range(230)]
+            days.append({"date": "2026-08-01", "high": 10000, "low": 1, "close": 9999})
             return {"history": {"day": days}}
         def get_quote(self, symbol):
             self.quote_calls += 1
@@ -180,6 +180,8 @@ def test_historical_replay_ignores_current_quote_and_future_history():
     assert not errors and client.quote_calls == 0
     assert rows[0]["price"] == 328
     assert rows[0]["price"] not in {8888, 9999}
+    assert rows[0]["_volatility_context"]["metadata"]["history_end"] == "2025-08-17"
+    assert rows[0]["_volatility_context"]["components"]["atr_pct_14d"] < 0.01
 
 
 def test_postgres_schema_uses_compatible_constraints_and_placeholders():

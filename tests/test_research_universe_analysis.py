@@ -24,6 +24,8 @@ class FakeMarketData:
         return {"history": {"day": [
             {
                 "date": (end_day - timedelta(days=259 - index)).isoformat(),
+                "high": 101 + index / 10,
+                "low": 99 + index / 10,
                 "close": 100 + index / 10,
             }
             for index in range(260)
