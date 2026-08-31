@@ -23,7 +23,9 @@ The existing TAM history request begins 320 calendar days before analysis and is
 
 ## Point-in-time policy
 
-The existing completed-bar policy remains authoritative. Historical replay uses bars through the day before the replay end date and never requests a live quote. Live same-day runs may use a quote for the unchanged Technical Setup observation, but Volatility Context always uses completed OHLC bars. Input bars are dated, sorted, deduplicated, and filtered at the history boundary. Percentiles, normalization, regime, and trend use only that filtered prefix. No full-sample or future-derived thresholds are used.
+The existing Technical Setup cutoff and quote behavior remain unchanged. Volatility Context has a separate conservative completed-daily-bar boundary because provider daily history does not carry a trustworthy bar-completion timestamp. For every analysis date, live or replayed, the eligible boundary is the most recent U.S. equity trading session strictly before the analysis calendar date. The analysis-date OHLC row is therefore excluded even after the close. On weekends and supported full-day market holidays, the boundary walks backward to the latest eligible session. Non-session OHLC rows are rejected independently of the provider response.
+
+Historical replay never requests a live quote and cannot use a bar on or after its historical analysis date. Live quotes may still support the unchanged Technical Setup observation, but are never inputs to Volatility Context. Input bars are dated, sorted, deduplicated, session-validated, and filtered at the volatility boundary. Percentiles, normalization, regime, and trend use only that filtered prefix. No full-sample or future-derived thresholds are used.
 
 ## Insufficient data
 
@@ -35,7 +37,7 @@ The immutable model identity is `volatility-context · volatility-context-v0.1`.
 
 ## Volatility Outcomes
 
-The existing 5/20/60-session evaluator now routes volatility-family Signals to annualized subsequent realized volatility. It requires the starting session plus every verified U.S. equity session through maturity; weekends and exchange holidays are excluded, while a missing interior session produces `missing_data`. Immature horizons produce `not_yet_eligible`. Components preserve return-observation count, annualization factor, starting regime, and a descriptive comparison to starting RV20: increased above 1.10x, decreased below 0.90x, otherwise broadly consistent. Directional correctness and return accuracy are never populated.
+The existing 5/20/60-session evaluator now routes volatility-family Signals to annualized subsequent realized volatility. The convention is 5 log returns from 6 closes, 20 log returns from 21 closes, and 60 log returns from 61 closes: one starting-session close plus the stated number of subsequent verified session closes. Weekends and exchange holidays are excluded, while a missing interior session produces `missing_data`. Immature horizons produce `not_yet_eligible`. Components preserve return-observation count, annualization factor, starting regime, and a descriptive comparison to starting RV20: increased above 1.10x, decreased below 0.90x, otherwise broadly consistent. Directional correctness and return accuracy are never populated.
 
 ## Model Lab and evaluation
 

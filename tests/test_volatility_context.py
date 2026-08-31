@@ -5,6 +5,10 @@ import pytest
 
 from src.signal_outcomes import OutcomeFamily, OutcomeStatus, PriceObservation, evaluate_signal_horizons
 from src.signals import SignalDirection, SignalFamily, volatility_context_signal
+from src.market_calendar import is_us_equity_trading_day
+from src.technical_analysis import (
+    most_recent_completed_trading_session, technical_analysis_rows_for_symbols,
+)
 from src.volatility_context import (
     DailyBar, atr_percent, bollinger_bandwidth, calculate_volatility_context,
     classify_regime, classify_volatility_trend, realized_volatility,
@@ -45,6 +49,69 @@ def test_context_and_signal_are_point_in_time_deterministic():
     assert first.direction is SignalDirection.NOT_APPLICABLE
     assert first.conviction == 0 and first.confidence is None
     assert first.metadata["history_end"] <= "2025-01-31"
+
+
+def _provider_days(through, count=120):
+    days, candidate = [], through
+    while len(days) < count:
+        if is_us_equity_trading_day(candidate):
+            index = count - len(days)
+            days.append({"date": candidate.isoformat(), "high": 101 + index * .1,
+                         "low": 99 + index * .1, "close": 100 + index * .1})
+        candidate -= timedelta(days=1)
+    return list(reversed(days))
+
+
+def _live_context(days, as_of):
+    class Client:
+        def get_price_history(self, *args, **kwargs):
+            return {"history": {"day": days}}
+
+        def get_quote(self, *args, **kwargs):
+            return {"quotes": {"quote": {"last": 250}}}
+
+    rows, errors = technical_analysis_rows_for_symbols(
+        Client(), ["SPY"], scan_id="live", technical_timestamp=f"{as_of} 12:00 PM EDT",
+        end_date=as_of, current_date=as_of,
+    )
+    assert not errors
+    return rows[0]
+
+
+def test_same_day_extreme_bar_cannot_change_volatility_context():
+    as_of = date(2026, 8, 27)
+    completed = most_recent_completed_trading_session(as_of)
+    history = _provider_days(completed)
+    baseline = _live_context(history, as_of)
+    with_extreme = _live_context(
+        history + [{"date": as_of.isoformat(), "high": 10000, "low": 1, "close": 9000}],
+        as_of,
+    )
+    assert with_extreme["_volatility_context"] == baseline["_volatility_context"]
+    assert with_extreme["_volatility_context"]["metadata"]["history_end"] == completed.isoformat()
+    assert set(with_extreme["_volatility_context"]["components"]) == {
+        "realized_volatility_10d", "realized_volatility_20d", "atr_pct_14d",
+        "bollinger_bandwidth_20d", "volatility_percentile",
+    }
+    assert with_extreme["_volatility_context"]["metadata"]["regime"] == baseline["_volatility_context"]["metadata"]["regime"]
+    assert with_extreme["_volatility_context"]["metadata"]["volatility_trend"] == baseline["_volatility_context"]["metadata"]["volatility_trend"]
+
+
+def test_completed_session_boundary_handles_weekend_and_holiday():
+    assert most_recent_completed_trading_session(date(2026, 7, 11)) == date(2026, 7, 10)
+    assert most_recent_completed_trading_session(date(2026, 7, 3)) == date(2026, 7, 2)
+    weekend_row = _live_context(
+        _provider_days(date(2026, 7, 10)) + [
+            {"date": "2026-07-11", "high": 999, "low": 1, "close": 500}
+        ], date(2026, 7, 11),
+    )
+    holiday_row = _live_context(
+        _provider_days(date(2026, 7, 2)) + [
+            {"date": "2026-07-03", "high": 999, "low": 1, "close": 500}
+        ], date(2026, 7, 3),
+    )
+    assert weekend_row["_volatility_context"]["metadata"]["history_end"] == "2026-07-10"
+    assert holiday_row["_volatility_context"]["metadata"]["history_end"] == "2026-07-02"
 
 
 def _weekday_prices(start, sessions):

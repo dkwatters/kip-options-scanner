@@ -27,6 +27,10 @@ Production workflows with valid OHLC history emit `volatility-context · volatil
 
 Automated evidence is in `tests/test_volatility_context.py` plus the existing Signal/Outcome, typed-family, integration, technical scan, Universe Analysis, Opportunity Discovery, and Model Lab suites. Tests cover calculations, thresholds, insufficient history, future-data exclusion by cutoff, deterministic identity, typed round-trip, verified sessions/holidays, missing data, immaturity, production coexistence, idempotency, and non-directional presentation. Final command results and implementation commits are recorded in the completion report and Git history.
 
+### Pre-PR completed-bar correction
+
+Independent acceptance found that the initial implementation reused TAM's same-day history cutoff for Volatility Context. A provider-supplied analysis-date OHLC row could therefore represent an in-progress daily bar. The corrective decision preserves TAM behavior and gives Volatility Context its own conservative boundary: the most recent verified U.S. equity session strictly before the analysis date. Provider rows on weekends, supported holidays, or after that boundary are rejected. Regression evidence proves an extreme same-day bar cannot alter RV10, RV20, ATR%, Bollinger Bandwidth, percentile, regime, or trend, and covers replay, weekend, and holiday behavior. Outcome documentation now states explicitly that 5/20/60 sessions mean 5/20/60 log returns from 6/21/61 closes.
+
 ## Baseline/challenger rationale
 
 Future GARCH-family forecasts must demonstrate value relative to this simpler deterministic volatility context rather than merely producing sophisticated-looking outputs. This release neither uses Outcome data to tune thresholds nor freezes a new benchmark corpus.

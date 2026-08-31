@@ -180,7 +180,7 @@ def test_historical_replay_ignores_current_quote_and_future_history():
     assert not errors and client.quote_calls == 0
     assert rows[0]["price"] == 328
     assert rows[0]["price"] not in {8888, 9999}
-    assert rows[0]["_volatility_context"]["metadata"]["history_end"] == "2025-08-17"
+    assert rows[0]["_volatility_context"]["metadata"]["history_end"] == "2025-08-15"
     assert rows[0]["_volatility_context"]["components"]["atr_pct_14d"] < 0.01
 
 

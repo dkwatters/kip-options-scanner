@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from math import isfinite, log, sqrt
 from statistics import stdev
 from typing import Any, Iterable
+from src.market_calendar import is_us_equity_trading_day
 from src.volatility_context import DailyBar, calculate_volatility_context
 
 
@@ -120,7 +121,10 @@ def technical_analysis_rows_for_symbols(
                 current_price=quote_price,
             )
             repository_row = observation.to_repository_row()
-            bars = daily_bars_from_history_payload(payload, through_date=history_cutoff)
+            volatility_cutoff = most_recent_completed_trading_session(end_date)
+            bars = daily_bars_from_history_payload(
+                payload, through_date=volatility_cutoff
+            )
             if bars:
                 repository_row["_volatility_context"] = calculate_volatility_context(bars)
             rows.append(repository_row)
@@ -185,7 +189,10 @@ def daily_bars_from_history_payload(
         except ValueError:
             continue
         high, low, close = (_number_or_none(row.get(key)) for key in ("high", "low", "close"))
-        if through_date is not None and trading_date > through_date:
+        if (
+            (through_date is not None and trading_date > through_date)
+            or not is_us_equity_trading_day(trading_date)
+        ):
             continue
         if high is None or low is None or close is None:
             continue
@@ -194,6 +201,19 @@ def daily_bars_from_history_payload(
         except ValueError:
             continue
     return [bars[key] for key in sorted(bars)]
+
+
+def most_recent_completed_trading_session(as_of_date: date) -> date:
+    """Return the latest session completed before the analysis calendar date.
+
+    Daily history has no trustworthy completion timestamp, so the as-of date is
+    conservatively excluded even after the close. Weekends and known full-day
+    U.S. equity holidays are skipped deterministically.
+    """
+    candidate = as_of_date - timedelta(days=1)
+    while not is_us_equity_trading_day(candidate):
+        candidate -= timedelta(days=1)
+    return candidate
 
 
 def last_price_from_quote_payload(payload: dict[str, Any]) -> float | None:
