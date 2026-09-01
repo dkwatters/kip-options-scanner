@@ -44,7 +44,7 @@ jobs:
         run: python -m compileall app.py src tests
 
       - name: Run full test suite
-        run: pytest -q
+        run: python -m pytest -q
 
       - name: Check for whitespace errors
         run: git diff --check HEAD^

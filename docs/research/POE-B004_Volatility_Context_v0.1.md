@@ -31,6 +31,10 @@ Automated evidence is in `tests/test_volatility_context.py` plus the existing Si
 
 Independent acceptance found that the initial implementation reused TAM's same-day history cutoff for Volatility Context. A provider-supplied analysis-date OHLC row could therefore represent an in-progress daily bar. The corrective decision preserves TAM behavior and gives Volatility Context its own conservative boundary: the most recent verified U.S. equity session strictly before the analysis date. Provider rows on weekends, supported holidays, or after that boundary are rejected. Regression evidence proves an extreme same-day bar cannot alter RV10, RV20, ATR%, Bollinger Bandwidth, percentile, regime, or trend, and covers replay, weekend, and holiday behavior. Outcome documentation now states explicitly that 5/20/60 sessions mean 5/20/60 log returns from 6/21/61 closes.
 
+### Pre-merge CI correction
+
+The initial PR check invoked the installed `pytest` console entry point directly. On the GitHub Actions Python 3.12 runner, that launcher did not place the checked-out repository root on `sys.path`, so collection stopped with 39 import errors before any tests executed. The workflow now invokes `python -m pytest -q` from the unchanged repository-root working directory, using the configured interpreter and making the repository modules importable without changing application imports, test semantics, or RCE evidence. The same plain-entry-point failure reproduced independently in the accepted baseline workflow.
+
 ## Baseline/challenger rationale
 
 Future GARCH-family forecasts must demonstrate value relative to this simpler deterministic volatility context rather than merely producing sophisticated-looking outputs. This release neither uses Outcome data to tune thresholds nor freezes a new benchmark corpus.
