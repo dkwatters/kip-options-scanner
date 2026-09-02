@@ -4,6 +4,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
+import pytest
+
 from scripts.build_rce_authored_source_corpus import build
 from src.rce_benchmark_explorer_service import (
     AuthoredSourceCandidate,
@@ -132,6 +134,7 @@ class AuthoredSourceCorpusTests(unittest.TestCase):
         self.assertFalse(result.available)
         self.assertIn("rce result", result.error_message.casefold())
 
+    @pytest.mark.authoritative_rce_evidence
     def test_read_only_comparison_leaves_authoritative_inputs_unchanged(self):
         protected = [
             BASELINE, CONFIG, DATABASE, ARTIFACT,

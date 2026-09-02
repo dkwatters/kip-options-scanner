@@ -1,4 +1,6 @@
+import os
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
@@ -95,13 +97,20 @@ st.write(f"CURATOR {universe.universe_id} {universe.progress.included}")
 
 
 class ResearchUniverseStreamlitSmokeTest(unittest.TestCase):
+    APP_TEST_TIMEOUT_SECONDS = 10
+
+    def setUp(self):
+        provider_environment = patch.dict(os.environ, {"RCE_PROVIDER": "mock"})
+        provider_environment.start()
+        self.addCleanup(provider_environment.stop)
+
     @staticmethod
     def _launchpad_app():
         return AppTest.from_string(r'''
 from pathlib import Path
 from src.research_universe_builder_page import render_research_universe_builder
 render_research_universe_builder(root=Path("."))
-''').run()
+''').run(timeout=ResearchUniverseStreamlitSmokeTest.APP_TEST_TIMEOUT_SECONDS)
 
     def test_launchpad_topics_empty_manual_input_and_live_preview(self):
         app = AppTest.from_string(r'''
@@ -206,9 +215,9 @@ render_research_universe_builder(root=Path("."))
         app = self._launchpad_app()
         question = next(row for row in app.text_area if row.label == "What are you interested in researching?")
         question.set_value("Which companies support hyperscaler infrastructure?")
-        app.run()
+        app.run(timeout=self.APP_TEST_TIMEOUT_SECONDS)
         next(button for button in app.button if button.label == "Launch Research").click()
-        app.run()
+        app.run(timeout=self.APP_TEST_TIMEOUT_SECONDS)
         universe = app.session_state["current_research_universe"]
         self.assertEqual(universe.research_question, "Which companies support hyperscaler infrastructure?")
         self.assertGreater(universe.progress.pending, 0)
@@ -221,9 +230,9 @@ render_research_universe_builder(root=Path("."))
             "Research cloud infrastructure."
         )
         next(row for row in app.text_area if row.label == "Ticker symbols").set_value("MSFT, AMZN")
-        app.run()
+        app.run(timeout=self.APP_TEST_TIMEOUT_SECONDS)
         next(button for button in app.button if button.label == "Launch Research").click()
-        app.run()
+        app.run(timeout=self.APP_TEST_TIMEOUT_SECONDS)
         universe = app.session_state["current_research_universe"]
         self.assertEqual(
             {row.ticker_or_identifier for row in universe.approved_membership},
@@ -235,9 +244,9 @@ render_research_universe_builder(root=Path("."))
         next(row for row in app.selectbox if row.label == "Established research topic").select(
             "AI Data-Center Networking and Cabling"
         )
-        app.run()
+        app.run(timeout=self.APP_TEST_TIMEOUT_SECONDS)
         next(button for button in app.button if button.label == "Launch Research").click()
-        app.run()
+        app.run(timeout=self.APP_TEST_TIMEOUT_SECONDS)
         universe = app.session_state["current_research_universe"]
         self.assertEqual(universe.established_topic, "AI Data-Center Networking and Cabling")
         self.assertEqual(len(universe.approved_membership), 17)
@@ -254,9 +263,9 @@ if "current_research_universe" not in st.session_state:
         starting_companies=(source_record({"company_name": "Alpha", "ticker": "AAA", "identity_status": "resolved"}, UniverseSource.USER_ENTERED),),
     )
 render_current_research_universe_page()
-''').run()
+''').run(timeout=self.APP_TEST_TIMEOUT_SECONDS)
         next(button for button in app.button if button.label == "Analyze Universe").click()
-        app.run()
+        app.run(timeout=self.APP_TEST_TIMEOUT_SECONDS)
         preflight = app.session_state["active_universe_analysis_preflight"]
         self.assertEqual(preflight.handoff.approved_constituents, ("AAA",))
         self.assertEqual(preflight.handoff.total_member_count, 1)

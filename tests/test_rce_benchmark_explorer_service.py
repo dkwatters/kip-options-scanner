@@ -5,6 +5,8 @@ import sqlite3
 import tempfile
 import unittest
 
+import pytest
+
 from src.rce_benchmark_explorer_service import (
     CERTIFIED_REVIEW_STATE_LABEL,
     COMPLETENESS_LIMITATION,
@@ -282,6 +284,7 @@ class RCEBenchmarkExplorerServiceTests(unittest.TestCase):
         self.assertEqual(len(service.review_queue()), service.run_summary().unresolved_review_count)
         self.assertFalse(Path("missing-benchmark.sqlite").exists())
 
+    @pytest.mark.authoritative_rce_evidence
     def test_reads_are_immutable_and_leave_authoritative_files_unchanged(self):
         protected = [BASELINE, CONFIG, DATABASE, *sorted(FIXTURES.glob("*.json"))]
         before = {path: digest(path) for path in protected}
@@ -292,6 +295,7 @@ class RCEBenchmarkExplorerServiceTests(unittest.TestCase):
             detail.reviewed.expected_candidates[0]["company_name"] = "changed"
         self.assertEqual(before, {path: digest(path) for path in protected})
 
+    @pytest.mark.authoritative_rce_evidence
     def test_authoritative_hashes_and_database_row_counts(self):
         self.assertEqual({path: digest(path) for path in AUTHORITATIVE_HASHES}, AUTHORITATIVE_HASHES)
         self.assertEqual(fixture_digest(), "ea10ad04366efd780447a868cd579ff35fc07b896c83740c6655383567cd350f")

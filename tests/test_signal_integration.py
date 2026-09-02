@@ -56,10 +56,15 @@ def test_universe_analysis_archives_observation_and_signal_visible_in_model_lab(
     )
     assert run.signal_persistence_error is None
     assert repository.technical_analysis_observations(scan_id=run.scan_id)["rows"][0]["ticker"] == "NVDA"
-    assert signal_repository.list_signals(ticker="NVDA")[0].model_version == "technical-setup-signal-v0.1.1"
+    persisted = signal_repository.list_signals(ticker="NVDA")
+    assert {(signal.model_id, signal.model_version) for signal in persisted} == {
+        ("technical-setup-score", "technical-setup-signal-v0.1.1"),
+        ("volatility-context", "volatility-context-v0.1"),
+    }
 
     monkeypatch.setenv("RESEARCH_REPOSITORY_BACKEND", REPOSITORY_BACKEND_SQLITE)
     monkeypatch.setenv("RESEARCH_SQLITE_PATH", str(target.sqlite_path))
+    monkeypatch.setenv("RCE_PROVIDER", "mock")
     model_lab = AppTest.from_file(Path(__file__).parents[1] / "app.py", default_timeout=20).run()
     next(widget for widget in model_lab.sidebar.radio if widget.label == "Navigation").set_value("Model Lab")
     model_lab.run()

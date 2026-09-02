@@ -1,0 +1,40 @@
+name: RCE Evidence Validation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate-authoritative-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: rce-evidence
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Provision frozen RCE evidence
+        env:
+          RCE_BENCHMARKS_SQLITE_URL: ${{ secrets.RCE_BENCHMARKS_SQLITE_URL }}
+        run: |
+          test -n "$RCE_BENCHMARKS_SQLITE_URL"
+          mkdir -p data/research
+          curl --fail --location --silent --show-error \
+            "$RCE_BENCHMARKS_SQLITE_URL" \
+            --output data/research/rce_benchmarks.sqlite
+          echo "48ea2c839dee93a995d9cfb21869f015d7a5b63b18a7ee2e4591b04a7da235c8  data/research/rce_benchmarks.sqlite" \
+            | sha256sum --check
+
+      - name: Validate authoritative RCE evidence
+        run: python -m pytest -q -m authoritative_rce_evidence

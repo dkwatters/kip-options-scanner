@@ -19,6 +19,10 @@ on:
       - tests/test_universe_interpretation*.py
       - tests/test_candidate_identity_validation.py
       - .github/workflows/research-universe-ci.yml
+      - .github/workflows/rce-evidence-validation.yml
+      - pytest.ini
+      - tests/test_rce_authored_source_corpus.py
+      - tests/test_rce_benchmark_explorer_service.py
 
 jobs:
   validate:
@@ -27,6 +31,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -44,7 +50,7 @@ jobs:
         run: python -m compileall app.py src tests
 
       - name: Run full test suite
-        run: pytest -q
+        run: python -m pytest -q -m "not authoritative_rce_evidence"
 
       - name: Check for whitespace errors
         run: git diff --check HEAD^

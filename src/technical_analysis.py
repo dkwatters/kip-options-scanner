@@ -10,6 +10,8 @@ from datetime import date, timedelta
 from math import isfinite, log, sqrt
 from statistics import stdev
 from typing import Any, Iterable
+from src.market_calendar import is_us_equity_trading_day
+from src.volatility_context import DailyBar, calculate_volatility_context
 
 
 TAM_MODEL_NAME = "Technical Analysis Model"
@@ -83,6 +85,7 @@ def technical_analysis_rows_for_symbols(
     """Fetch history and return repository-ready TAM rows plus per-symbol errors."""
     rows: list[dict[str, Any]] = []
     errors: dict[str, str] = {}
+    # Preserve the Technical Setup model's established history request exactly.
     start_date = end_date - timedelta(days=320)
     for symbol in symbols:
         normalized = str(symbol).strip().upper()
@@ -117,7 +120,14 @@ def technical_analysis_rows_for_symbols(
                 technical_timestamp=technical_timestamp,
                 current_price=quote_price,
             )
-            rows.append(observation.to_repository_row())
+            repository_row = observation.to_repository_row()
+            volatility_cutoff = most_recent_completed_trading_session(end_date)
+            bars = daily_bars_from_history_payload(
+                payload, through_date=volatility_cutoff
+            )
+            if bars:
+                repository_row["_volatility_context"] = calculate_volatility_context(bars)
+            rows.append(repository_row)
         except Exception as error:
             errors[normalized] = str(error)
     return rows, errors
@@ -158,6 +168,52 @@ def closing_prices_from_history_payload(
             payload, through_date=through_date
         )
     ]
+
+
+def daily_bars_from_history_payload(
+    payload: dict[str, Any], *, through_date: date | None = None
+) -> list[DailyBar]:
+    """Return sorted valid OHLC bars no later than the point-in-time cutoff."""
+    history = payload.get("history", {}) if isinstance(payload, dict) else {}
+    days = history.get("day") if isinstance(history, dict) else None
+    if isinstance(days, dict):
+        days = [days]
+    if not isinstance(days, list):
+        return []
+    bars: dict[date, DailyBar] = {}
+    for row in days:
+        if not isinstance(row, dict):
+            continue
+        try:
+            trading_date = date.fromisoformat(str(row.get("date") or ""))
+        except ValueError:
+            continue
+        high, low, close = (_number_or_none(row.get(key)) for key in ("high", "low", "close"))
+        if (
+            (through_date is not None and trading_date > through_date)
+            or not is_us_equity_trading_day(trading_date)
+        ):
+            continue
+        if high is None or low is None or close is None:
+            continue
+        try:
+            bars[trading_date] = DailyBar(trading_date, high, low, close)
+        except ValueError:
+            continue
+    return [bars[key] for key in sorted(bars)]
+
+
+def most_recent_completed_trading_session(as_of_date: date) -> date:
+    """Return the latest session completed before the analysis calendar date.
+
+    Daily history has no trustworthy completion timestamp, so the as-of date is
+    conservatively excluded even after the close. Weekends and known full-day
+    U.S. equity holidays are skipped deterministically.
+    """
+    candidate = as_of_date - timedelta(days=1)
+    while not is_us_equity_trading_day(candidate):
+        candidate -= timedelta(days=1)
+    return candidate
 
 
 def last_price_from_quote_payload(payload: dict[str, Any]) -> float | None:

@@ -650,7 +650,10 @@ class ResearchRepositoryTest(unittest.TestCase):
         target = research_repository_target_from_env({})
 
         self.assertEqual(target.backend, REPOSITORY_BACKEND_SQLITE)
-        self.assertEqual(target.display_location, "data\\research\\opportunity_scans.sqlite")
+        self.assertEqual(
+            target.display_location,
+            str(Path("data/research/opportunity_scans.sqlite")),
+        )
 
     def test_repository_target_uses_configured_sqlite_path(self):
         target = research_repository_target_from_env(
@@ -661,7 +664,7 @@ class ResearchRepositoryTest(unittest.TestCase):
         )
 
         self.assertEqual(target.backend, REPOSITORY_BACKEND_SQLITE)
-        self.assertEqual(str(target.sqlite_path), "tmp\\research.sqlite")
+        self.assertEqual(str(target.sqlite_path), str(Path("tmp/research.sqlite")))
 
     def test_repository_target_validates_postgres_database_url(self):
         target = research_repository_target_from_env(

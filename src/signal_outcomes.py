@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Iterable, Mapping, Protocol
+from math import log, sqrt
+from statistics import stdev
 
 from src.signals import Signal, SignalDirection, SignalFamily
 from src.market_calendar import is_us_equity_trading_day
@@ -156,7 +158,59 @@ def _trading_session_dates(start: date, horizon: int) -> tuple[date, ...]:
 
 def evaluate_signal_horizons(signal: Signal, observations: Iterable[PriceObservation], horizons: Iterable[int] = DEFAULT_HORIZONS, **kwargs) -> tuple[SignalOutcome, ...]:
     rows = tuple(observations)
-    return tuple(evaluate_signal_outcome(signal, rows, horizon, **kwargs) for horizon in horizons)
+    evaluator = evaluate_volatility_outcome if signal.signal_family is SignalFamily.VOLATILITY else evaluate_signal_outcome
+    return tuple(evaluator(signal, rows, horizon, **kwargs) for horizon in horizons)
+
+
+def evaluate_volatility_outcome(
+    signal: Signal, observations: Iterable[PriceObservation], horizon: int, *,
+    through_date: date | None = None, evaluated_at: str | None = None,
+) -> SignalOutcome:
+    """Measure annualized realized volatility over verified subsequent sessions."""
+    if signal.signal_family is not SignalFamily.VOLATILITY:
+        raise ValueError("volatility outcome evaluation requires a volatility signal")
+    if horizon <= 1:
+        raise ValueError("volatility horizon must include at least two returns")
+    stamp = evaluated_at or datetime.now(timezone.utc).isoformat()
+    try:
+        as_of_date = date.fromisoformat(signal.as_of[:10])
+        rows_by_date: dict[date, PriceObservation] = {}
+        for row in observations:
+            if row.trading_date in rows_by_date:
+                raise ValueError(f"Duplicate price observation for {row.trading_date.isoformat()}.")
+            if is_us_equity_trading_day(row.trading_date):
+                rows_by_date[row.trading_date] = row
+        expected_start = _trading_day_on_or_after(as_of_date)
+        start = rows_by_date.get(expected_start)
+        if start is None:
+            status = OutcomeStatus.NOT_YET_ELIGIBLE if through_date is not None and expected_start > through_date else OutcomeStatus.MISSING_DATA
+            return SignalOutcome(signal.signal_id, horizon, status, error=f"Missing required starting session observation for {expected_start.isoformat()}.", evaluated_at=stamp, outcome_family=OutcomeFamily.VOLATILITY)
+        required_dates = _trading_session_dates(expected_start, horizon)
+        expected_end = required_dates[-1]
+        if through_date is not None and expected_end > through_date:
+            return SignalOutcome(signal.signal_id, horizon, OutcomeStatus.NOT_YET_ELIGIBLE, start_date=expected_start.isoformat(), start_price=start.close, error=f"Horizon matures on {expected_end.isoformat()}.", evaluated_at=stamp, outcome_family=OutcomeFamily.VOLATILITY)
+        missing = [session for session in required_dates if session not in rows_by_date]
+        if missing:
+            return SignalOutcome(signal.signal_id, horizon, OutcomeStatus.MISSING_DATA, start_date=expected_start.isoformat(), start_price=start.close, error="Missing required trading-session observations: " + ", ".join(day.isoformat() for day in missing), evaluated_at=stamp, outcome_family=OutcomeFamily.VOLATILITY)
+        prices = [rows_by_date[session].close for session in required_dates]
+        returns = [log(prices[index] / prices[index - 1]) for index in range(1, len(prices))]
+        subsequent_rv = stdev(returns) * sqrt(252)
+        initial_rv = signal.components.get("realized_volatility_20d")
+        comparison = None
+        if isinstance(initial_rv, (int, float)) and initial_rv > 0:
+            ratio = subsequent_rv / initial_rv
+            comparison = "increased" if ratio > 1.10 else "decreased" if ratio < 0.90 else "broadly_consistent"
+        return SignalOutcome(
+            signal.signal_id, horizon, OutcomeStatus.EVALUATED,
+            expected_start.isoformat(), expected_end.isoformat(), start.close,
+            rows_by_date[expected_end].close, None, None, evaluated_at=stamp,
+            outcome_family=OutcomeFamily.VOLATILITY,
+            components={"realized_volatility": subsequent_rv, "annualization_factor": 252,
+                        "return_observation_count": horizon, "context_comparison": comparison,
+                        "starting_regime": signal.metadata.get("regime")},
+        )
+    except Exception as error:
+        return SignalOutcome(signal.signal_id, horizon, OutcomeStatus.ERROR, error=str(error), evaluated_at=stamp, outcome_family=OutcomeFamily.VOLATILITY)
 
 
 def evaluate_persisted_signal(repository, signal_id: str, price_provider: HistoricalPriceProvider, *, horizons: Iterable[int] = DEFAULT_HORIZONS, **kwargs) -> tuple[SignalOutcome, ...]:
@@ -165,10 +219,6 @@ def evaluate_persisted_signal(repository, signal_id: str, price_provider: Histor
     if not matches:
         raise LookupError(f"Unknown signal_id: {signal_id}")
     signal = matches[0]
-    if compatible_outcome_family(signal) is not OutcomeFamily.RETURN:
-        raise ValueError(
-            f"{signal.signal_family.value} signals are not compatible with return outcome evaluation"
-        )
     observations = tuple(price_provider.daily_closes(signal.ticker, on_or_after=date.fromisoformat(signal.as_of[:10])))
     outcomes = evaluate_signal_horizons(signal, observations, horizons=horizons, **kwargs)
     repository.save_outcomes(outcomes)

@@ -11,7 +11,7 @@ from src.research_repository import (
     research_repository_target_from_env,
 )
 from src.signal_repository import SignalRepository
-from src.signals import technical_setup_signal
+from src.signals import technical_setup_signal, volatility_context_signal
 
 
 _URI_CREDENTIALS = re.compile(r"(?P<scheme>[a-z][a-z0-9+.-]*://)(?P<userinfo>[^/@\s]+)@", re.I)
@@ -65,9 +65,12 @@ def archive_technical_observations_and_signals(
             ),
         )
     try:
-        inserted = signal_repository.save_signals(
-            technical_setup_signal(row) for row in rows
-        )
+        signals = []
+        for row in rows:
+            signals.append(technical_setup_signal(row))
+            if isinstance(row.get("_volatility_context"), dict):
+                signals.append(volatility_context_signal(row))
+        inserted = signal_repository.save_signals(signals)
     except Exception as error:
         return TechnicalObservationPersistenceResult(
             archive_result=archive_result,
