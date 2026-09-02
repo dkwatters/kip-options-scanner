@@ -37,6 +37,8 @@ The initial PR check invoked the installed `pytest` console entry point directly
 
 The subsequent clean-runner execution established that three integrity tests require the exact gitignored `data/research/rce_benchmarks.sqlite` binary and its frozen SHA-256, not merely a semantically rebuilt database. The tracked fixtures can reconstruct the benchmark rows but not that frozen binary identity. Standard PR CI therefore runs all reproducible tests while deselecting only the explicitly marked `authoritative_rce_evidence` tests. A separate manual `RCE Evidence Validation` workflow provisions the controlled artifact through the `rce-evidence` environment, verifies SHA-256 `48ea2c839dee93a995d9cfb21869f015d7a5b63b18a7ee2e4591b04a7da235c8`, and then runs those tests without weakening their assertions. Streamlit AppTest smoke paths use a bounded ten-second test timeout after repeated runs demonstrated occasional default three-second runner timeouts under load; application behavior remains unchanged.
 
+The first Linux execution under the corrected contract also exposed two pre-existing repository-target assertions that hard-coded Windows path separators. Their expected values now use `pathlib.Path`, preserving the same path contract while making the tests platform-correct; application behavior and repository targeting are unchanged.
+
 ## Baseline/challenger rationale
 
 Future GARCH-family forecasts must demonstrate value relative to this simpler deterministic volatility context rather than merely producing sophisticated-looking outputs. This release neither uses Outcome data to tune thresholds nor freezes a new benchmark corpus.
