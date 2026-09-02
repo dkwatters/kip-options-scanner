@@ -39,6 +39,8 @@ The subsequent clean-runner execution established that three integrity tests req
 
 The first Linux execution under the corrected contract also exposed two pre-existing repository-target assertions that hard-coded Windows path separators. Their expected values now use `pathlib.Path`, preserving the same path contract while making the tests platform-correct; application behavior and repository targeting are unchanged.
 
+After the Linux test suite passed, the workflow's existing `git diff --check HEAD^` release guard could not resolve `HEAD^` because `actions/checkout` had fetched only one commit. Checkout now retains two commits so the unchanged whitespace guard can compare the PR checkout to its parent.
+
 ## Baseline/challenger rationale
 
 Future GARCH-family forecasts must demonstrate value relative to this simpler deterministic volatility context rather than merely producing sophisticated-looking outputs. This release neither uses Outcome data to tune thresholds nor freezes a new benchmark corpus.
