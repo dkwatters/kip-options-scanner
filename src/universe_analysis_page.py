@@ -220,6 +220,12 @@ def render_universe_analysis() -> None:
     signal_persistence_error = getattr(run, "signal_persistence_error", None)
     if signal_persistence_error:
         render_signal_persistence_failure(signal_persistence_error)
+    observation_event_error = getattr(run, "observation_event_persistence_error", None)
+    if observation_event_error:
+        st.warning(
+            "Signals were saved, but Observation Events could not be recorded. "
+            "Historical Signals remain unchanged. Details: " + observation_event_error
+        )
     selection_scope = f"{run.universe_id}:v{run.universe_version}:{run.scan_id}"
     active_key = "universe_analysis_active_company"
     active = st.session_state.get(active_key)

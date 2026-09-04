@@ -1,0 +1,125 @@
+"""Persistence for immutable Signal-to-Signal Observation Events."""
+from __future__ import annotations
+
+from contextlib import closing
+import json
+from pathlib import Path
+import sqlite3
+from typing import Iterable
+
+from src.observation_events import ObservationEvent, ObservationEventImportance
+from src.research_repository import DEFAULT_RESEARCH_DB_PATH, REPOSITORY_BACKEND_POSTGRES, ResearchRepositoryTarget
+from src.signals import SignalFamily
+
+
+EVENT_COLUMNS = (
+    "event_id", "ticker", "observed_at", "signal_family", "model_id", "model_version",
+    "event_type", "prior_signal_id", "current_signal_id", "prior_as_of", "current_as_of",
+    "field", "prior_value", "current_value", "importance", "components", "metadata",
+    "source_scan_id", "created_at", "schema_version",
+)
+SQLITE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS observation_events (
+ event_id TEXT PRIMARY KEY, ticker TEXT NOT NULL, observed_at TEXT NOT NULL,
+ signal_family TEXT NOT NULL, model_id TEXT NOT NULL, model_version TEXT NOT NULL,
+ event_type TEXT NOT NULL, prior_signal_id TEXT NOT NULL, current_signal_id TEXT NOT NULL,
+ prior_as_of TEXT NOT NULL, current_as_of TEXT NOT NULL, field TEXT NOT NULL,
+ prior_value TEXT NOT NULL, current_value TEXT NOT NULL, importance TEXT NOT NULL,
+ components TEXT NOT NULL, metadata TEXT NOT NULL, source_scan_id TEXT, created_at TEXT NOT NULL,
+ schema_version TEXT NOT NULL,
+ FOREIGN KEY(prior_signal_id) REFERENCES research_signals(signal_id),
+ FOREIGN KEY(current_signal_id) REFERENCES research_signals(signal_id)
+);
+CREATE INDEX IF NOT EXISTS idx_observation_events_ticker_observed ON observation_events(ticker, observed_at);
+CREATE INDEX IF NOT EXISTS idx_observation_events_model_observed ON observation_events(signal_family, model_id, model_version, observed_at);
+"""
+POSTGRES_SCHEMA = tuple(statement.strip() for statement in (
+    """CREATE TABLE IF NOT EXISTS observation_events (
+     event_id TEXT PRIMARY KEY, ticker TEXT NOT NULL, observed_at TEXT NOT NULL,
+     signal_family TEXT NOT NULL, model_id TEXT NOT NULL, model_version TEXT NOT NULL,
+     event_type TEXT NOT NULL, prior_signal_id TEXT NOT NULL REFERENCES research_signals(signal_id),
+     current_signal_id TEXT NOT NULL REFERENCES research_signals(signal_id),
+     prior_as_of TEXT NOT NULL, current_as_of TEXT NOT NULL, field TEXT NOT NULL,
+     prior_value TEXT NOT NULL, current_value TEXT NOT NULL, importance TEXT NOT NULL,
+     components TEXT NOT NULL, metadata TEXT NOT NULL, source_scan_id TEXT,
+     created_at TEXT NOT NULL, schema_version TEXT NOT NULL)""",
+    "CREATE INDEX IF NOT EXISTS idx_observation_events_ticker_observed ON observation_events(ticker, observed_at)",
+    "CREATE INDEX IF NOT EXISTS idx_observation_events_model_observed ON observation_events(signal_family, model_id, model_version, observed_at)",
+) if statement)
+
+
+class ObservationEventConflict(ValueError):
+    """Raised when immutable content conflicts with an existing event identity."""
+
+
+class ObservationEventRepository:
+    def __init__(self, target: ResearchRepositoryTarget): self.target = target
+
+    def _connect(self):
+        if self.target.backend == REPOSITORY_BACKEND_POSTGRES:
+            import psycopg
+            return psycopg.connect(self.target.database_url)
+        path = Path(self.target.sqlite_path or DEFAULT_RESEARCH_DB_PATH)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(path); connection.execute("PRAGMA foreign_keys = ON")
+        return connection
+
+    def initialize(self) -> None:
+        with closing(self._connect()) as connection:
+            if self.target.backend == REPOSITORY_BACKEND_POSTGRES:
+                with connection.cursor() as cursor:
+                    for statement in POSTGRES_SCHEMA: cursor.execute(statement)
+            else: connection.executescript(SQLITE_SCHEMA)
+            connection.commit()
+
+    def save_events(self, events: Iterable[ObservationEvent]) -> tuple[bool, ...]:
+        self.initialize(); placeholder = "%s" if self.target.backend == REPOSITORY_BACKEND_POSTGRES else "?"
+        with closing(self._connect()) as connection:
+            cursor = connection.cursor(); inserted = []
+            try:
+                for event in events:
+                    values = _values(event)
+                    cursor.execute(f"SELECT {', '.join(EVENT_COLUMNS)} FROM observation_events WHERE event_id = {placeholder}", (event.event_id,))
+                    existing = cursor.fetchone()
+                    if existing is not None:
+                        if tuple(existing) != values: raise ObservationEventConflict(f"Observation Event {event.event_id} already exists with different immutable content.")
+                        inserted.append(False); continue
+                    cursor.execute(f"INSERT INTO observation_events ({', '.join(EVENT_COLUMNS)}) VALUES ({', '.join([placeholder] * len(values))})", values)
+                    inserted.append(True)
+                connection.commit()
+            except Exception:
+                connection.rollback(); raise
+        return tuple(inserted)
+
+    def list_events(self, *, ticker: str | None = None, signal_family: SignalFamily | str | None = None,
+                    model_id: str | None = None, model_version: str | None = None,
+                    limit: int | None = None) -> tuple[ObservationEvent, ...]:
+        self.initialize(); placeholder = "%s" if self.target.backend == REPOSITORY_BACKEND_POSTGRES else "?"
+        clauses, params = [], []
+        family = SignalFamily(signal_family).value if signal_family is not None else None
+        for column, value in (("ticker", ticker.upper() if ticker else None), ("signal_family", family),
+                              ("model_id", model_id), ("model_version", model_version)):
+            if value is not None: clauses.append(f"{column} = {placeholder}"); params.append(value)
+        where = " WHERE " + " AND ".join(clauses) if clauses else ""
+        suffix = f" LIMIT {int(limit)}" if limit is not None else ""
+        with closing(self._connect()) as connection:
+            cursor = connection.cursor(); cursor.execute(f"SELECT {', '.join(EVENT_COLUMNS)} FROM observation_events{where} ORDER BY observed_at DESC, event_id{suffix}", tuple(params))
+            return tuple(_from_row(row) for row in cursor.fetchall())
+
+
+def _values(event: ObservationEvent) -> tuple:
+    dump = lambda value: json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return (event.event_id, event.ticker, event.observed_at, event.signal_family.value,
+            event.model_id, event.model_version, event.event_type, event.prior_signal_id,
+            event.current_signal_id, event.prior_as_of, event.current_as_of, event.field,
+            dump(event.prior_value), dump(event.current_value), event.importance.value,
+            dump(event.components), dump(event.metadata), event.source_scan_id, event.created_at,
+            event.schema_version)
+
+
+def _from_row(row) -> ObservationEvent:
+    values = dict(zip(EVENT_COLUMNS, row, strict=True))
+    for name in ("prior_value", "current_value", "components", "metadata"): values[name] = json.loads(values[name])
+    values["signal_family"] = SignalFamily(values["signal_family"])
+    values["importance"] = ObservationEventImportance(values["importance"])
+    return ObservationEvent(**values)
