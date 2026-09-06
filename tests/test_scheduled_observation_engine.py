@@ -10,6 +10,7 @@ from src.scheduled_observation_engine import observe_signal_changes
 from src.signal_repository import SignalRepository
 from src.signals import Signal, SignalDirection, SignalFamily
 from src.technical_observation_service import archive_technical_observations_and_signals
+from scripts.seed_observation_event_acceptance import seed_acceptance_step
 
 
 def _target(tmp_path):
@@ -189,3 +190,19 @@ def test_model_lab_renders_observation_history_without_directional_volatility_la
     assert set(frame["Prior state"]) == {"normal", "stable"}
     assert set(frame["Current state"]) == {"elevated", "expanding"}
     assert not any(word in " ".join(frame.astype(str).values.flatten()).lower() for word in ("bullish", "bearish"))
+
+
+def test_manual_acceptance_seed_is_two_step_deterministic_and_idempotent(tmp_path):
+    database = tmp_path / "acceptance.sqlite"
+    first = seed_acceptance_step(database, 1)
+    second = seed_acceptance_step(database, 2)
+    retry = seed_acceptance_step(database, 2)
+    assert first["event_inserted_count"] == 0
+    assert second == {
+        "signal_inserted_count": 2, "signal_retry_count": 0,
+        "event_inserted_count": 4, "event_retry_count": 0,
+    }
+    assert retry == {
+        "signal_inserted_count": 0, "signal_retry_count": 2,
+        "event_inserted_count": 0, "event_retry_count": 4,
+    }

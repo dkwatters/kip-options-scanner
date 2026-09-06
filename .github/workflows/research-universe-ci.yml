@@ -21,6 +21,7 @@ on:
       - src/model_lab_page.py
       - technical_scan.py
       - research_scan.py
+      - scripts/seed_observation_event_acceptance.py
       - tests/test_research_universe*.py
       - tests/test_universe_analysis*.py
       - tests/test_universe_interpretation*.py

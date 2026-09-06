@@ -42,7 +42,7 @@ Each newly inserted Signal is compared only with the most recent strictly earlie
 
 ## Manual acceptance evidence
 
-Pending product-owner acceptance. A deterministic two-observation developer path may seed or run two dated analyses with a supported state transition, then inspect Model Lab → Recent Observation Events for prior/current values and Signal provenance. Live data is not required to fabricate a transition.
+Pending product-owner acceptance. `python -m scripts.seed_observation_event_acceptance` provides an explicit two-step developer fixture. Step 1 stores initial NVDA Volatility and HOOD Directional Signals with no events. Step 2 stores later Signals and deterministically produces NVDA normal → elevated and stable → expanding events plus HOOD constructive → mixed and bullish → neutral events. Repeating either step is idempotent. The selected SQLite database can then be opened in Streamlit Model Lab without depending on a live-market transition.
 
 ## Deferred
 
