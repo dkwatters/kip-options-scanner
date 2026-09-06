@@ -128,6 +128,17 @@ def test_same_timestamp_is_not_treated_as_history(tmp_path):
     assert observe_signal_changes((second,), signal_repository=signals, event_repository=events).event_count == 0
 
 
+def test_legacy_twelve_hour_timestamps_select_the_actual_same_day_prior(tmp_path):
+    signals = SignalRepository(_target(tmp_path)); events = ObservationEventRepository(_target(tmp_path))
+    morning = _signal("morning", "2026-01-01 11:00:00 AM EST")
+    afternoon = _signal("afternoon", "2026-01-01 01:00:00 PM EST",
+                        trend="constructive", direction=SignalDirection.BULLISH)
+    signals.save_signals((morning, afternoon))
+    result = observe_signal_changes((afternoon,), signal_repository=signals, event_repository=events)
+    assert result.inserted_count == 2
+    assert {event.prior_signal_id for event in events.list_events()} == {"morning"}
+
+
 def test_legacy_database_bootstraps_additive_event_table(tmp_path):
     target = _target(tmp_path); SignalRepository(target).initialize()
     repository = ObservationEventRepository(target); repository.initialize()

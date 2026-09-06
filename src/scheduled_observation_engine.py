@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from src.observation_event_repository import ObservationEventRepository
-from src.observation_events import ObservationEvent, detect_observation_events
+from src.observation_events import ObservationEvent, detect_observation_events, signal_instant
 from src.signal_repository import SignalRepository
 from src.signals import Signal
 
@@ -26,9 +26,10 @@ def observe_signal_changes(current_signals: Iterable[Signal], *, signal_reposito
         candidates = signal_repository.list_signals(
             ticker=current.ticker, signal_family=current.signal_family,
             model_id=current.model_id, model_version=current.model_version,
-            as_of_end=current.as_of,
         )
-        prior = next((signal for signal in candidates if signal.as_of < current.as_of), None)
+        current_instant = signal_instant(current.as_of)
+        earlier = tuple(signal for signal in candidates if signal_instant(signal.as_of) < current_instant)
+        prior = max(earlier, key=lambda signal: (signal_instant(signal.as_of), signal.signal_id), default=None)
         if prior is None: continue
         compared += 1; events.extend(detect_observation_events(prior, current))
     inserted = event_repository.save_events(events) if events else ()

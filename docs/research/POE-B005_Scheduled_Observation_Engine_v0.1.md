@@ -26,7 +26,7 @@ Volatility Context events include `volatility.regime_changed` and `volatility.tr
 
 ## Comparison, idempotency, and point-in-time policy
 
-Each newly inserted Signal is compared only with the most recent strictly earlier Signal matching ticker, family, model ID, and model version. No event is emitted for the first Signal, unchanged state, incompatible family/version, or a Signal at the same timestamp. A historical replay uses only Signals with `as_of < current.as_of`; later persisted Signals cannot become its prior observation. Distinct intraday timestamps may form history, while exact same-timestamp retries do not. Historical Signals are never mutated.
+Each newly inserted Signal is compared only with the most recent strictly earlier Signal matching ticker, family, model ID, and model version. ISO timestamps and the repository's legacy 12-hour Eastern display timestamps are normalized to UTC instants before ordering. No event is emitted for the first Signal, unchanged state, incompatible family/version, or a Signal at the same instant. A historical replay uses only Signals earlier than the current instant; later persisted Signals cannot become its prior observation. Distinct intraday timestamps may form history, while exact same-time retries do not. Historical Signals are never mutated.
 
 ## Rejected alternatives
 

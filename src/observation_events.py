@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 import json
 from typing import Any, Mapping
 from uuid import NAMESPACE_URL, uuid5
+from zoneinfo import ZoneInfo
 
 from src.signals import Signal, SignalDirection, SignalFamily
 
@@ -56,7 +58,7 @@ class ObservationEvent:
         object.__setattr__(self, "importance", ObservationEventImportance(self.importance))
         if self.prior_signal_id == self.current_signal_id:
             raise ValueError("an observation event requires two distinct signals")
-        if self.prior_as_of >= self.current_as_of:
+        if signal_instant(self.prior_as_of) >= signal_instant(self.current_as_of):
             raise ValueError("prior_as_of must be strictly earlier than current_as_of")
 
 
@@ -72,7 +74,7 @@ def detect_observation_events(prior: Signal, current: Signal) -> tuple[Observati
     identity = (prior.ticker, prior.signal_family, prior.model_id, prior.model_version)
     if identity != (current.ticker, current.signal_family, current.model_id, current.model_version):
         return ()
-    if prior.as_of >= current.as_of:
+    if signal_instant(prior.as_of) >= signal_instant(current.as_of):
         return ()
     changes: list[tuple[str, str, Any, Any, ObservationEventImportance]] = []
     if current.signal_family is SignalFamily.DIRECTIONAL:
@@ -129,3 +131,18 @@ def _event(prior: Signal, current: Signal, event_type: str, field_name: str,
 
 def _state(value: Any) -> str:
     return str(value or "").strip().lower()
+
+
+def signal_instant(value: str) -> datetime:
+    """Normalize the repository's ISO and legacy Eastern display timestamps."""
+    raw = str(value).strip()
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        timestamp_without_zone = raw.rsplit(" ", 1)[0]
+        parsed = datetime.strptime(timestamp_without_zone, "%Y-%m-%d %I:%M:%S %p").replace(
+            tzinfo=ZoneInfo("America/New_York")
+        )
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
