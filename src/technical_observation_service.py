@@ -35,6 +35,8 @@ class TechnicalObservationPersistenceResult:
     observation_event_count: int = 0
     observation_event_retry_count: int = 0
     observation_event_persistence_error: str | None = None
+    observation_comparison_inserted_count: int = 0
+    observation_comparison_retry_count: int = 0
 
     @property
     def signals_persisted(self) -> bool:
@@ -90,6 +92,7 @@ def archive_technical_observations_and_signals(
                     event_repository=ObservationEventRepository(signal_repository.target),
                 )
             except Exception as error:
+                event_result = getattr(error, "observation_result", None)
                 event_error = safe_diagnostic_detail(error)
     except Exception as error:
         return TechnicalObservationPersistenceResult(
@@ -107,4 +110,6 @@ def archive_technical_observations_and_signals(
         observation_event_count=event_result.inserted_count if event_result else 0,
         observation_event_retry_count=event_result.retry_count if event_result else 0,
         observation_event_persistence_error=event_error,
+        observation_comparison_inserted_count=event_result.comparison_inserted_count if event_result else 0,
+        observation_comparison_retry_count=event_result.comparison_retry_count if event_result else 0,
     )

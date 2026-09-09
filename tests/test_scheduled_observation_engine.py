@@ -179,9 +179,11 @@ def test_shared_boundary_generates_events_for_repeated_scheduled_or_manual_scans
         [_row("scheduled-2", "2026-01-02T10:00:00Z", "constructive")], **kwargs,
     )
     assert first.observation_event_count == 0
+    assert first.observation_comparison_inserted_count == 1
     assert second.observation_event_count == 2
     assert retry.signal_retry_count == 1 and retry.observation_event_count == 0
     assert retry.observation_event_retry_count == 2
+    assert retry.observation_comparison_retry_count == 1
     assert len(ObservationEventRepository(target).list_events()) == 2
 
 
@@ -270,7 +272,7 @@ def test_event_failure_is_visible_and_same_input_retry_recovers(tmp_path, monkey
     with monkeypatch.context() as patch:
         def fail(*args):
             raise RuntimeError("event storage unavailable")
-        patch.setattr(ObservationEventRepository, "save_events", fail)
+        patch.setattr(ObservationEventRepository, "complete_comparison", fail)
         failed = archive_technical_observations_and_signals(current, **kwargs)
     assert failed.signals_persisted and failed.signal_inserted_count == 1
     assert "event storage unavailable" in failed.observation_event_persistence_error

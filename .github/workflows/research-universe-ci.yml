@@ -16,6 +16,7 @@ on:
       - src/research_conversation/**
       - src/observation_event_repository.py
       - src/observation_events.py
+      - src/observation_comparisons.py
       - src/scheduled_observation_engine.py
       - src/technical_observation_service.py
       - src/model_lab_page.py
@@ -32,6 +33,7 @@ on:
       - tests/test_rce_authored_source_corpus.py
       - tests/test_rce_benchmark_explorer_service.py
       - tests/test_scheduled_observation_engine.py
+      - tests/test_observation_comparisons.py
       - src/signals.py
       - src/signal_repository.py
       - src/technical_analysis.py

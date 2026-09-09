@@ -160,3 +160,5 @@ remains for the product owner; no product or fixture code was changed.
 ## Completed product-owner acceptance
 
 Product-owner acceptance is now PASS on a fresh isolated SQLite database: Step 1 inserted two Signals and zero events; Step 2 inserted two Signals and four events; Step 2 retry inserted nothing and reported two Signal retries and four Event retries. The expected HOOD and NVDA transitions, model/version, source scan, prior Signal ID, and provenance were visible. Volatility remained non-directional. This supersedes the earlier pending-browser status above. See POE-B005 for the independent pre-PR backfill-idempotency blocker, which is outside this fixed-history scenario.
+
+The product owner subsequently selected immutable first-observation comparison semantics. POE-B005 records the implemented correction and automated backfill/recovery evidence. The original manual acceptance remains valid; new comparisons include durable zero-event receipts. Reuse the fresh-database procedure above: development-era event rows without comparison receipts are preserved and rejected for normal-path reinterpretation.

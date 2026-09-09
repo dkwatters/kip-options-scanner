@@ -114,6 +114,8 @@ def run_tam_technical_scan(
         "signal_persistence_error": persistence.signal_persistence_error,
         "observation_event_count": persistence.observation_event_count,
         "observation_event_retry_count": persistence.observation_event_retry_count,
+        "observation_comparison_inserted_count": persistence.observation_comparison_inserted_count,
+        "observation_comparison_retry_count": persistence.observation_comparison_retry_count,
         "observation_event_persistence_error": persistence.observation_event_persistence_error,
         "technical_error_count": len(technical_errors),
         "run_mode": run_mode,
