@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import json
 from typing import Any, Mapping
+from types import MappingProxyType
 from uuid import NAMESPACE_URL, uuid5
 from zoneinfo import ZoneInfo
 
@@ -46,6 +47,8 @@ class ObservationEvent:
     schema_version: str = OBSERVATION_EVENT_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
+        for name in ("prior_value", "current_value", "components", "metadata"):
+            object.__setattr__(self, name, _freeze_json(getattr(self, name)))
         for name in (
             "event_id", "ticker", "observed_at", "model_id", "model_version",
             "event_type", "prior_signal_id", "current_signal_id", "prior_as_of",
@@ -67,6 +70,24 @@ _DIRECTIONAL_TREND_ORDER = {
     "constructive": 3, "bullish_alignment": 4,
 }
 _VOLATILITY_REGIME_ORDER = {"quiet": 0, "normal": 1, "elevated": 2, "extreme": 3}
+
+
+def _freeze_json(value: Any) -> Any:
+    """Detach nested evidence from its caller and prevent in-place mutation."""
+    if isinstance(value, Mapping):
+        return MappingProxyType({key: _freeze_json(item) for key, item in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_json(item) for item in value)
+    return value
+
+
+def event_json_value(value: Any) -> Any:
+    """Return plain JSON containers for persistence and provenance rendering."""
+    if isinstance(value, Mapping):
+        return {key: event_json_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [event_json_value(item) for item in value]
+    return value
 
 
 def detect_observation_events(prior: Signal, current: Signal) -> tuple[ObservationEvent, ...]:

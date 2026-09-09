@@ -6,6 +6,7 @@ import streamlit as st
 
 from src.model_performance import model_performance_scorecard, volatility_performance_scorecard
 from src.observation_event_repository import ObservationEventRepository
+from src.observation_events import event_json_value
 from src.signal_repository import signal_repository_from_env
 from src.signals import SignalDirection, SignalFamily
 
@@ -131,8 +132,8 @@ def render_model_lab() -> None:
                 "event_id": event.event_id,
                 "prior_as_of": event.prior_as_of,
                 "current_as_of": event.current_as_of,
-                "components": dict(event.components),
-                "metadata": dict(event.metadata),
+                "components": event_json_value(event.components),
+                "metadata": event_json_value(event.metadata),
                 "schema_version": event.schema_version,
             } for event in events])
     st.caption(scorecard["disclaimer"] if scorecard is not None else "Descriptive research evidence only; not investment advice.")

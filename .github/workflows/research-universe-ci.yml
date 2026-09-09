@@ -32,6 +32,15 @@ on:
       - tests/test_rce_authored_source_corpus.py
       - tests/test_rce_benchmark_explorer_service.py
       - tests/test_scheduled_observation_engine.py
+      - src/signals.py
+      - src/signal_repository.py
+      - src/technical_analysis.py
+      - src/volatility_context.py
+      - tests/test_signal*.py
+      - tests/test_typed_signal_families.py
+      - tests/test_technical*.py
+      - tests/test_volatility_context.py
+      - tests/test_model_lab_streamlit.py
 
 jobs:
   validate:

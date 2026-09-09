@@ -7,7 +7,7 @@ from pathlib import Path
 import sqlite3
 from typing import Iterable
 
-from src.observation_events import ObservationEvent, ObservationEventImportance
+from src.observation_events import ObservationEvent, ObservationEventImportance, event_json_value, signal_instant
 from src.research_repository import DEFAULT_RESEARCH_DB_PATH, REPOSITORY_BACKEND_POSTGRES, ResearchRepositoryTarget
 from src.signals import SignalFamily
 
@@ -101,14 +101,16 @@ class ObservationEventRepository:
                               ("model_id", model_id), ("model_version", model_version)):
             if value is not None: clauses.append(f"{column} = {placeholder}"); params.append(value)
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
-        suffix = f" LIMIT {int(limit)}" if limit is not None else ""
         with closing(self._connect()) as connection:
-            cursor = connection.cursor(); cursor.execute(f"SELECT {', '.join(EVENT_COLUMNS)} FROM observation_events{where} ORDER BY observed_at DESC, event_id{suffix}", tuple(params))
-            return tuple(_from_row(row) for row in cursor.fetchall())
+            cursor = connection.cursor(); cursor.execute(f"SELECT {', '.join(EVENT_COLUMNS)} FROM observation_events{where}", tuple(params))
+            events = sorted((_from_row(row) for row in cursor.fetchall()), key=lambda event: event.event_id)
+        # Normalize before limiting: legacy AM/PM and mixed ISO offsets are not lexical time.
+        events.sort(key=lambda event: signal_instant(event.observed_at), reverse=True)
+        return tuple(events if limit is None else events[:max(0, int(limit))])
 
 
 def _values(event: ObservationEvent) -> tuple:
-    dump = lambda value: json.dumps(value, sort_keys=True, separators=(",", ":"))
+    dump = lambda value: json.dumps(event_json_value(value), sort_keys=True, separators=(",", ":"))
     return (event.event_id, event.ticker, event.observed_at, event.signal_family.value,
             event.model_id, event.model_version, event.event_type, event.prior_signal_id,
             event.current_signal_id, event.prior_as_of, event.current_as_of, event.field,

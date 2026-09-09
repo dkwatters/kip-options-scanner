@@ -1,9 +1,11 @@
 from pathlib import Path
+from dataclasses import replace
 import sqlite3
+import pytest
 
 from streamlit.testing.v1 import AppTest
 
-from src.observation_event_repository import ObservationEventRepository, POSTGRES_SCHEMA
+from src.observation_event_repository import ObservationEventConflict, ObservationEventRepository, POSTGRES_SCHEMA
 from src.observation_events import ObservationEventImportance, detect_observation_events
 from src.research_repository import REPOSITORY_BACKEND_SQLITE, ResearchRepositoryTarget
 from src.scheduled_observation_engine import observe_signal_changes
@@ -217,3 +219,61 @@ def test_manual_acceptance_seed_is_two_step_deterministic_and_idempotent(tmp_pat
         "signal_inserted_count": 0, "signal_retry_count": 2,
         "event_inserted_count": 0, "event_retry_count": 4,
     }
+
+
+def test_event_evidence_is_deeply_immutable_and_round_trips(tmp_path):
+    signals = SignalRepository(_target(tmp_path)); events = ObservationEventRepository(_target(tmp_path))
+    prior = _signal("prior", "2026-01-01T10:00:00Z")
+    current = _signal("current", "2026-01-02T10:00:00Z", trend="constructive")
+    signals.save_signals((prior, current))
+    evidence = {"nested": [{"value": 1}]}
+    event = replace(detect_observation_events(prior, current)[0], components=evidence)
+    evidence["nested"][0]["value"] = 2
+    assert event.components["nested"][0]["value"] == 1
+    with pytest.raises(TypeError):
+        event.components["nested"][0]["value"] = 3
+    assert events.save_events((event,)) == (True,)
+    assert events.list_events() == (event,)
+    with pytest.raises(ObservationEventConflict):
+        events.save_events((replace(event, current_value="changed"),))
+    assert events.list_events() == (event,)
+
+
+def test_recent_events_normalize_time_before_limit(tmp_path):
+    signals = SignalRepository(_target(tmp_path)); events = ObservationEventRepository(_target(tmp_path))
+    prior = _signal("prior", "2026-01-01T10:00:00Z")
+    morning = _signal("morning", "2026-01-01 11:00:00 AM EST", trend="constructive")
+    afternoon = _signal("afternoon", "2026-01-01 01:00:00 PM EST", trend="mixed")
+    evening = _signal("evening", "2026-01-01T14:30:00-05:00", trend="constructive")
+    signals.save_signals((prior, morning, afternoon, evening))
+    observe_signal_changes((morning, afternoon, evening), signal_repository=signals, event_repository=events)
+    assert [event.current_signal_id for event in events.list_events(limit=2)] == ["evening", "afternoon"]
+
+
+def test_event_foreign_keys_reject_missing_signals(tmp_path):
+    signals = SignalRepository(_target(tmp_path)); signals.initialize()
+    events = ObservationEventRepository(_target(tmp_path))
+    event = detect_observation_events(
+        _signal("prior", "2026-01-01T10:00:00Z"),
+        _signal("current", "2026-01-02T10:00:00Z", trend="constructive"),
+    )[0]
+    with pytest.raises(sqlite3.IntegrityError):
+        events.save_events((event,))
+    assert events.list_events() == ()
+
+
+def test_event_failure_is_visible_and_same_input_retry_recovers(tmp_path, monkeypatch):
+    target = _target(tmp_path)
+    kwargs = {"archive_observations": lambda rows: len(rows), "signal_repository": SignalRepository(target)}
+    archive_technical_observations_and_signals([_row("first", "2026-01-01T10:00:00Z", "mixed")], **kwargs)
+    current = [_row("second", "2026-01-02T10:00:00Z", "constructive")]
+    with monkeypatch.context() as patch:
+        def fail(*args):
+            raise RuntimeError("event storage unavailable")
+        patch.setattr(ObservationEventRepository, "save_events", fail)
+        failed = archive_technical_observations_and_signals(current, **kwargs)
+    assert failed.signals_persisted and failed.signal_inserted_count == 1
+    assert "event storage unavailable" in failed.observation_event_persistence_error
+    recovered = archive_technical_observations_and_signals(current, **kwargs)
+    assert recovered.signal_retry_count == 1 and recovered.observation_event_count == 2
+    assert recovered.observation_events_persisted
