@@ -81,15 +81,34 @@ Future explicit historical recomparison/rebuild is deferred. It must use a new p
 
 ## Policy-correction validation
 
-Status: READY FOR PRE-PR REVIEW; no push or PR opening authorized for this correction turn.
+Historical policy-correction status: READY FOR PRE-PR REVIEW at e94c077; push/PR was deferred until the final review below.
 
-- Focused regression command: `python -m pytest -q tests/test_observation_comparisons.py tests/test_scheduled_observation_engine.py tests/test_signal_foundation.py tests/test_signal_integration.py tests/test_typed_signal_families.py tests/test_volatility_context.py tests/test_model_lab_streamlit.py tests/test_technical_scan.py` ? **68 passed**, one pytest cache-permission warning, 16.27 seconds. Includes all 13 explicit comparison/backfill/recovery regressions.
-- Full CI-equivalent command: `python -m pytest -q -m "not authoritative_rce_evidence"` ? **534 passed, 3 deselected, 21 subtests passed**, one pytest cache-permission warning, 49.98 seconds. No test failure or Launchpad failure reproduced.
+- Focused regression command: `python -m pytest -q tests/test_observation_comparisons.py tests/test_scheduled_observation_engine.py tests/test_signal_foundation.py tests/test_signal_integration.py tests/test_typed_signal_families.py tests/test_volatility_context.py tests/test_model_lab_streamlit.py tests/test_technical_scan.py` - **68 passed**, one pytest cache-permission warning, 16.27 seconds. Includes all 13 explicit comparison/backfill/recovery regressions.
+- Full CI-equivalent command: `python -m pytest -q -m "not authoritative_rce_evidence"` - **534 passed, 3 deselected, 21 subtests passed**, one pytest cache-permission warning, 49.98 seconds. No test failure or Launchpad failure reproduced.
 - `python -m compileall -q app.py src tests scripts` and `git diff --check` passed.
 - Fresh SQLite CLI fixture, executed with explicit `--database` and steps 1, 2, 2: counts remained `(2 inserted Signals, 0 retries, 0 events, 0 event retries)`, `(2, 0, 4, 0)`, then `(0, 2, 0, 4)`. Four immutable comparisons and four completion receipts remained. The fixture performs no analytical model calls and was not changed.
 - CI path filters include the comparison module and regression file. Standard/dedicated authoritative-evidence separation remains unchanged. POE-B001 through POE-B004 and frozen evidence are untouched.
 
 PostgreSQL validation remains structural rather than live. Initial candidate selection and reservation are not one database snapshot: concurrent history insertions after candidate loading do not change the selected evidence. Once reserved, recovery preserves that selection permanently. Existing matching-history queries remain in-memory and may need indexing/normalized timestamp improvements at larger scale. These limitations do not permit completed comparisons to be silently recomputed.
+
+
+## Final pre-PR acceptance review
+
+Status: PASS after one final repository correction; approved scope is push and PR preparation, without merge.
+
+The review reproduced a standalone Event writer bypass: after A -> C was completed, `save_events` could append B -> C events for the same current Signal. The new regression failed before correction (`DID NOT RAISE ObservationComparisonConflict`). The standalone API now permits only identical already-persisted retries for reserved production comparisons; new comparison events must go through atomic completion. This also protects authoritative zero-event/no-prior comparisons and prevents pending events from being published without their completion receipt. The repository rechecks unreceipted legacy events during reservation, closing the gap after the engine's initial legacy check. SQLite uses `BEGIN IMMEDIATE`; PostgreSQL serializes these write paths on the current Signal with `FOR NO KEY UPDATE`, then locks the comparison for completion. Signal content is never changed by these locks. Five added cases cover the bypass and legacy-write timing.
+
+All 16 requested invariants were reviewed across Signal persistence, immutable reservations, Events, completion receipts, and retry recovery. The current/policy unique constraint enforces one authority; normalized strict-earlier selection excludes future and same-time candidates; completed retries do not query candidate history; pending recovery uses its reserved prior; events and completion commit together; immutable conflicts fail visibly. Backfills cannot change completed or reserved results. Directional/volatility calculations, Signal/Outcome behavior, and non-directional volatility remain unchanged. Supported TAM/research scans, Universe Analysis, Opportunity Discovery, and manual analysis continue through the shared boundary; partial-batch counts/errors remain visible. Model Lab retains family/model/version filtering, exact immutable lineage/provenance, normalized recent-event ordering, and research-only language.
+
+Final local validation:
+
+- `python -m pytest -q tests/test_observation_comparisons.py tests/test_scheduled_observation_engine.py`: **35 passed**, one cache-permission warning, 4.26 seconds.
+- Relevant persistence/integration/UI selection (`test_signal_foundation`, `test_signal_integration`, `test_typed_signal_families`, `test_volatility_context`, `test_model_lab_streamlit`, `test_technical_scan`, `test_research_repository`, `test_research_universe_analysis`, `test_universe_analysis_streamlit`): **68 passed**, one cache-permission warning, 7.61 seconds.
+- `python -m pytest -q -m "not authoritative_rce_evidence"`: **539 passed, 3 deselected, 21 subtests passed**, one cache-permission warning, 21.25 seconds. No Launchpad failure reproduced.
+- `python -m compileall -q app.py src tests scripts`, working-tree whitespace check, and full accepted-base diff whitespace check passed.
+- Fresh CLI acceptance with explicit `--database` and steps 1/2/2 remained `(2,0,0,0)`, `(2,0,4,0)`, `(0,2,0,4)` for Signal inserts/retries and Event inserts/retries. Final counts: four Signals, four Events, four comparisons, four completion receipts. Product-owner manual acceptance remains PASS.
+
+SQLite bootstrap is additive with foreign keys enabled. PostgreSQL DDL remains additive/idempotent and was structurally reviewed; no live PostgreSQL validation is claimed. Legacy Signal/Outcome data remains readable; development-era unreceipted events are preserved and fail visibly on attempted normal-path reinterpretation. No destructive migration or corpus freeze occurred. POE-B001/B002/B003/B004, analytical calculations, frozen evidence, and the separate fail-closed authoritative CI workflow are unchanged. PR path filters cover the relevant v0.4 code and tests. The documented scale, separate Signal-transaction, and explicit future recomparison limitations remain.
 
 ## Deferred
 

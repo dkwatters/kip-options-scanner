@@ -79,15 +79,36 @@ class ObservationEventRepository:
             connection.commit()
 
     def save_events(self, events: Iterable[ObservationEvent]) -> tuple[bool, ...]:
+        """Legacy append API; reserved production comparisons require atomic completion."""
+        events = tuple(events)
         self.initialize(); placeholder = "%s" if self.target.backend == REPOSITORY_BACKEND_POSTGRES else "?"
         with closing(self._connect()) as connection:
             cursor = connection.cursor(); inserted = []
             try:
+                self._lock_current_signals(connection, cursor, (e.current_signal_id for e in events), placeholder)
+                for event in events:
+                    cursor.execute(f"SELECT comparison_id, metadata FROM observation_comparisons WHERE current_signal_id = {placeholder} AND policy_version = {placeholder}", (event.current_signal_id, COMPARISON_POLICY_VERSION))
+                    comparison = cursor.fetchone()
+                    if comparison is not None:
+                        cursor.execute(f"SELECT comparison_id FROM observation_comparison_completions WHERE comparison_id = {placeholder}", (comparison[0],))
+                        completed = cursor.fetchone() is not None
+                        cursor.execute(f"SELECT {', '.join(EVENT_COLUMNS)} FROM observation_events WHERE event_id = {placeholder}", (event.event_id,))
+                        existing = cursor.fetchone()
+                        if not completed or event.event_id not in json.loads(comparison[1])["event_ids"] or existing is None:
+                            raise ObservationComparisonConflict("Standalone Event write conflicts with a reserved comparison; use atomic completion")
                 inserted = self._save_events(cursor, events, placeholder)
                 connection.commit()
             except Exception:
                 connection.rollback(); raise
         return tuple(inserted)
+
+    def _lock_current_signals(self, connection, cursor, signal_ids, placeholder):
+        """Serialize legacy writes, reservations and completion without blocking FK reads."""
+        if self.target.backend == REPOSITORY_BACKEND_POSTGRES:
+            for signal_id in sorted(set(signal_ids)):
+                cursor.execute(f"SELECT signal_id FROM research_signals WHERE signal_id = {placeholder} FOR NO KEY UPDATE", (signal_id,))
+        else:
+            connection.execute("BEGIN IMMEDIATE")
 
     def _save_events(self, cursor, events, placeholder):
         inserted = []
@@ -124,8 +145,13 @@ class ObservationEventRepository:
         with closing(self._connect()) as connection:
             cursor = connection.cursor()
             try:
+                self._lock_current_signals(connection, cursor, (comparison.current_signal_id,), placeholder)
                 cursor.execute(f"INSERT INTO observation_comparisons ({', '.join(COMPARISON_COLUMNS)}) VALUES ({', '.join([placeholder] * len(values))}) ON CONFLICT(current_signal_id, policy_version) DO NOTHING", values)
                 inserted = cursor.rowcount == 1
+                if inserted:
+                    cursor.execute(f"SELECT event_id FROM observation_events WHERE current_signal_id = {placeholder}", (comparison.current_signal_id,))
+                    if cursor.fetchone() is not None:
+                        raise ObservationComparisonConflict("Legacy Observation Events lack a comparison receipt; explicit evidence migration is required")
                 cursor.execute(f"SELECT {', '.join(COMPARISON_COLUMNS)} FROM observation_comparisons WHERE current_signal_id = {placeholder} AND policy_version = {placeholder}", (comparison.current_signal_id, comparison.policy_version))
                 row = cursor.fetchone()
                 if not accept_existing and tuple(row) != values:
@@ -154,11 +180,11 @@ class ObservationEventRepository:
         with closing(self._connect()) as connection:
             cursor = connection.cursor()
             try:
+                self._lock_current_signals(connection, cursor, (comparison.current_signal_id,), placeholder)
                 # Serialize completion for the same selection on both supported backends.
                 if self.target.backend == REPOSITORY_BACKEND_POSTGRES:
                     lock = " FOR UPDATE"
                 else:
-                    connection.execute("BEGIN IMMEDIATE")
                     lock = ""
                 cursor.execute(f"SELECT {', '.join(COMPARISON_COLUMNS)} FROM observation_comparisons WHERE comparison_id = {placeholder}{lock}", (comparison.comparison_id,))
                 row = cursor.fetchone()

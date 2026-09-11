@@ -160,3 +160,44 @@ def test_partial_batch_failure_preserves_counts_and_recovers(tmp_path, monkeypat
     assert recovered.observation_event_count == 2 and recovered.observation_event_retry_count == 2
     assert recovered.observation_comparison_inserted_count == 1
     assert recovered.observation_comparison_retry_count == 1
+
+
+@pytest.mark.parametrize("state", ["events", "unchanged", "no_prior"])
+def test_standalone_event_write_cannot_bypass_completed_comparison(tmp_path, state):
+    from src.observation_events import detect_observation_events
+    signals, events, a, b, c = _scenario(tmp_path, state)
+    observe_signal_changes((c,), signal_repository=signals, event_repository=events)
+    original = events.list_events()
+    signals.save_signal(b)
+    with pytest.raises(ObservationComparisonConflict):
+        events.save_events(detect_observation_events(b, c))
+    assert events.list_events() == original
+    assert events.save_events(original) == (False,) * len(original)
+
+
+def test_standalone_write_cannot_publish_pending_comparison_events(tmp_path, monkeypatch):
+    from src.observation_events import detect_observation_events
+    signals, events, a, b, c = _scenario(tmp_path, "events")
+    def interrupted(*args):
+        raise RuntimeError("interrupted")
+    with monkeypatch.context() as patch:
+        patch.setattr(events, "complete_comparison", interrupted)
+        with pytest.raises(RuntimeError):
+            observe_signal_changes((c,), signal_repository=signals, event_repository=events)
+    with pytest.raises(ObservationComparisonConflict):
+        events.save_events(detect_observation_events(a, c))
+    assert events.list_events() == ()
+    assert events.get_comparison(c.signal_id)[1] is False
+
+
+def test_reservation_rechecks_legacy_events_after_initial_engine_read(tmp_path, monkeypatch):
+    from src.observation_events import detect_observation_events
+    signals, events, a, b, c = _scenario(tmp_path, "events")
+    reserve = events.save_comparison
+    def legacy_write_before_reservation(comparison, **kwargs):
+        events.save_events(detect_observation_events(a, c))
+        return reserve(comparison, **kwargs)
+    monkeypatch.setattr(events, "save_comparison", legacy_write_before_reservation)
+    with pytest.raises(ObservationComparisonConflict, match="Legacy"):
+        observe_signal_changes((c,), signal_repository=signals, event_repository=events)
+    assert events.get_comparison(c.signal_id) is None
