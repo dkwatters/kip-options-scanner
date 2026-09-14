@@ -10,6 +10,8 @@ from src.research_repository import (
     research_repository_from_target,
     research_repository_target_from_env,
 )
+from src.observation_event_repository import ObservationEventRepository
+from src.scheduled_observation_engine import observe_signal_changes
 from src.signal_repository import SignalRepository
 from src.signals import technical_setup_signal, volatility_context_signal
 
@@ -30,10 +32,19 @@ class TechnicalObservationPersistenceResult:
     signal_inserted_count: int
     signal_retry_count: int
     signal_persistence_error: str | None = None
+    observation_event_count: int = 0
+    observation_event_retry_count: int = 0
+    observation_event_persistence_error: str | None = None
+    observation_comparison_inserted_count: int = 0
+    observation_comparison_retry_count: int = 0
 
     @property
     def signals_persisted(self) -> bool:
         return self.signal_persistence_error is None
+
+    @property
+    def observation_events_persisted(self) -> bool:
+        return self.observation_event_persistence_error is None
 
 
 def configured_technical_observation_repositories(
@@ -71,6 +82,18 @@ def archive_technical_observations_and_signals(
             if isinstance(row.get("_volatility_context"), dict):
                 signals.append(volatility_context_signal(row))
         inserted = signal_repository.save_signals(signals)
+        event_result = None
+        event_error = None
+        if signals and hasattr(signal_repository, "target"):
+            try:
+                event_result = observe_signal_changes(
+                    signals,
+                    signal_repository=signal_repository,
+                    event_repository=ObservationEventRepository(signal_repository.target),
+                )
+            except Exception as error:
+                event_result = getattr(error, "observation_result", None)
+                event_error = safe_diagnostic_detail(error)
     except Exception as error:
         return TechnicalObservationPersistenceResult(
             archive_result=archive_result,
@@ -84,4 +107,9 @@ def archive_technical_observations_and_signals(
         technical_observation_count=len(rows),
         signal_inserted_count=sum(inserted),
         signal_retry_count=len(inserted) - sum(inserted),
+        observation_event_count=event_result.inserted_count if event_result else 0,
+        observation_event_retry_count=event_result.retry_count if event_result else 0,
+        observation_event_persistence_error=event_error,
+        observation_comparison_inserted_count=event_result.comparison_inserted_count if event_result else 0,
+        observation_comparison_retry_count=event_result.comparison_retry_count if event_result else 0,
     )

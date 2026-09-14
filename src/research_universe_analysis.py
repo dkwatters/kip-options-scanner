@@ -69,6 +69,8 @@ class ResearchUniverseAnalysisRun:
     scan_id: str
     ledger: tuple[AnalysisLedgerEntry, ...]
     signal_persistence_error: str | None = None
+    observation_event_count: int = 0
+    observation_event_persistence_error: str | None = None
 
 
 def preflight_research_universe(handoff: ResearchUniverseHandoff, client: Any) -> ResearchUniversePreflight:
@@ -137,4 +139,5 @@ def execute_research_universe_analysis(preflight: ResearchUniversePreflight, *, 
             for entry in final if entry.status != AnalysisMemberStatus.ANALYZED
         ),
         formatted, scan_id, tuple(final), persistence.signal_persistence_error,
+        persistence.observation_event_count, persistence.observation_event_persistence_error,
     )

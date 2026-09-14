@@ -14,6 +14,15 @@ on:
       - src/universe_interpretation*.py
       - src/candidate_identity_validation.py
       - src/research_conversation/**
+      - src/observation_event_repository.py
+      - src/observation_events.py
+      - src/observation_comparisons.py
+      - src/scheduled_observation_engine.py
+      - src/technical_observation_service.py
+      - src/model_lab_page.py
+      - technical_scan.py
+      - research_scan.py
+      - scripts/seed_observation_event_acceptance.py
       - tests/test_research_universe*.py
       - tests/test_universe_analysis*.py
       - tests/test_universe_interpretation*.py
@@ -23,6 +32,17 @@ on:
       - pytest.ini
       - tests/test_rce_authored_source_corpus.py
       - tests/test_rce_benchmark_explorer_service.py
+      - tests/test_scheduled_observation_engine.py
+      - tests/test_observation_comparisons.py
+      - src/signals.py
+      - src/signal_repository.py
+      - src/technical_analysis.py
+      - src/volatility_context.py
+      - tests/test_signal*.py
+      - tests/test_typed_signal_families.py
+      - tests/test_technical*.py
+      - tests/test_volatility_context.py
+      - tests/test_model_lab_streamlit.py
 
 jobs:
   validate:

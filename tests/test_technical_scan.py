@@ -72,6 +72,8 @@ class TechnicalScanTest(unittest.TestCase):
         self.assertEqual(client.quote_symbols, [])
         self.assertGreater(len(signals), 0)
         self.assertTrue(all(row.model_version == "technical-setup-signal-v0.1.1" for row in signals))
+        self.assertEqual(result["observation_event_count"], 0)
+        self.assertIsNone(result["observation_event_persistence_error"])
 
     def test_scheduled_tam_scan_skips_closed_market_before_client_calls(self):
         client = FakeTamClient()

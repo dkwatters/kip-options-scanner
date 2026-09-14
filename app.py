@@ -2564,9 +2564,11 @@ def render_opportunity_discovery_workflow(
             except Exception as error:
                 st.session_state.opportunity_archive_counts = None
                 st.session_state.opportunity_archive_error = str(error)
+                st.session_state.opportunity_event_error = None
             else:
                 st.session_state.opportunity_archive_counts = archive_counts.archive_result
                 st.session_state.opportunity_archive_error = archive_counts.signal_persistence_error
+                st.session_state.opportunity_event_error = archive_counts.observation_event_persistence_error
                 st.session_state.opportunity_archived_scan_id = scan_id
 
     opportunity_rows = st.session_state.get("opportunity_rows", [])
@@ -2579,6 +2581,9 @@ def render_opportunity_discovery_workflow(
         and opportunity_settings == discovery_settings
     )
     archive_error = st.session_state.get("opportunity_archive_error")
+    event_error = st.session_state.get("opportunity_event_error")
+    if event_error and current_opportunity_context:
+        st.warning("Signals were saved, but Observation Events could not be recorded. Details: " + event_error)
     if archive_error and current_opportunity_context:
         if st.session_state.get("opportunity_archive_counts") is not None:
             render_signal_persistence_failure(archive_error)

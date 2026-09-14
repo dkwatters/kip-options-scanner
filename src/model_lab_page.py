@@ -5,6 +5,8 @@ import pandas as pd
 import streamlit as st
 
 from src.model_performance import model_performance_scorecard, volatility_performance_scorecard
+from src.observation_event_repository import ObservationEventRepository
+from src.observation_events import event_json_value
 from src.signal_repository import signal_repository_from_env
 from src.signals import SignalDirection, SignalFamily
 
@@ -103,4 +105,35 @@ def render_model_lab() -> None:
     if family is SignalFamily.VOLATILITY:
         with st.expander("Raw volatility diagnostics"):
             st.json([{"signal_id": signal.signal_id, "components": dict(signal.components), "metadata": dict(signal.metadata)} for signal in signals])
+    st.subheader("Recent Observation Events")
+    st.caption("Deterministic changes between compatible Signals. This is observational research history, not an alert or recommendation feed.")
+    events = ObservationEventRepository(repository.target).list_events(
+        signal_family=family, model_id=selected[0], model_version=selected[1], limit=50,
+    )
+    if not events:
+        st.info("No meaningful changes have been recorded for this model and version yet.")
+    else:
+        st.dataframe(pd.DataFrame([{
+            "Observed at": event.observed_at,
+            "Security": event.ticker,
+            "Signal family": event.signal_family.value,
+            "Model and version": f"{event.model_id} · {event.model_version}",
+            "Event type": event.event_type,
+            "Field": event.field,
+            "Prior state": event.prior_value,
+            "Current state": event.current_value,
+            "Importance": event.importance.value,
+            "Source scan": event.source_scan_id,
+            "Prior Signal ID": event.prior_signal_id,
+            "Current Signal ID": event.current_signal_id,
+        } for event in events]), hide_index=True)
+        with st.expander("Observation Event provenance"):
+            st.json([{
+                "event_id": event.event_id,
+                "prior_as_of": event.prior_as_of,
+                "current_as_of": event.current_as_of,
+                "components": event_json_value(event.components),
+                "metadata": event_json_value(event.metadata),
+                "schema_version": event.schema_version,
+            } for event in events])
     st.caption(scorecard["disclaimer"] if scorecard is not None else "Descriptive research evidence only; not investment advice.")
