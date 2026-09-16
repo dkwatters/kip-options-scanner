@@ -16,6 +16,9 @@ on:
       - src/research_conversation/**
       - src/observation_event_repository.py
       - src/observation_events.py
+      - src/garch*.py
+      - tests/test_garch*.py
+      - scripts/seed_garch_acceptance.py
       - src/observation_comparisons.py
       - src/scheduled_observation_engine.py
       - src/technical_observation_service.py

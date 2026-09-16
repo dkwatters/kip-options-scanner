@@ -9,6 +9,8 @@ from src.observation_event_repository import ObservationEventRepository
 from src.observation_events import event_json_value
 from src.signal_repository import signal_repository_from_env
 from src.signals import SignalDirection, SignalFamily
+from src.garch_challenger import MODEL_ID as GARCH_MODEL_ID, MODEL_VERSION as GARCH_MODEL_VERSION
+from src.garch_model_lab import render_garch_controls, render_garch_evidence
 
 
 def render_model_lab() -> None:
@@ -20,6 +22,7 @@ def render_model_lab() -> None:
     except Exception as error:
         st.error("Model Lab is unavailable: " + str(error))
         return
+    render_garch_controls(repository)
     if not all_signals:
         st.info("No signals have been recorded yet. Signals will appear here after supported analytical models generate and persist research observations.")
         return
@@ -31,6 +34,10 @@ def render_model_lab() -> None:
     selected = st.selectbox("Model and version", identities, format_func=lambda value: f"{value[0]} · {value[1]}")
     signals = tuple(signal for signal in family_signals if (signal.model_id, signal.model_version) == selected)
     outcomes = repository.list_outcomes(signal_ids=[signal.signal_id for signal in signals])
+
+    if selected == (GARCH_MODEL_ID, GARCH_MODEL_VERSION) and family is SignalFamily.VOLATILITY:
+        render_garch_evidence(signals, outcomes, repository)
+        return
 
     scorecard = None
     if family is SignalFamily.DIRECTIONAL:
