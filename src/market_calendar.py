@@ -5,6 +5,13 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 
+# Exchange-announced full-day closures outside the recurring holiday schedule.
+# Keep these at the shared calendar boundary so every session consumer agrees.
+EXCEPTIONAL_FULL_DAY_CLOSURES = {
+    date(2025, 1, 9): "National Day of Mourning for President Jimmy Carter",
+}
+
+
 @dataclass(frozen=True, slots=True)
 class MarketCalendarStatus:
     trading_day: bool
@@ -47,7 +54,9 @@ def is_us_equity_early_close(day: date) -> bool:
 
 
 def us_equity_market_holiday_name(day: date) -> str | None:
-    """Return the regular full-day U.S. equity market holiday name, if any."""
+    """Return a full-day U.S. equity market closure name, if any."""
+    if day in EXCEPTIONAL_FULL_DAY_CLOSURES:
+        return EXCEPTIONAL_FULL_DAY_CLOSURES[day]
     holidays = {
         _observed_fixed_holiday(day.year, 1, 1): "New Year's Day",
         _nth_weekday(day.year, 1, 0, 3): "Martin Luther King Jr. Day",

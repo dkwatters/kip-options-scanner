@@ -1,7 +1,7 @@
 # POE-B006 — GARCH Challenger v0.1
 
-Status: implemented research challenger; product-owner manual acceptance pending.
-This is synthetic developer evidence, not authoritative RCE evidence or a claim of market predictive value.
+Status: implemented experimental research challenger; product-owner manual acceptance = **PASS**.
+Synthetic developer evidence and single-security live acceptance establish implementation behavior. Neither is authoritative RCE evidence or a claim of forecast value, market superiority, predictive edge, profitability, or statistical significance.
 
 ## Recovery (2026-09-15)
 
@@ -164,7 +164,7 @@ Context remains separately selectable. Coverage and small-sample limits are visi
 
 ## Validation
 
-Local results using the recovered worktree `.venv`:
+Initial implementation validation using the recovered worktree `.venv` (historical results; final post-correction validation is recorded below):
 
 - Final focused GARCH run: **36 passed in 4.28s**.
 - Combined GARCH, volatility, typed family, Signal foundation/integration,
@@ -178,7 +178,7 @@ Local results using the recovered worktree `.venv`:
 - `python -m pip check`: no broken requirements.
 - Synthetic fixture executed and rerun: four Signals, six Outcomes, zero Events.
 - Model Lab exercised with Streamlit AppTest, including GARCH/context selection;
-  no browser visual inspection or live provider/PostgreSQL run performed.
+  no browser visual inspection or live provider/PostgreSQL run performed during initial recovery. Subsequent product-owner live acceptance is recorded below.
 
 Authoritative RCE files, markers, workflow, and evidence contract remain unchanged.
 
@@ -220,4 +220,123 @@ research database, submit a ticker/date through the form; inspect status and ela
 time, then submit the same date and verify `retry` with `refitted: false`. Refresh
 selected Outcomes explicitly after maturity. A provider or fit failure is a valid
 visible result, not permission to invent a forecast. No live-provider run was made
-during recovery. Product-owner acceptance remains pending.
+during recovery. Subsequent live reacceptance completed successfully; see the final acceptance record below.
+
+## v0.5 live acceptance finding: NVDA, 2026-09-16
+
+The product owner reported `provider_history_failure` for an on-demand NVDA
+forecast. The Model Lab diagnostics identify `model_id=garch-volatility`,
+`model_version=garch-1-1-v0.1`, `analysis_date=2026-09-16`,
+`source=tradier-daily-history`, and the exact error `Missing training session
+2025-01-09`. This confirms the rejection occurred in GARCH's strict history
+validation, rather than during the provider request. Code inspection found the
+calendar defect that caused this result: the 800-calendar-day request starts
+2024-07-08 and includes 2025-01-09, which the shared calendar incorrectly
+classified as a required trading session. NYSE and Nasdaq closed their U.S.
+equity markets that day for President Jimmy Carter's National Day of Mourning
+([NYSE notice](https://www.nyse.com/publicdocs/nyse/markets/american-options/rule-interpretations/2025/National_Day_of_Mourning_20250102.pdf),
+[Nasdaq announcement](https://ir.nasdaq.com/news-releases/news-release-details/nasdaq-announces-closure-its-us-markets-honor-national-day-0)).
+No 2025-01-09 provider bar is therefore expected. The strict GARCH gap check
+would reject otherwise contiguous history with `Missing training session
+2025-01-09`. The reported diagnostic confirms this was the live failure. The
+raw provider response was not supplied, but a bar is not expected on a full-day
+exchange closure. Model Lab reported no usable GARCH forecast, and no Signal
+was created, as required by the fail-closed policy. The defect was the
+calendar's incorrect classification of the closure; the forecast failure
+policy behaved correctly.
+
+GARCH, Volatility Context's completed-bar cutoff, Signal Outcomes, and the
+Observation Engine's market-day status all use `src.market_calendar`. GARCH did
+not bypass a separate authoritative calendar. The shared calendar now records
+the one-off full-day closure; no GARCH-specific calendar exception was added.
+The contiguous-history rule and point-in-time cutoff are unchanged. Calendar
+tests check January 8/9/10; a GARCH regression accepts the legitimate closure
+and rejects a missing January 8 provider bar with `provider_history_failure`
+and no Signal. Existing tests covered recurring holidays and weekends, not
+this class of closure. A Signal Outcome regression proves that a one-session
+horizon starting January 8 ends January 10, appropriately excluding the
+closure. Existing Volatility Context completed-bar and other Signal Outcome
+session-counting regressions remain unchanged and pass.
+Review of exchange calendar announcements for the 2024-07-08 through
+2026-09-15 request interval identified no other one-off full-day U.S. equity
+closure. This is a bounded source review, not a live provider audit.
+
+Previously reported post-correction validation on 2026-09-19 (historical):
+
+- focused GARCH: **37 passed**;
+- market calendar/session: **13 passed**;
+- Volatility Context: **5 passed**;
+- Signal/Outcome: **30 passed**;
+- Observation Engine: **35 passed**;
+- Model Lab: **2 passed**;
+- CI-equivalent suite: **578 passed, 3 deselected, 21 subtests passed**;
+- `python -m compileall -q app.py src scripts tests`: passed;
+- `git diff --check`: passed.
+
+## Final validation (2026-09-29)
+
+Re-run in the worktree's existing Windows CPython 3.12.10 `.venv`; no dependency
+installation or changes to authoritative RCE selection were needed. Each pytest
+command used `-p no:cacheprovider` and an isolated
+`--basetemp=.local-validation/final-20260929-<suite>` to preserve historical artifacts.
+
+| Suite | Files / selection | Final result |
+| --- | --- | --- |
+| Focused GARCH | `tests/test_garch_challenger.py` | 37 passed in 24.96s |
+| Calendar/session | `tests/test_market_calendar.py`, `tests/test_technical_analysis.py` | 13 passed in 0.13s |
+| Volatility Context | `tests/test_volatility_context.py` | 5 passed in 0.20s |
+| Signal/Outcome | `tests/test_signal_foundation.py`, `tests/test_signal_integration.py`, `tests/test_typed_signal_families.py` | 30 passed in 9.73s |
+| Observation Engine | `tests/test_observation_comparisons.py`, `tests/test_scheduled_observation_engine.py` | 35 passed in 9.48s |
+| Model Lab | `tests/test_model_lab_streamlit.py` | 2 passed in 6.52s |
+| Full CI-equivalent | `python -m pytest -q -m "not authoritative_rce_evidence"` | 578 passed, 3 deselected, 21 subtests passed in 75.76s |
+
+`python -m compileall -q app.py src scripts tests` passed.
+`git diff --check` passed. `python -m pip check` reported no broken requirements.
+Authoritative RCE evidence/workflow and POE-B001 through POE-B005 remain unchanged.
+
+## Successful live NVDA reacceptance: analysis date 2026-09-19
+
+Product-owner manual acceptance = **PASS**. The product owner completed the live
+Model Lab run after the shared-calendar correction and supplied the following
+accepted evidence. This finalization did not fetch provider history or refit it.
+
+| Field | Accepted first-run result |
+| --- | --- |
+| Security / source | NVDA / `tradier-daily-history` |
+| Analysis date | `2026-09-19` |
+| Status | `valid` |
+| Model ID / version | `garch-volatility` / `garch-1-1-v0.1` |
+| Observation count | 500 returns |
+| Training start / end | `2024-09-19` / `2026-09-18` |
+| Library / version | `arch` / `8.0.0` |
+| Convergence flag | 0 |
+| Optimizer | terminated successfully |
+| Warnings | `[]` |
+
+The Signal persisted in Model Lab with no `Missing training session 2025-01-09`
+error. Observed approximate values were current conditional volatility **0.408**,
+5d forecast **0.4048**, 20d forecast **0.4161**, 60d forecast **0.4346**, and
+persistence **0.9726**. These rounded values document the observed implementation,
+not forecast performance.
+
+The second identical request returned **`status=retry`, `refitted=false`**.
+It reused the immutable persisted Signal. The preserved live SQLite database
+`.local-validation/garch-live-nvda-v05.sqlite` corroborates the valid NVDA Signal
+and training provenance; finalization inspected it read-only and preserved it.
+The retry UI result is product-owner evidence, not a separate persisted fit.
+
+At live acceptance, forward 5/20/60 realized-volatility Outcomes were not yet
+mature and were correctly absent. This is a record of acceptance-time state;
+finalization does not refresh Outcomes or claim that all horizons remain immature
+on its later date. Initial synthetic acceptance remains documented above.
+
+Remaining non-blocking risks: provider revisions and corporate-action adjustments
+are not reconstructed; the handwritten shared calendar needs maintenance for
+future exceptional closures; numerical dependencies are not fully locked;
+cross-platform fits can differ; failed fits are excluded from scorecard coverage;
+overlapping windows are dependent; fitting has no wall-clock deadline; and live
+latency/large-universe throughput and PostgreSQL acceptance remain unbenchmarked.
+Synthetic and single-security live acceptance establish behavior, not forecast
+value. Mature out-of-sample comparisons and statistical evaluation remain deferred,
+along with tuning, model search, directional Signals, automated fitting, trading,
+brokerage integration, production promotion, and v0.6 work.

@@ -101,6 +101,25 @@ def test_bad_completed_history_fails_without_forecast(history,as_of,mutation):
     assert result.status == "provider_history_failure" and result.signal is None
 
 
+def test_exceptional_closure_is_not_a_gap_but_missing_open_session_is(monkeypatch):
+    monkeypatch.setattr(model, "_fit", lambda r: fake_fit())
+    as_of = date(2025, 1, 13)
+    cursor = date(2024, 1, 2)
+    rows = []
+    while cursor < as_of:
+        if is_us_equity_trading_day(cursor):
+            rows.append({"date": cursor.isoformat(), "close": 100 + len(rows) % 7})
+        cursor += timedelta(days=1)
+    assert any(row["date"] == "2025-01-08" for row in rows)
+    assert any(row["date"] == "2025-01-10" for row in rows)
+    result = model.fit_garch("TEST", as_of, {"history": {"day": rows}})
+    assert result.status == "valid"
+    missing = [row for row in rows if row["date"] != "2025-01-08"]
+    failed = model.fit_garch("TEST", as_of, {"history": {"day": missing}})
+    assert failed.status == "provider_history_failure" and failed.signal is None
+    assert "2025-01-08" in failed.diagnostics["error"]
+
+
 @pytest.mark.parametrize("parameters,status",[
     ({"omega":-1,"alpha[1]":.1,"beta[1]":.8},"invalid_parameters"),
     ({"omega":.1,"alpha[1]":-.1,"beta[1]":.8},"invalid_parameters"),
