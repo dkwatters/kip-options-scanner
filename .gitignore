@@ -9,3 +9,6 @@ data/research/rce_benchmarks.sqlite
 .pytest_cache/
 data/research/*.sqlite
 logs/
+
+.local-validation/
+.pytest-baseline-v05/

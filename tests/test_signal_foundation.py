@@ -102,6 +102,19 @@ def test_weekends_and_market_holidays_are_not_sessions():
     assert result.end_date == "2026-07-06"  # July 3 observed holiday; July 4 weekend.
 
 
+def test_exceptional_full_day_closure_is_not_counted_as_a_session():
+    rows = [
+        PriceObservation(date(2025, 1, 8), 100),
+        PriceObservation(date(2025, 1, 10), 101),
+    ]
+    result = evaluate_signal_outcome(
+        signal(as_of="2025-01-08T12:00:00-05:00"), rows, 1
+    )
+    assert result.status is OutcomeStatus.EVALUATED
+    assert result.start_date == "2025-01-08"
+    assert result.end_date == "2025-01-10"
+
+
 def test_missing_interior_session_is_reported_not_substituted():
     rows = list(prices(7))
     del rows[3]

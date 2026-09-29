@@ -8,3 +8,6 @@ openai>=1.0,<2.0
 fastapi>=0.116,<1.0
 uvicorn>=0.35,<1.0
 pypdf>=5.0,<7.0
+
+# Versioned experimental GARCH fitter (CPython 3.12 Windows/manylinux wheels).
+arch==8.0.0

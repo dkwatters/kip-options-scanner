@@ -23,6 +23,13 @@ class MarketCalendarTest(unittest.TestCase):
         self.assertTrue(status.trading_day)
         self.assertEqual(status.reason, "regular trading day")
 
+    def test_exceptional_national_day_of_mourning_is_closed(self):
+        status = us_equity_market_status(date(2025, 1, 9))
+        self.assertFalse(status.trading_day)
+        self.assertIn("Jimmy Carter", status.reason)
+        self.assertTrue(us_equity_market_status(date(2025, 1, 8)).trading_day)
+        self.assertTrue(us_equity_market_status(date(2025, 1, 10)).trading_day)
+
 
 if __name__ == "__main__":
     unittest.main()
